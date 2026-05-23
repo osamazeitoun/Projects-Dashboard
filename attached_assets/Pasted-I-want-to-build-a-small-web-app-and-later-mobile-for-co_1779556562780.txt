@@ -1,0 +1,275 @@
+I want to build a small web app (and later mobile) for construction project milestones and risk impacts, to eventually integrate with Procore Scheduling.
+
+Tech stack:
+
+Frontend: React (single-page app is fine)
+
+Backend: Node.js + Express (REST API)
+
+Database: Postgres
+
+The app has three main concepts:
+
+Milestone WBS over 10 lifecycle stages
+
+Change Events for milestone date changes
+
+Company Impact Responses focused on main risks/issues
+
+Business logic (summary)
+
+There are 10 fixed project stages (WBS level 1):
+
+Pre‑design and Concept
+
+Design Development (Architecture, Structure, MEP)
+
+Authority Approvals and NOCs
+
+Detailed Design, Tender Documents and Contractor Award
+
+Construction – Shell and Core
+
+Construction – MEP Rough‑in, Blockwork and Exterior
+
+Interior Fit‑Out and Finishes
+
+External Works, Landscape and Final MEP
+
+Completion Certificate, Snagging and Authority Handover
+
+Client Handover and Defects Liability
+
+Under these stages are Milestones (WBS level 2). Some are “stage gates” (e.g., ID concept/schematic/development approvals) and some are normal milestones.
+
+Certain milestones are marked is_key_output = true (these correspond to typical milestone outputs like “Building Permit Issued”, “Practical Completion”, “Handover”).
+
+If a milestone has is_key_output = true, any date change requires PM + Client sign-off.
+
+If is_key_output = false, PM can approve the date change alone.
+
+When an approved date change happens on a milestone, the system:
+
+Updates that milestone’s current_date and previous_date
+
+Creates impact records for all companies linked to that milestone
+
+Notifies those companies via email + in-app to log main risks and issues
+
+Companies should:
+
+Only see detailed lists of milestones where they are explicitly linked.
+
+But they should see a high-level stage timeline for context (showing the 10 stages and key output milestones with their own milestones highlighted).
+
+For impact responses, I care mainly about main risks/issues, not detailed cost/time numbers. So each response should capture:
+
+Risk level (None/Low/Medium/High)
+
+Risk type (Time/Cost/Quality/Scope/Resources/Authority/Other)
+
+Main risk/issue (short text)
+
+Detailed comment (optional)
+
+Data model I want you to scaffold
+
+Please generate SQL (Postgres) table definitions and basic Express models/routes for these entities:
+
+projects
+
+id (PK)
+
+name
+
+code
+
+companies
+
+id (PK)
+
+name
+
+type (Consultant, MainContractor, Subcontractor, Supplier, Client, Internal)
+
+default_role (e.g., ArchConsultant, IDConsultant, MEPConsultant, MainContractor)
+
+project_companies (many-to-many link between projects and companies)
+
+id (PK)
+
+project_id (FK → projects.id)
+
+company_id (FK → companies.id)
+
+role_on_project (string)
+
+milestones
+
+id (PK)
+
+project_id (FK → projects.id)
+
+stage_code (string, values like ST1_PRE_DESIGN_CONCEPT … ST10_CLIENT_HANDOVER_DLP)
+
+code (e.g., “M-030”)
+
+name
+
+description
+
+owner_role (string)
+
+baseline_date (date or timestamp)
+
+current_date (date or timestamp)
+
+previous_date (date or timestamp, nullable)
+
+status (Planned / OnTrack / AtRisk / Delayed / Completed)
+
+critical_flag (boolean)
+
+is_key_output (boolean)
+
+is_payment_trigger (boolean)
+
+change_reason_latest (text, nullable)
+
+predecessor_ids (JSONB array of milestone IDs for now)
+
+procore_task_id (string, nullable – for future integration)
+
+milestone_entry_companies (which companies “enter” at a milestone)
+
+id (PK)
+
+milestone_id (FK → milestones.id)
+
+project_company_id (FK → project_companies.id)
+
+change_events (each approved or proposed date change on a milestone)
+
+id (PK)
+
+milestone_id (FK → milestones.id)
+
+initiated_by_user_id (int, nullable for now)
+
+initiated_at (timestamp)
+
+old_date (date or timestamp)
+
+proposed_new_date (date or timestamp)
+
+change_reason (text)
+
+status (enum: Draft, SentForClientReview, ClientApproved, ClientRejected, PMApproved, Cancelled)
+
+client_user_id (int, nullable)
+
+client_decision_at (timestamp, nullable)
+
+client_comment (text, nullable)
+
+milestone_impacts (company response per change event)
+
+id (PK)
+
+change_event_id (FK → change_events.id)
+
+milestone_id (FK → milestones.id)
+
+project_company_id (FK → project_companies.id)
+
+old_date (date or timestamp)
+
+new_date (date or timestamp)
+
+notified_at (timestamp)
+
+responded_at (timestamp, nullable)
+
+impact_risk_level (enum: None, Low, Medium, High)
+
+impact_risk_type (enum: Time, Cost, Quality, Scope, Resources, Authority, Other)
+
+main_risk_issue (short text)
+
+detailed_comment (text, nullable)
+
+response_status (enum: Pending, Submitted, Reviewed, Closed)
+
+pm_resolution_note (text, nullable)
+
+API endpoints to implement first
+
+Please scaffold Express routes (with basic controllers and dummy validation) for:
+
+GET /company/:companyId/projects/:projectId/milestones/upcoming
+
+Return milestones where this company is linked via milestone_entry_companies, and current_date is in the future, ordered by current_date.
+
+GET /company/:companyId/projects/:projectId/impacts/pending
+
+Return milestone_impacts with response_status = 'Pending', joined with milestone and change_event info (milestone name, stage_code, old_date, new_date, change_reason).
+
+POST /impacts/:impactId/respond
+
+Request body: { impact_risk_level, impact_risk_type, main_risk_issue, detailed_comment }
+
+Set response_status = 'Submitted' and responded_at = now.
+
+Frontend (React) – initial pages
+
+Please scaffold basic React components/pages:
+
+CompanyDashboard
+
+For selected project, show:
+
+Simple stage timeline (the 10 stages with their names; hardcode for now).
+
+Highlight count of upcoming milestones and pending responses.
+
+UpcomingMilestones
+
+Calls GET /company/:companyId/projects/:projectId/milestones/upcoming.
+
+Shows a table: Stage, Milestone name, Date, Status, Key Output badge.
+
+PendingResponses
+
+Calls GET /company/:companyId/projects/:projectId/impacts/pending.
+
+Shows list; each row has a “Respond” button that opens a small form:
+
+impact_risk_level (select)
+
+impact_risk_type (select)
+
+main_risk_issue (text input)
+
+detailed_comment (textarea)
+
+Submit → POST /impacts/:impactId/respond.
+
+Authentication can be mocked or simple for now (hardcode a companyId and projectId while we prototype).
+
+Goal for you (Replit assistant):
+
+Generate the SQL schema (Postgres) for these tables.
+
+Scaffold the Node.js/Express server with these routes and dummy handlers.
+
+Scaffold the React components/pages and wiring to the endpoints.
+
+Use simple, clean code that I can extend later to add Procore integration and more roles (PM, Client).
+
+Start by giving me:
+
+The SQL schema,
+
+The basic Express app structure with the 3 endpoints,
+
+The React component skeletons calling those endpoints.
