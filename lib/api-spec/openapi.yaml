@@ -10,6 +10,12 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: milestones
+    description: Milestone operations
+  - name: impacts
+    description: Impact response operations
+  - name: projects
+    description: Project metadata
 paths:
   /healthz:
     get:
@@ -24,13 +30,274 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /projects/{projectId}/summary:
+    get:
+      operationId: getProjectSummary
+      tags: [projects]
+      summary: Project summary with stages
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: companyId
+          required: false
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectSummary"
+
+  /company/{companyId}/projects/{projectId}/milestones/upcoming:
+    get:
+      operationId: getCompanyUpcomingMilestones
+      tags: [milestones]
+      summary: Upcoming milestones for a company on a project
+      parameters:
+        - in: path
+          name: companyId
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UpcomingMilestone"
+
+  /company/{companyId}/projects/{projectId}/impacts/pending:
+    get:
+      operationId: getCompanyPendingImpacts
+      tags: [impacts]
+      summary: Pending impact responses for a company on a project
+      parameters:
+        - in: path
+          name: companyId
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PendingImpact"
+
+  /impacts/{impactId}/respond:
+    post:
+      operationId: respondToImpact
+      tags: [impacts]
+      summary: Submit a response to an impact notification
+      parameters:
+        - in: path
+          name: impactId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImpactResponseInput"
+      responses:
+        "200":
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MilestoneImpact"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
       type: object
       properties:
-        status:
-          type: string
-      required:
-        - status
+        status: { type: string }
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+
+    StageCode:
+      type: string
+      enum:
+        - ST1_PRE_DESIGN_CONCEPT
+        - ST2_DESIGN_DEVELOPMENT
+        - ST3_AUTHORITY_APPROVALS
+        - ST4_DETAILED_DESIGN_TENDER
+        - ST5_CONSTRUCTION_SHELL_CORE
+        - ST6_CONSTRUCTION_MEP_BLOCKWORK
+        - ST7_INTERIOR_FITOUT
+        - ST8_EXTERNAL_WORKS_FINAL_MEP
+        - ST9_COMPLETION_SNAGGING_HANDOVER
+        - ST10_CLIENT_HANDOVER_DLP
+
+    MilestoneStatus:
+      type: string
+      enum: [Planned, OnTrack, AtRisk, Delayed, Completed]
+
+    ImpactRiskLevel:
+      type: string
+      enum: [None, Low, Medium, High]
+
+    ImpactRiskType:
+      type: string
+      enum: [Time, Cost, Quality, Scope, Resources, Authority, Other]
+
+    ImpactResponseStatus:
+      type: string
+      enum: [Pending, Submitted, Reviewed, Closed]
+
+    ChangeEventStatus:
+      type: string
+      enum:
+        - Draft
+        - SentForClientReview
+        - ClientApproved
+        - ClientRejected
+        - PMApproved
+        - Cancelled
+
+    StageInfo:
+      type: object
+      required: [stageCode, name, order, milestoneCount, keyOutputCount, companyMilestoneCount]
+      properties:
+        stageCode: { $ref: "#/components/schemas/StageCode" }
+        name: { type: string }
+        order: { type: integer }
+        milestoneCount: { type: integer }
+        keyOutputCount: { type: integer }
+        companyMilestoneCount: { type: integer }
+
+    ProjectSummary:
+      type: object
+      required: [projectId, projectName, projectCode, stages, upcomingMilestoneCount, pendingImpactCount]
+      properties:
+        projectId: { type: integer }
+        projectName: { type: string }
+        projectCode: { type: string }
+        stages:
+          type: array
+          items: { $ref: "#/components/schemas/StageInfo" }
+        upcomingMilestoneCount: { type: integer }
+        pendingImpactCount: { type: integer }
+
+    UpcomingMilestone:
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - stageCode
+        - stageName
+        - currentDate
+        - status
+        - isKeyOutput
+        - criticalFlag
+        - ownerRole
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        name: { type: string }
+        stageCode: { $ref: "#/components/schemas/StageCode" }
+        stageName: { type: string }
+        currentDate: { type: string, format: date-time }
+        baselineDate: { type: string, format: date-time }
+        previousDate: { type: ["string", "null"], format: date-time }
+        status: { $ref: "#/components/schemas/MilestoneStatus" }
+        isKeyOutput: { type: boolean }
+        criticalFlag: { type: boolean }
+        ownerRole: { type: string }
+
+    PendingImpact:
+      type: object
+      required:
+        - id
+        - milestoneId
+        - milestoneName
+        - milestoneCode
+        - stageCode
+        - stageName
+        - oldDate
+        - newDate
+        - changeReason
+        - changeEventStatus
+        - notifiedAt
+        - responseStatus
+      properties:
+        id: { type: integer }
+        milestoneId: { type: integer }
+        milestoneName: { type: string }
+        milestoneCode: { type: string }
+        stageCode: { $ref: "#/components/schemas/StageCode" }
+        stageName: { type: string }
+        oldDate: { type: string, format: date-time }
+        newDate: { type: string, format: date-time }
+        changeReason: { type: string }
+        changeEventStatus: { $ref: "#/components/schemas/ChangeEventStatus" }
+        notifiedAt: { type: string, format: date-time }
+        responseStatus: { $ref: "#/components/schemas/ImpactResponseStatus" }
+        isKeyOutput: { type: boolean }
+
+    ImpactResponseInput:
+      type: object
+      required: [impactRiskLevel, impactRiskType, mainRiskIssue]
+      properties:
+        impactRiskLevel: { $ref: "#/components/schemas/ImpactRiskLevel" }
+        impactRiskType: { $ref: "#/components/schemas/ImpactRiskType" }
+        mainRiskIssue: { type: string, minLength: 1 }
+        detailedComment: { type: string }
+
+    MilestoneImpact:
+      type: object
+      required:
+        - id
+        - changeEventId
+        - milestoneId
+        - projectCompanyId
+        - oldDate
+        - newDate
+        - notifiedAt
+        - responseStatus
+      properties:
+        id: { type: integer }
+        changeEventId: { type: integer }
+        milestoneId: { type: integer }
+        projectCompanyId: { type: integer }
+        oldDate: { type: string, format: date-time }
+        newDate: { type: string, format: date-time }
+        notifiedAt: { type: string, format: date-time }
+        respondedAt: { type: ["string", "null"], format: date-time }
+        impactRiskLevel: { $ref: "#/components/schemas/ImpactRiskLevel" }
+        impactRiskType: { $ref: "#/components/schemas/ImpactRiskType" }
+        mainRiskIssue: { type: ["string", "null"] }
+        detailedComment: { type: ["string", "null"] }
+        responseStatus: { $ref: "#/components/schemas/ImpactResponseStatus" }
+        pmResolutionNote: { type: ["string", "null"] }
