@@ -14,6 +14,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import PerspectiveSwitcher from "@/components/perspective-switcher";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -105,7 +106,8 @@ export default function Layout({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
-        <div className="p-3 border-t space-y-2">
+        <div className="p-3 border-t space-y-3">
+          <PerspectiveSwitcher />
           <div className="px-2 text-xs text-muted-foreground truncate">
             {user?.primaryEmailAddress?.emailAddress ?? me?.email ?? "Signed in"}
           </div>

@@ -435,6 +435,107 @@ async function main() {
     },
   ]);
 
+  // --- Second smaller project for switcher demo ---
+  const [project2] = await db
+    .insert(projects)
+    .values({ name: "Harbour Point Retail", code: "HPR-002" })
+    .returning();
+
+  const p2Pc = await db
+    .insert(projectCompanies)
+    .values([
+      { projectId: project2.id, companyId: clientCo.id, roleOnProject: "Client" },
+      { projectId: project2.id, companyId: archCo.id, roleOnProject: "ArchConsultant" },
+      { projectId: project2.id, companyId: gcCo.id, roleOnProject: "MainContractor" },
+    ])
+    .returning();
+  const p2PcByCo = new Map(p2Pc.map((pc) => [pc.companyId, pc]));
+  const p2Arch = p2PcByCo.get(archCo.id)!.id;
+  const p2Gc = p2PcByCo.get(gcCo.id)!.id;
+  const p2Client = p2PcByCo.get(clientCo.id)!.id;
+
+  const p2Milestones: SeedMilestone[] = [
+    {
+      stageCode: "ST1_PRE_DESIGN_CONCEPT",
+      code: "H-010",
+      name: "Concept Brief Signed",
+      ownerRole: "Client",
+      offsetDays: -60,
+      status: "Completed",
+      entryCompanyIds: [p2Client, p2Arch],
+    },
+    {
+      stageCode: "ST2_DESIGN_DEVELOPMENT",
+      code: "H-020",
+      name: "Tenant Mix Approved",
+      ownerRole: "ArchConsultant",
+      offsetDays: -10,
+      status: "OnTrack",
+      isKeyOutput: true,
+      entryCompanyIds: [p2Arch, p2Client],
+    },
+    {
+      stageCode: "ST3_AUTHORITY_APPROVALS",
+      code: "H-030",
+      name: "Mall Authority Approval",
+      ownerRole: "ArchConsultant",
+      offsetDays: 45,
+      status: "Planned",
+      criticalFlag: true,
+      entryCompanyIds: [p2Arch, p2Client],
+    },
+    {
+      stageCode: "ST5_CONSTRUCTION_SHELL_CORE",
+      code: "H-050",
+      name: "Shell Construction Start",
+      ownerRole: "MainContractor",
+      offsetDays: 90,
+      status: "Planned",
+      entryCompanyIds: [p2Gc],
+    },
+    {
+      stageCode: "ST10_CLIENT_HANDOVER_DLP",
+      code: "H-100",
+      name: "Mall Opening",
+      ownerRole: "Client",
+      offsetDays: 400,
+      status: "Planned",
+      isKeyOutput: true,
+      isPaymentTrigger: true,
+      entryCompanyIds: [p2Client, p2Gc, p2Arch],
+    },
+  ];
+
+  for (const m of p2Milestones) {
+    const [inserted] = await db
+      .insert(milestones)
+      .values({
+        projectId: project2.id,
+        stageCode: m.stageCode,
+        code: m.code,
+        name: m.name,
+        ownerRole: m.ownerRole,
+        baselineDate: days(m.offsetDays - 7),
+        currentDate: days(m.offsetDays),
+        previousDate: null,
+        status: m.status,
+        criticalFlag: m.criticalFlag ?? false,
+        isKeyOutput: m.isKeyOutput ?? false,
+        isPaymentTrigger: m.isPaymentTrigger ?? false,
+        changeReasonLatest: null,
+        predecessorIds: [],
+      })
+      .returning();
+    if (m.entryCompanyIds.length > 0) {
+      await db.insert(milestoneEntryCompanies).values(
+        m.entryCompanyIds.map((projectCompanyId) => ({
+          milestoneId: inserted.id,
+          projectCompanyId,
+        })),
+      );
+    }
+  }
+
   console.log("Seed complete.");
   await pool.end();
 }

@@ -12,6 +12,13 @@ import Milestones from "@/pages/milestones";
 import Responses from "@/pages/responses";
 import Landing from "@/pages/landing";
 import Layout from "@/components/layout";
+import PmLayout from "@/components/pm-layout";
+import PmDashboard from "@/pages/pm/dashboard";
+import PmSchedule from "@/pages/pm/schedule";
+import PmMilestoneDetail from "@/pages/pm/milestone-detail";
+import PmCompanies from "@/pages/pm/companies";
+import PmChangeEvents from "@/pages/pm/change-events";
+import PmChangeEventDetail from "@/pages/pm/change-event-detail";
 
 const queryClient = new QueryClient();
 
@@ -98,11 +105,24 @@ function HomeRedirect() {
   );
 }
 
-function ProtectedPage({ children }: { children: React.ReactNode }) {
+function ProtectedContractorPage({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Show when="signed-in">
         <Layout>{children}</Layout>
+      </Show>
+      <Show when="signed-out">
+        <Redirect to="/" />
+      </Show>
+    </>
+  );
+}
+
+function ProtectedPmPage({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <Show when="signed-in">
+        <PmLayout>{children}</PmLayout>
       </Show>
       <Show when="signed-out">
         <Redirect to="/" />
@@ -151,13 +171,31 @@ function AppRoutes() {
             <Route path="/sign-in/*?" component={SignInPage} />
             <Route path="/sign-up/*?" component={SignUpPage} />
             <Route path="/dashboard">
-              <ProtectedPage><Dashboard /></ProtectedPage>
+              <ProtectedContractorPage><Dashboard /></ProtectedContractorPage>
             </Route>
             <Route path="/milestones">
-              <ProtectedPage><Milestones /></ProtectedPage>
+              <ProtectedContractorPage><Milestones /></ProtectedContractorPage>
             </Route>
             <Route path="/responses">
-              <ProtectedPage><Responses /></ProtectedPage>
+              <ProtectedContractorPage><Responses /></ProtectedContractorPage>
+            </Route>
+            <Route path="/pm">
+              <ProtectedPmPage><PmDashboard /></ProtectedPmPage>
+            </Route>
+            <Route path="/pm/schedule">
+              <ProtectedPmPage><PmSchedule /></ProtectedPmPage>
+            </Route>
+            <Route path="/pm/milestone/:id">
+              <ProtectedPmPage><PmMilestoneDetail /></ProtectedPmPage>
+            </Route>
+            <Route path="/pm/companies">
+              <ProtectedPmPage><PmCompanies /></ProtectedPmPage>
+            </Route>
+            <Route path="/pm/change-events">
+              <ProtectedPmPage><PmChangeEvents /></ProtectedPmPage>
+            </Route>
+            <Route path="/pm/change-event/:id">
+              <ProtectedPmPage><PmChangeEventDetail /></ProtectedPmPage>
             </Route>
             <Route component={NotFound} />
           </Switch>

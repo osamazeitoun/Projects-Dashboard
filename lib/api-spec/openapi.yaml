@@ -119,6 +119,138 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List all projects
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProjectListItem" }
+
+  /projects/{projectId}/pm-summary:
+    get:
+      operationId: getPmProjectSummary
+      tags: [projects]
+      summary: PM project dashboard summary
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PmProjectSummary" }
+
+  /projects/{projectId}/milestones:
+    get:
+      operationId: getProjectMilestones
+      tags: [milestones]
+      summary: Master schedule – all milestones for a project
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PmMilestone" }
+
+  /milestones/{milestoneId}/detail:
+    get:
+      operationId: getMilestoneDetail
+      tags: [milestones]
+      summary: Full milestone detail (PM view) with change history and responses
+      parameters:
+        - in: path
+          name: milestoneId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MilestoneDetail" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /projects/{projectId}/companies:
+    get:
+      operationId: getProjectCompanies
+      tags: [projects]
+      summary: Companies participating in a project, with responsiveness rollups
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProjectCompanyDetail" }
+
+  /projects/{projectId}/change-events:
+    get:
+      operationId: getProjectChangeEvents
+      tags: [impacts]
+      summary: Chronological list of all change events on a project
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ChangeEventSummary" }
+
+  /change-events/{changeEventId}/detail:
+    get:
+      operationId: getChangeEventDetail
+      tags: [impacts]
+      summary: Drill-in detail for a change event including all per-company responses
+      parameters:
+        - in: path
+          name: changeEventId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChangeEventDetail" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /impacts/{impactId}/respond:
     post:
       operationId: respondToImpact
@@ -295,6 +427,322 @@ components:
         notifiedAt: { type: string, format: date-time }
         responseStatus: { $ref: "#/components/schemas/ImpactResponseStatus" }
         isKeyOutput: { type: boolean }
+
+    ProjectListItem:
+      type: object
+      required: [id, name, code, companyCount, milestoneCount]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        code: { type: string }
+        companyCount: { type: integer }
+        milestoneCount: { type: integer }
+
+    StageBreakdown:
+      type: object
+      required: [stageCode, name, order, milestoneCount, atRiskCount, completedCount]
+      properties:
+        stageCode: { $ref: "#/components/schemas/StageCode" }
+        name: { type: string }
+        order: { type: integer }
+        milestoneCount: { type: integer }
+        atRiskCount: { type: integer }
+        completedCount: { type: integer }
+
+    PmActivityItem:
+      type: object
+      required: [id, kind, at, summary]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [ChangeEventOpened, ImpactResponded] }
+        at: { type: string, format: date-time }
+        summary: { type: string }
+        milestoneId: { type: ["integer", "null"] }
+        milestoneCode: { type: ["string", "null"] }
+        changeEventId: { type: ["integer", "null"] }
+        companyName: { type: ["string", "null"] }
+
+    PmProjectSummary:
+      type: object
+      required:
+        - projectId
+        - projectName
+        - projectCode
+        - gcCompanyName
+        - totalMilestones
+        - atRiskMilestoneCount
+        - delayedMilestoneCount
+        - completedMilestoneCount
+        - openChangeEventCount
+        - pendingResponseCount
+        - overdueResponseCount
+        - keyOutputCount
+        - stages
+        - recentActivity
+      properties:
+        projectId: { type: integer }
+        projectName: { type: string }
+        projectCode: { type: string }
+        gcCompanyName: { type: string }
+        totalMilestones: { type: integer }
+        atRiskMilestoneCount: { type: integer }
+        delayedMilestoneCount: { type: integer }
+        completedMilestoneCount: { type: integer }
+        openChangeEventCount: { type: integer }
+        pendingResponseCount: { type: integer }
+        overdueResponseCount: { type: integer }
+        keyOutputCount: { type: integer }
+        stages:
+          type: array
+          items: { $ref: "#/components/schemas/StageBreakdown" }
+        recentActivity:
+          type: array
+          items: { $ref: "#/components/schemas/PmActivityItem" }
+
+    PmMilestoneCompany:
+      type: object
+      required: [projectCompanyId, companyId, name, role]
+      properties:
+        projectCompanyId: { type: integer }
+        companyId: { type: integer }
+        name: { type: string }
+        role: { type: string }
+
+    PmMilestone:
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - stageCode
+        - stageName
+        - stageOrder
+        - status
+        - ownerRole
+        - currentDate
+        - baselineDate
+        - isKeyOutput
+        - criticalFlag
+        - isPaymentTrigger
+        - owningCompanies
+        - contributorCompanies
+        - openChangeEventCount
+        - pendingResponseCount
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        name: { type: string }
+        stageCode: { $ref: "#/components/schemas/StageCode" }
+        stageName: { type: string }
+        stageOrder: { type: integer }
+        status: { $ref: "#/components/schemas/MilestoneStatus" }
+        ownerRole: { type: string }
+        currentDate: { type: string, format: date-time }
+        baselineDate: { type: string, format: date-time }
+        previousDate: { type: ["string", "null"], format: date-time }
+        isKeyOutput: { type: boolean }
+        criticalFlag: { type: boolean }
+        isPaymentTrigger: { type: boolean }
+        owningCompanies:
+          type: array
+          items: { $ref: "#/components/schemas/PmMilestoneCompany" }
+        contributorCompanies:
+          type: array
+          items: { $ref: "#/components/schemas/PmMilestoneCompany" }
+        openChangeEventCount: { type: integer }
+        pendingResponseCount: { type: integer }
+
+    MilestoneImpactDetail:
+      type: object
+      required: [id, projectCompanyId, companyName, companyRole, responseStatus, notifiedAt]
+      properties:
+        id: { type: integer }
+        projectCompanyId: { type: integer }
+        companyName: { type: string }
+        companyRole: { type: string }
+        responseStatus: { $ref: "#/components/schemas/ImpactResponseStatus" }
+        notifiedAt: { type: string, format: date-time }
+        respondedAt: { type: ["string", "null"], format: date-time }
+        impactRiskLevel:
+          oneOf:
+            - { $ref: "#/components/schemas/ImpactRiskLevel" }
+            - { type: "null" }
+        impactRiskType:
+          oneOf:
+            - { $ref: "#/components/schemas/ImpactRiskType" }
+            - { type: "null" }
+        mainRiskIssue: { type: ["string", "null"] }
+        detailedComment: { type: ["string", "null"] }
+
+    ChangeEventHistoryItem:
+      type: object
+      required: [id, initiatedAt, oldDate, proposedNewDate, changeReason, status, impacts]
+      properties:
+        id: { type: integer }
+        initiatedAt: { type: string, format: date-time }
+        oldDate: { type: string, format: date-time }
+        proposedNewDate: { type: string, format: date-time }
+        changeReason: { type: string }
+        status: { $ref: "#/components/schemas/ChangeEventStatus" }
+        impacts:
+          type: array
+          items: { $ref: "#/components/schemas/MilestoneImpactDetail" }
+
+    MilestoneDetail:
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - stageCode
+        - stageName
+        - stageOrder
+        - status
+        - ownerRole
+        - baselineDate
+        - currentDate
+        - isKeyOutput
+        - criticalFlag
+        - isPaymentTrigger
+        - owningCompanies
+        - contributorCompanies
+        - changeEvents
+        - outstandingCompanies
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        stageCode: { $ref: "#/components/schemas/StageCode" }
+        stageName: { type: string }
+        stageOrder: { type: integer }
+        status: { $ref: "#/components/schemas/MilestoneStatus" }
+        ownerRole: { type: string }
+        baselineDate: { type: string, format: date-time }
+        currentDate: { type: string, format: date-time }
+        previousDate: { type: ["string", "null"], format: date-time }
+        isKeyOutput: { type: boolean }
+        criticalFlag: { type: boolean }
+        isPaymentTrigger: { type: boolean }
+        changeReasonLatest: { type: ["string", "null"] }
+        owningCompanies:
+          type: array
+          items: { $ref: "#/components/schemas/PmMilestoneCompany" }
+        contributorCompanies:
+          type: array
+          items: { $ref: "#/components/schemas/PmMilestoneCompany" }
+        changeEvents:
+          type: array
+          items: { $ref: "#/components/schemas/ChangeEventHistoryItem" }
+        outstandingCompanies:
+          type: array
+          items: { $ref: "#/components/schemas/PmMilestoneCompany" }
+
+    ProjectCompanyDetail:
+      type: object
+      required:
+        - projectCompanyId
+        - companyId
+        - name
+        - type
+        - roleOnProject
+        - ownedMilestoneCount
+        - contributorMilestoneCount
+        - primaryContactName
+        - primaryContactEmail
+        - totalImpacts
+        - pendingImpacts
+        - respondedImpacts
+        - overdueImpacts
+        - responsiveness
+      properties:
+        projectCompanyId: { type: integer }
+        companyId: { type: integer }
+        name: { type: string }
+        type: { type: string }
+        roleOnProject: { type: string }
+        ownedMilestoneCount: { type: integer }
+        contributorMilestoneCount: { type: integer }
+        primaryContactName: { type: string }
+        primaryContactEmail: { type: string }
+        totalImpacts: { type: integer }
+        pendingImpacts: { type: integer }
+        respondedImpacts: { type: integer }
+        overdueImpacts: { type: integer }
+        avgResponseHours: { type: ["number", "null"] }
+        responsiveness:
+          type: string
+          enum: [Responsive, Slow, NonResponding, NoData]
+
+    ChangeEventSummary:
+      type: object
+      required:
+        - id
+        - milestoneId
+        - milestoneCode
+        - milestoneName
+        - stageCode
+        - stageName
+        - initiatedAt
+        - oldDate
+        - proposedNewDate
+        - changeReason
+        - status
+        - impactedCompanyCount
+        - respondedCount
+        - pendingCount
+        - rollupStatus
+      properties:
+        id: { type: integer }
+        milestoneId: { type: integer }
+        milestoneCode: { type: string }
+        milestoneName: { type: string }
+        stageCode: { $ref: "#/components/schemas/StageCode" }
+        stageName: { type: string }
+        initiatedAt: { type: string, format: date-time }
+        oldDate: { type: string, format: date-time }
+        proposedNewDate: { type: string, format: date-time }
+        changeReason: { type: string }
+        status: { $ref: "#/components/schemas/ChangeEventStatus" }
+        impactedCompanyCount: { type: integer }
+        respondedCount: { type: integer }
+        pendingCount: { type: integer }
+        rollupStatus:
+          type: string
+          enum: [Pending, PartiallyResponded, FullyResponded]
+
+    ChangeEventDetail:
+      type: object
+      required:
+        - id
+        - milestoneId
+        - milestoneCode
+        - milestoneName
+        - stageCode
+        - stageName
+        - initiatedAt
+        - oldDate
+        - proposedNewDate
+        - changeReason
+        - status
+        - impacts
+      properties:
+        id: { type: integer }
+        milestoneId: { type: integer }
+        milestoneCode: { type: string }
+        milestoneName: { type: string }
+        stageCode: { $ref: "#/components/schemas/StageCode" }
+        stageName: { type: string }
+        initiatedAt: { type: string, format: date-time }
+        oldDate: { type: string, format: date-time }
+        proposedNewDate: { type: string, format: date-time }
+        changeReason: { type: string }
+        status: { $ref: "#/components/schemas/ChangeEventStatus" }
+        clientComment: { type: ["string", "null"] }
+        clientDecisionAt: { type: ["string", "null"], format: date-time }
+        impacts:
+          type: array
+          items: { $ref: "#/components/schemas/MilestoneImpactDetail" }
 
     ImpactResponseInput:
       type: object

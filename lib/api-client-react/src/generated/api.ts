@@ -20,12 +20,19 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ChangeEventDetail,
+  ChangeEventSummary,
   ErrorResponse,
   HealthStatus,
   ImpactResponseInput,
   Me,
+  MilestoneDetail,
   MilestoneImpact,
   PendingImpact,
+  PmMilestone,
+  PmProjectSummary,
+  ProjectCompanyDetail,
+  ProjectListItem,
   ProjectSummary,
   UpcomingMilestone
 } from './api.schemas';
@@ -416,6 +423,545 @@ export function useGetMyPendingImpacts<TData = Awaited<ReturnType<typeof getMyPe
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMyPendingImpactsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListProjectsUrl = () => {
+
+
+
+
+  return `/api/projects`
+}
+
+/**
+ * @summary List all projects
+ */
+export const listProjects = async ( options?: RequestInit): Promise<ProjectListItem[]> => {
+
+  return customFetch<ProjectListItem[]>(getListProjectsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProjectsQueryKey = () => {
+    return [
+    `/api/projects`
+    ] as const;
+    }
+
+
+export const getListProjectsQueryOptions = <TData = Awaited<ReturnType<typeof listProjects>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProjectsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjects>>> = ({ signal }) => listProjects({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProjectsQueryResult = NonNullable<Awaited<ReturnType<typeof listProjects>>>
+export type ListProjectsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all projects
+ */
+
+export function useListProjects<TData = Awaited<ReturnType<typeof listProjects>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProjectsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPmProjectSummaryUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/projects/${projectId}/pm-summary`
+}
+
+/**
+ * @summary PM project dashboard summary
+ */
+export const getPmProjectSummary = async (projectId: number, options?: RequestInit): Promise<PmProjectSummary> => {
+
+  return customFetch<PmProjectSummary>(getGetPmProjectSummaryUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPmProjectSummaryQueryKey = (projectId: number,) => {
+    return [
+    `/api/projects/${projectId}/pm-summary`
+    ] as const;
+    }
+
+
+export const getGetPmProjectSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getPmProjectSummary>>, TError = ErrorType<unknown>>(projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPmProjectSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPmProjectSummaryQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPmProjectSummary>>> = ({ signal }) => getPmProjectSummary(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(projectId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPmProjectSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPmProjectSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getPmProjectSummary>>>
+export type GetPmProjectSummaryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary PM project dashboard summary
+ */
+
+export function useGetPmProjectSummary<TData = Awaited<ReturnType<typeof getPmProjectSummary>>, TError = ErrorType<unknown>>(
+ projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPmProjectSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPmProjectSummaryQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetProjectMilestonesUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/projects/${projectId}/milestones`
+}
+
+/**
+ * @summary Master schedule – all milestones for a project
+ */
+export const getProjectMilestones = async (projectId: number, options?: RequestInit): Promise<PmMilestone[]> => {
+
+  return customFetch<PmMilestone[]>(getGetProjectMilestonesUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProjectMilestonesQueryKey = (projectId: number,) => {
+    return [
+    `/api/projects/${projectId}/milestones`
+    ] as const;
+    }
+
+
+export const getGetProjectMilestonesQueryOptions = <TData = Awaited<ReturnType<typeof getProjectMilestones>>, TError = ErrorType<unknown>>(projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectMilestones>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProjectMilestonesQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProjectMilestones>>> = ({ signal }) => getProjectMilestones(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(projectId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProjectMilestones>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProjectMilestonesQueryResult = NonNullable<Awaited<ReturnType<typeof getProjectMilestones>>>
+export type GetProjectMilestonesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Master schedule – all milestones for a project
+ */
+
+export function useGetProjectMilestones<TData = Awaited<ReturnType<typeof getProjectMilestones>>, TError = ErrorType<unknown>>(
+ projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectMilestones>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProjectMilestonesQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetMilestoneDetailUrl = (milestoneId: number,) => {
+
+
+
+
+  return `/api/milestones/${milestoneId}/detail`
+}
+
+/**
+ * @summary Full milestone detail (PM view) with change history and responses
+ */
+export const getMilestoneDetail = async (milestoneId: number, options?: RequestInit): Promise<MilestoneDetail> => {
+
+  return customFetch<MilestoneDetail>(getGetMilestoneDetailUrl(milestoneId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMilestoneDetailQueryKey = (milestoneId: number,) => {
+    return [
+    `/api/milestones/${milestoneId}/detail`
+    ] as const;
+    }
+
+
+export const getGetMilestoneDetailQueryOptions = <TData = Awaited<ReturnType<typeof getMilestoneDetail>>, TError = ErrorType<ErrorResponse>>(milestoneId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMilestoneDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMilestoneDetailQueryKey(milestoneId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMilestoneDetail>>> = ({ signal }) => getMilestoneDetail(milestoneId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(milestoneId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMilestoneDetail>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMilestoneDetailQueryResult = NonNullable<Awaited<ReturnType<typeof getMilestoneDetail>>>
+export type GetMilestoneDetailQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Full milestone detail (PM view) with change history and responses
+ */
+
+export function useGetMilestoneDetail<TData = Awaited<ReturnType<typeof getMilestoneDetail>>, TError = ErrorType<ErrorResponse>>(
+ milestoneId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMilestoneDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMilestoneDetailQueryOptions(milestoneId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetProjectCompaniesUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/projects/${projectId}/companies`
+}
+
+/**
+ * @summary Companies participating in a project, with responsiveness rollups
+ */
+export const getProjectCompanies = async (projectId: number, options?: RequestInit): Promise<ProjectCompanyDetail[]> => {
+
+  return customFetch<ProjectCompanyDetail[]>(getGetProjectCompaniesUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProjectCompaniesQueryKey = (projectId: number,) => {
+    return [
+    `/api/projects/${projectId}/companies`
+    ] as const;
+    }
+
+
+export const getGetProjectCompaniesQueryOptions = <TData = Awaited<ReturnType<typeof getProjectCompanies>>, TError = ErrorType<unknown>>(projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectCompanies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProjectCompaniesQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProjectCompanies>>> = ({ signal }) => getProjectCompanies(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(projectId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProjectCompanies>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProjectCompaniesQueryResult = NonNullable<Awaited<ReturnType<typeof getProjectCompanies>>>
+export type GetProjectCompaniesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Companies participating in a project, with responsiveness rollups
+ */
+
+export function useGetProjectCompanies<TData = Awaited<ReturnType<typeof getProjectCompanies>>, TError = ErrorType<unknown>>(
+ projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectCompanies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProjectCompaniesQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetProjectChangeEventsUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/projects/${projectId}/change-events`
+}
+
+/**
+ * @summary Chronological list of all change events on a project
+ */
+export const getProjectChangeEvents = async (projectId: number, options?: RequestInit): Promise<ChangeEventSummary[]> => {
+
+  return customFetch<ChangeEventSummary[]>(getGetProjectChangeEventsUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProjectChangeEventsQueryKey = (projectId: number,) => {
+    return [
+    `/api/projects/${projectId}/change-events`
+    ] as const;
+    }
+
+
+export const getGetProjectChangeEventsQueryOptions = <TData = Awaited<ReturnType<typeof getProjectChangeEvents>>, TError = ErrorType<unknown>>(projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectChangeEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProjectChangeEventsQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProjectChangeEvents>>> = ({ signal }) => getProjectChangeEvents(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(projectId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProjectChangeEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProjectChangeEventsQueryResult = NonNullable<Awaited<ReturnType<typeof getProjectChangeEvents>>>
+export type GetProjectChangeEventsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Chronological list of all change events on a project
+ */
+
+export function useGetProjectChangeEvents<TData = Awaited<ReturnType<typeof getProjectChangeEvents>>, TError = ErrorType<unknown>>(
+ projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectChangeEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProjectChangeEventsQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetChangeEventDetailUrl = (changeEventId: number,) => {
+
+
+
+
+  return `/api/change-events/${changeEventId}/detail`
+}
+
+/**
+ * @summary Drill-in detail for a change event including all per-company responses
+ */
+export const getChangeEventDetail = async (changeEventId: number, options?: RequestInit): Promise<ChangeEventDetail> => {
+
+  return customFetch<ChangeEventDetail>(getGetChangeEventDetailUrl(changeEventId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetChangeEventDetailQueryKey = (changeEventId: number,) => {
+    return [
+    `/api/change-events/${changeEventId}/detail`
+    ] as const;
+    }
+
+
+export const getGetChangeEventDetailQueryOptions = <TData = Awaited<ReturnType<typeof getChangeEventDetail>>, TError = ErrorType<ErrorResponse>>(changeEventId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getChangeEventDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetChangeEventDetailQueryKey(changeEventId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getChangeEventDetail>>> = ({ signal }) => getChangeEventDetail(changeEventId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(changeEventId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getChangeEventDetail>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetChangeEventDetailQueryResult = NonNullable<Awaited<ReturnType<typeof getChangeEventDetail>>>
+export type GetChangeEventDetailQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Drill-in detail for a change event including all per-company responses
+ */
+
+export function useGetChangeEventDetail<TData = Awaited<ReturnType<typeof getChangeEventDetail>>, TError = ErrorType<ErrorResponse>>(
+ changeEventId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getChangeEventDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetChangeEventDetailQueryOptions(changeEventId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

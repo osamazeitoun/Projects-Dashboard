@@ -135,6 +135,220 @@ export interface PendingImpact {
   isKeyOutput?: boolean;
 }
 
+export interface ProjectListItem {
+  id: number;
+  name: string;
+  code: string;
+  companyCount: number;
+  milestoneCount: number;
+}
+
+export interface StageBreakdown {
+  stageCode: StageCode;
+  name: string;
+  order: number;
+  milestoneCount: number;
+  atRiskCount: number;
+  completedCount: number;
+}
+
+export type PmActivityItemKind = typeof PmActivityItemKind[keyof typeof PmActivityItemKind];
+
+
+export const PmActivityItemKind = {
+  ChangeEventOpened: 'ChangeEventOpened',
+  ImpactResponded: 'ImpactResponded',
+} as const;
+
+export interface PmActivityItem {
+  id: string;
+  kind: PmActivityItemKind;
+  at: string;
+  summary: string;
+  /** @nullable */
+  milestoneId?: number | null;
+  /** @nullable */
+  milestoneCode?: string | null;
+  /** @nullable */
+  changeEventId?: number | null;
+  /** @nullable */
+  companyName?: string | null;
+}
+
+export interface PmProjectSummary {
+  projectId: number;
+  projectName: string;
+  projectCode: string;
+  gcCompanyName: string;
+  totalMilestones: number;
+  atRiskMilestoneCount: number;
+  delayedMilestoneCount: number;
+  completedMilestoneCount: number;
+  openChangeEventCount: number;
+  pendingResponseCount: number;
+  overdueResponseCount: number;
+  keyOutputCount: number;
+  stages: StageBreakdown[];
+  recentActivity: PmActivityItem[];
+}
+
+export interface PmMilestoneCompany {
+  projectCompanyId: number;
+  companyId: number;
+  name: string;
+  role: string;
+}
+
+export interface PmMilestone {
+  id: number;
+  code: string;
+  name: string;
+  stageCode: StageCode;
+  stageName: string;
+  stageOrder: number;
+  status: MilestoneStatus;
+  ownerRole: string;
+  currentDate: string;
+  baselineDate: string;
+  /** @nullable */
+  previousDate?: string | null;
+  isKeyOutput: boolean;
+  criticalFlag: boolean;
+  isPaymentTrigger: boolean;
+  owningCompanies: PmMilestoneCompany[];
+  contributorCompanies: PmMilestoneCompany[];
+  openChangeEventCount: number;
+  pendingResponseCount: number;
+}
+
+export interface MilestoneImpactDetail {
+  id: number;
+  projectCompanyId: number;
+  companyName: string;
+  companyRole: string;
+  responseStatus: ImpactResponseStatus;
+  notifiedAt: string;
+  /** @nullable */
+  respondedAt?: string | null;
+  impactRiskLevel?: ImpactRiskLevel | null;
+  impactRiskType?: ImpactRiskType | null;
+  /** @nullable */
+  mainRiskIssue?: string | null;
+  /** @nullable */
+  detailedComment?: string | null;
+}
+
+export interface ChangeEventHistoryItem {
+  id: number;
+  initiatedAt: string;
+  oldDate: string;
+  proposedNewDate: string;
+  changeReason: string;
+  status: ChangeEventStatus;
+  impacts: MilestoneImpactDetail[];
+}
+
+export interface MilestoneDetail {
+  id: number;
+  code: string;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  stageCode: StageCode;
+  stageName: string;
+  stageOrder: number;
+  status: MilestoneStatus;
+  ownerRole: string;
+  baselineDate: string;
+  currentDate: string;
+  /** @nullable */
+  previousDate?: string | null;
+  isKeyOutput: boolean;
+  criticalFlag: boolean;
+  isPaymentTrigger: boolean;
+  /** @nullable */
+  changeReasonLatest?: string | null;
+  owningCompanies: PmMilestoneCompany[];
+  contributorCompanies: PmMilestoneCompany[];
+  changeEvents: ChangeEventHistoryItem[];
+  outstandingCompanies: PmMilestoneCompany[];
+}
+
+export type ProjectCompanyDetailResponsiveness = typeof ProjectCompanyDetailResponsiveness[keyof typeof ProjectCompanyDetailResponsiveness];
+
+
+export const ProjectCompanyDetailResponsiveness = {
+  Responsive: 'Responsive',
+  Slow: 'Slow',
+  NonResponding: 'NonResponding',
+  NoData: 'NoData',
+} as const;
+
+export interface ProjectCompanyDetail {
+  projectCompanyId: number;
+  companyId: number;
+  name: string;
+  type: string;
+  roleOnProject: string;
+  ownedMilestoneCount: number;
+  contributorMilestoneCount: number;
+  primaryContactName: string;
+  primaryContactEmail: string;
+  totalImpacts: number;
+  pendingImpacts: number;
+  respondedImpacts: number;
+  overdueImpacts: number;
+  /** @nullable */
+  avgResponseHours?: number | null;
+  responsiveness: ProjectCompanyDetailResponsiveness;
+}
+
+export type ChangeEventSummaryRollupStatus = typeof ChangeEventSummaryRollupStatus[keyof typeof ChangeEventSummaryRollupStatus];
+
+
+export const ChangeEventSummaryRollupStatus = {
+  Pending: 'Pending',
+  PartiallyResponded: 'PartiallyResponded',
+  FullyResponded: 'FullyResponded',
+} as const;
+
+export interface ChangeEventSummary {
+  id: number;
+  milestoneId: number;
+  milestoneCode: string;
+  milestoneName: string;
+  stageCode: StageCode;
+  stageName: string;
+  initiatedAt: string;
+  oldDate: string;
+  proposedNewDate: string;
+  changeReason: string;
+  status: ChangeEventStatus;
+  impactedCompanyCount: number;
+  respondedCount: number;
+  pendingCount: number;
+  rollupStatus: ChangeEventSummaryRollupStatus;
+}
+
+export interface ChangeEventDetail {
+  id: number;
+  milestoneId: number;
+  milestoneCode: string;
+  milestoneName: string;
+  stageCode: StageCode;
+  stageName: string;
+  initiatedAt: string;
+  oldDate: string;
+  proposedNewDate: string;
+  changeReason: string;
+  status: ChangeEventStatus;
+  /** @nullable */
+  clientComment?: string | null;
+  /** @nullable */
+  clientDecisionAt?: string | null;
+  impacts: MilestoneImpactDetail[];
+}
+
 export interface ImpactResponseInput {
   impactRiskLevel: ImpactRiskLevel;
   impactRiskType: ImpactRiskType;
