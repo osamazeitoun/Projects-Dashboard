@@ -173,6 +173,28 @@ export const milestoneImpacts = pgTable("milestone_impacts", {
   pmResolutionNote: text("pm_resolution_note"),
 });
 
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  clerkUserId: text("clerk_user_id").notNull().unique(),
+  email: text("email"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const userCompanies = pgTable("user_companies", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  companyId: integer("company_id")
+    .notNull()
+    .references(() => companies.id, { onDelete: "cascade" }),
+  role: text("role").notNull().default("member"),
+});
+
+export type User = typeof users.$inferSelect;
+export type UserCompany = typeof userCompanies.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type Company = typeof companies.$inferSelect;
 export type Milestone = typeof milestones.$inferSelect;

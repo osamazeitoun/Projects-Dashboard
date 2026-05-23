@@ -7,13 +7,14 @@
  */
 
 export * from './changeEventStatus';
+export * from './companyMembership';
 export * from './errorResponse';
-export * from './getProjectSummaryParams';
 export * from './healthStatus';
 export * from './impactResponseInput';
 export * from './impactResponseStatus';
 export * from './impactRiskLevel';
 export * from './impactRiskType';
+export * from './me';
 export * from './milestoneImpact';
 export * from './milestoneStatus';
 export * from './pendingImpact';

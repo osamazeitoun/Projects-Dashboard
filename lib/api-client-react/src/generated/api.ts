@@ -21,9 +21,9 @@ import type {
 
 import type {
   ErrorResponse,
-  GetProjectSummaryParams,
   HealthStatus,
   ImpactResponseInput,
+  Me,
   MilestoneImpact,
   PendingImpact,
   ProjectSummary,
@@ -120,29 +120,20 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
-export const getGetProjectSummaryUrl = (projectId: number,
-    params?: GetProjectSummaryParams,) => {
-  const normalizedParams = new URLSearchParams();
+export const getGetMeUrl = () => {
 
-  Object.entries(params || {}).forEach(([key, value]) => {
 
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
-    }
-  });
 
-  const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/api/projects/${projectId}/summary?${stringifiedParams}` : `/api/projects/${projectId}/summary`
+  return `/api/me`
 }
 
 /**
- * @summary Project summary with stages
+ * @summary Current user, their companies, and active project
  */
-export const getProjectSummary = async (projectId: number,
-    params?: GetProjectSummaryParams, options?: RequestInit): Promise<ProjectSummary> => {
+export const getMe = async ( options?: RequestInit): Promise<Me> => {
 
-  return customFetch<ProjectSummary>(getGetProjectSummaryUrl(projectId,params),
+  return customFetch<Me>(getGetMeUrl(),
   {
     ...options,
     method: 'GET'
@@ -155,48 +146,45 @@ export const getProjectSummary = async (projectId: number,
 
 
 
-export const getGetProjectSummaryQueryKey = (projectId: number,
-    params?: GetProjectSummaryParams,) => {
+export const getGetMeQueryKey = () => {
     return [
-    `/api/projects/${projectId}/summary`, ...(params ? [params] : [])
+    `/api/me`
     ] as const;
     }
 
 
-export const getGetProjectSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getProjectSummary>>, TError = ErrorType<unknown>>(projectId: number,
-    params?: GetProjectSummaryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetMeQueryOptions = <TData = Awaited<ReturnType<typeof getMe>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetProjectSummaryQueryKey(projectId,params);
+  const queryKey =  queryOptions?.queryKey ?? getGetMeQueryKey();
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProjectSummary>>> = ({ signal }) => getProjectSummary(projectId,params, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMe>>> = ({ signal }) => getMe({ signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: !!(projectId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProjectSummary>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetProjectSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getProjectSummary>>>
-export type GetProjectSummaryQueryError = ErrorType<unknown>
+export type GetMeQueryResult = NonNullable<Awaited<ReturnType<typeof getMe>>>
+export type GetMeQueryError = ErrorType<ErrorResponse>
 
 
 /**
- * @summary Project summary with stages
+ * @summary Current user, their companies, and active project
  */
 
-export function useGetProjectSummary<TData = Awaited<ReturnType<typeof getProjectSummary>>, TError = ErrorType<unknown>>(
- projectId: number,
-    params?: GetProjectSummaryParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetProjectSummaryQueryOptions(projectId,params,options)
+  const queryOptions = getGetMeQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -209,22 +197,20 @@ export function useGetProjectSummary<TData = Awaited<ReturnType<typeof getProjec
 
 
 
-export const getGetCompanyUpcomingMilestonesUrl = (companyId: number,
-    projectId: number,) => {
+export const getGetMyProjectSummaryUrl = () => {
 
 
 
 
-  return `/api/company/${companyId}/projects/${projectId}/milestones/upcoming`
+  return `/api/me/summary`
 }
 
 /**
- * @summary Upcoming milestones for a company on a project
+ * @summary Project summary for the signed-in user's active project
  */
-export const getCompanyUpcomingMilestones = async (companyId: number,
-    projectId: number, options?: RequestInit): Promise<UpcomingMilestone[]> => {
+export const getMyProjectSummary = async ( options?: RequestInit): Promise<ProjectSummary> => {
 
-  return customFetch<UpcomingMilestone[]>(getGetCompanyUpcomingMilestonesUrl(companyId,projectId),
+  return customFetch<ProjectSummary>(getGetMyProjectSummaryUrl(),
   {
     ...options,
     method: 'GET'
@@ -237,48 +223,45 @@ export const getCompanyUpcomingMilestones = async (companyId: number,
 
 
 
-export const getGetCompanyUpcomingMilestonesQueryKey = (companyId: number,
-    projectId: number,) => {
+export const getGetMyProjectSummaryQueryKey = () => {
     return [
-    `/api/company/${companyId}/projects/${projectId}/milestones/upcoming`
+    `/api/me/summary`
     ] as const;
     }
 
 
-export const getGetCompanyUpcomingMilestonesQueryOptions = <TData = Awaited<ReturnType<typeof getCompanyUpcomingMilestones>>, TError = ErrorType<unknown>>(companyId: number,
-    projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCompanyUpcomingMilestones>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetMyProjectSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getMyProjectSummary>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProjectSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetCompanyUpcomingMilestonesQueryKey(companyId,projectId);
+  const queryKey =  queryOptions?.queryKey ?? getGetMyProjectSummaryQueryKey();
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCompanyUpcomingMilestones>>> = ({ signal }) => getCompanyUpcomingMilestones(companyId,projectId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyProjectSummary>>> = ({ signal }) => getMyProjectSummary({ signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: !!(companyId && projectId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCompanyUpcomingMilestones>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyProjectSummary>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetCompanyUpcomingMilestonesQueryResult = NonNullable<Awaited<ReturnType<typeof getCompanyUpcomingMilestones>>>
-export type GetCompanyUpcomingMilestonesQueryError = ErrorType<unknown>
+export type GetMyProjectSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getMyProjectSummary>>>
+export type GetMyProjectSummaryQueryError = ErrorType<ErrorResponse>
 
 
 /**
- * @summary Upcoming milestones for a company on a project
+ * @summary Project summary for the signed-in user's active project
  */
 
-export function useGetCompanyUpcomingMilestones<TData = Awaited<ReturnType<typeof getCompanyUpcomingMilestones>>, TError = ErrorType<unknown>>(
- companyId: number,
-    projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCompanyUpcomingMilestones>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetMyProjectSummary<TData = Awaited<ReturnType<typeof getMyProjectSummary>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProjectSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetCompanyUpcomingMilestonesQueryOptions(companyId,projectId,options)
+  const queryOptions = getGetMyProjectSummaryQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -291,22 +274,20 @@ export function useGetCompanyUpcomingMilestones<TData = Awaited<ReturnType<typeo
 
 
 
-export const getGetCompanyPendingImpactsUrl = (companyId: number,
-    projectId: number,) => {
+export const getGetMyUpcomingMilestonesUrl = () => {
 
 
 
 
-  return `/api/company/${companyId}/projects/${projectId}/impacts/pending`
+  return `/api/me/milestones/upcoming`
 }
 
 /**
- * @summary Pending impact responses for a company on a project
+ * @summary Upcoming milestones for the signed-in user's company on the active project
  */
-export const getCompanyPendingImpacts = async (companyId: number,
-    projectId: number, options?: RequestInit): Promise<PendingImpact[]> => {
+export const getMyUpcomingMilestones = async ( options?: RequestInit): Promise<UpcomingMilestone[]> => {
 
-  return customFetch<PendingImpact[]>(getGetCompanyPendingImpactsUrl(companyId,projectId),
+  return customFetch<UpcomingMilestone[]>(getGetMyUpcomingMilestonesUrl(),
   {
     ...options,
     method: 'GET'
@@ -319,48 +300,122 @@ export const getCompanyPendingImpacts = async (companyId: number,
 
 
 
-export const getGetCompanyPendingImpactsQueryKey = (companyId: number,
-    projectId: number,) => {
+export const getGetMyUpcomingMilestonesQueryKey = () => {
     return [
-    `/api/company/${companyId}/projects/${projectId}/impacts/pending`
+    `/api/me/milestones/upcoming`
     ] as const;
     }
 
 
-export const getGetCompanyPendingImpactsQueryOptions = <TData = Awaited<ReturnType<typeof getCompanyPendingImpacts>>, TError = ErrorType<unknown>>(companyId: number,
-    projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCompanyPendingImpacts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetMyUpcomingMilestonesQueryOptions = <TData = Awaited<ReturnType<typeof getMyUpcomingMilestones>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyUpcomingMilestones>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetCompanyPendingImpactsQueryKey(companyId,projectId);
+  const queryKey =  queryOptions?.queryKey ?? getGetMyUpcomingMilestonesQueryKey();
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCompanyPendingImpacts>>> = ({ signal }) => getCompanyPendingImpacts(companyId,projectId, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyUpcomingMilestones>>> = ({ signal }) => getMyUpcomingMilestones({ signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: !!(companyId && projectId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCompanyPendingImpacts>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyUpcomingMilestones>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetCompanyPendingImpactsQueryResult = NonNullable<Awaited<ReturnType<typeof getCompanyPendingImpacts>>>
-export type GetCompanyPendingImpactsQueryError = ErrorType<unknown>
+export type GetMyUpcomingMilestonesQueryResult = NonNullable<Awaited<ReturnType<typeof getMyUpcomingMilestones>>>
+export type GetMyUpcomingMilestonesQueryError = ErrorType<ErrorResponse>
 
 
 /**
- * @summary Pending impact responses for a company on a project
+ * @summary Upcoming milestones for the signed-in user's company on the active project
  */
 
-export function useGetCompanyPendingImpacts<TData = Awaited<ReturnType<typeof getCompanyPendingImpacts>>, TError = ErrorType<unknown>>(
- companyId: number,
-    projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCompanyPendingImpacts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useGetMyUpcomingMilestones<TData = Awaited<ReturnType<typeof getMyUpcomingMilestones>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyUpcomingMilestones>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetCompanyPendingImpactsQueryOptions(companyId,projectId,options)
+  const queryOptions = getGetMyUpcomingMilestonesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetMyPendingImpactsUrl = () => {
+
+
+
+
+  return `/api/me/impacts/pending`
+}
+
+/**
+ * @summary Pending impacts for the signed-in user's company on the active project
+ */
+export const getMyPendingImpacts = async ( options?: RequestInit): Promise<PendingImpact[]> => {
+
+  return customFetch<PendingImpact[]>(getGetMyPendingImpactsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyPendingImpactsQueryKey = () => {
+    return [
+    `/api/me/impacts/pending`
+    ] as const;
+    }
+
+
+export const getGetMyPendingImpactsQueryOptions = <TData = Awaited<ReturnType<typeof getMyPendingImpacts>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyPendingImpacts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyPendingImpactsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyPendingImpacts>>> = ({ signal }) => getMyPendingImpacts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyPendingImpacts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyPendingImpactsQueryResult = NonNullable<Awaited<ReturnType<typeof getMyPendingImpacts>>>
+export type GetMyPendingImpactsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Pending impacts for the signed-in user's company on the active project
+ */
+
+export function useGetMyPendingImpacts<TData = Awaited<ReturnType<typeof getMyPendingImpacts>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyPendingImpacts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyPendingImpactsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -18,17 +18,28 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * @summary Project summary with stages
+ * @summary Current user, their companies, and active project
  */
-export const GetProjectSummaryParams = zod.object({
-  "projectId": zod.coerce.number()
+export const GetMeResponse = zod.object({
+  "userId": zod.number(),
+  "clerkUserId": zod.string(),
+  "email": zod.string().nullish(),
+  "companies": zod.array(zod.object({
+  "companyId": zod.number(),
+  "companyName": zod.string(),
+  "role": zod.string()
+})),
+  "activeProjectId": zod.number().nullish(),
+  "activeProjectName": zod.string().nullish(),
+  "activeProjectCode": zod.string().nullish(),
+  "activeCompanyId": zod.number().nullish()
 })
 
-export const GetProjectSummaryQueryParams = zod.object({
-  "companyId": zod.coerce.number().optional()
-})
 
-export const GetProjectSummaryResponse = zod.object({
+/**
+ * @summary Project summary for the signed-in user's active project
+ */
+export const GetMyProjectSummaryResponse = zod.object({
   "projectId": zod.number(),
   "projectName": zod.string(),
   "projectCode": zod.string(),
@@ -46,14 +57,9 @@ export const GetProjectSummaryResponse = zod.object({
 
 
 /**
- * @summary Upcoming milestones for a company on a project
+ * @summary Upcoming milestones for the signed-in user's company on the active project
  */
-export const GetCompanyUpcomingMilestonesParams = zod.object({
-  "companyId": zod.coerce.number(),
-  "projectId": zod.coerce.number()
-})
-
-export const GetCompanyUpcomingMilestonesResponseItem = zod.object({
+export const GetMyUpcomingMilestonesResponseItem = zod.object({
   "id": zod.number(),
   "code": zod.string(),
   "name": zod.string(),
@@ -67,18 +73,13 @@ export const GetCompanyUpcomingMilestonesResponseItem = zod.object({
   "criticalFlag": zod.boolean(),
   "ownerRole": zod.string()
 })
-export const GetCompanyUpcomingMilestonesResponse = zod.array(GetCompanyUpcomingMilestonesResponseItem)
+export const GetMyUpcomingMilestonesResponse = zod.array(GetMyUpcomingMilestonesResponseItem)
 
 
 /**
- * @summary Pending impact responses for a company on a project
+ * @summary Pending impacts for the signed-in user's company on the active project
  */
-export const GetCompanyPendingImpactsParams = zod.object({
-  "companyId": zod.coerce.number(),
-  "projectId": zod.coerce.number()
-})
-
-export const GetCompanyPendingImpactsResponseItem = zod.object({
+export const GetMyPendingImpactsResponseItem = zod.object({
   "id": zod.number(),
   "milestoneId": zod.number(),
   "milestoneName": zod.string(),
@@ -93,7 +94,7 @@ export const GetCompanyPendingImpactsResponseItem = zod.object({
   "responseStatus": zod.enum(['Pending', 'Submitted', 'Reviewed', 'Closed']),
   "isKeyOutput": zod.boolean().optional()
 })
-export const GetCompanyPendingImpactsResponse = zod.array(GetCompanyPendingImpactsResponseItem)
+export const GetMyPendingImpactsResponse = zod.array(GetMyPendingImpactsResponseItem)
 
 
 /**

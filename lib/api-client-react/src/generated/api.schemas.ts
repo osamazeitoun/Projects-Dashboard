@@ -164,7 +164,25 @@ export interface MilestoneImpact {
   pmResolutionNote?: string | null;
 }
 
-export type GetProjectSummaryParams = {
-companyId?: number;
-};
+export interface CompanyMembership {
+  companyId: number;
+  companyName: string;
+  role: string;
+}
+
+export interface Me {
+  userId: number;
+  clerkUserId: string;
+  /** @nullable */
+  email?: string | null;
+  companies: CompanyMembership[];
+  /** @nullable */
+  activeProjectId?: number | null;
+  /** @nullable */
+  activeProjectName?: string | null;
+  /** @nullable */
+  activeProjectCode?: string | null;
+  /** @nullable */
+  activeCompanyId?: number | null;
+}
 

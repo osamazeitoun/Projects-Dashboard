@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetProjectSummaryParams = {
-companyId?: number;
-};
+export interface CompanyMembership {
+  companyId: number;
+  companyName: string;
+  role: string;
+}

@@ -1,9 +1,8 @@
-import { APP_CONFIG } from "@/lib/constants";
-import { 
-  useGetCompanyPendingImpacts, 
-  getGetCompanyPendingImpactsQueryKey,
+import {
+  useGetMyPendingImpacts,
+  getGetMyPendingImpactsQueryKey,
   useRespondToImpact,
-  getGetProjectSummaryQueryKey
+  getGetMyProjectSummaryQueryKey,
 } from "@workspace/api-client-react";
 import { format, differenceInDays } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -58,17 +57,15 @@ export default function Responses() {
   const queryClient = useQueryClient();
   const [selectedImpact, setSelectedImpact] = useState<number | null>(null);
 
-  const { data: impacts, isLoading, isError } = useGetCompanyPendingImpacts(
-    APP_CONFIG.companyId,
-    APP_CONFIG.projectId,
-    { query: { queryKey: getGetCompanyPendingImpactsQueryKey(APP_CONFIG.companyId, APP_CONFIG.projectId) } }
-  );
+  const { data: impacts, isLoading, isError } = useGetMyPendingImpacts({
+    query: { queryKey: getGetMyPendingImpactsQueryKey() },
+  });
 
   const respondMutation = useRespondToImpact({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetCompanyPendingImpactsQueryKey(APP_CONFIG.companyId, APP_CONFIG.projectId) });
-        queryClient.invalidateQueries({ queryKey: getGetProjectSummaryQueryKey(APP_CONFIG.projectId, { companyId: APP_CONFIG.companyId }) });
+        queryClient.invalidateQueries({ queryKey: getGetMyPendingImpactsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetMyProjectSummaryQueryKey() });
         toast({
           title: "Response submitted",
           description: "Your impact risk assessment has been recorded.",

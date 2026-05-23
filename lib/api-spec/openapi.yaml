@@ -16,6 +16,8 @@ tags:
     description: Impact response operations
   - name: projects
     description: Project metadata
+  - name: me
+    description: Current user
 paths:
   /healthz:
     get:
@@ -31,20 +33,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
-  /projects/{projectId}/summary:
+  /me:
     get:
-      operationId: getProjectSummary
+      operationId: getMe
+      tags: [me]
+      summary: Current user, their companies, and active project
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /me/summary:
+    get:
+      operationId: getMyProjectSummary
       tags: [projects]
-      summary: Project summary with stages
-      parameters:
-        - in: path
-          name: projectId
-          required: true
-          schema: { type: integer }
-        - in: query
-          name: companyId
-          required: false
-          schema: { type: integer }
+      summary: Project summary for the signed-in user's active project
       responses:
         "200":
           description: OK
@@ -52,21 +64,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProjectSummary"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No accessible project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
-  /company/{companyId}/projects/{projectId}/milestones/upcoming:
+  /me/milestones/upcoming:
     get:
-      operationId: getCompanyUpcomingMilestones
+      operationId: getMyUpcomingMilestones
       tags: [milestones]
-      summary: Upcoming milestones for a company on a project
-      parameters:
-        - in: path
-          name: companyId
-          required: true
-          schema: { type: integer }
-        - in: path
-          name: projectId
-          required: true
-          schema: { type: integer }
+      summary: Upcoming milestones for the signed-in user's company on the active project
       responses:
         "200":
           description: OK
@@ -76,21 +91,18 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/UpcomingMilestone"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
-  /company/{companyId}/projects/{projectId}/impacts/pending:
+  /me/impacts/pending:
     get:
-      operationId: getCompanyPendingImpacts
+      operationId: getMyPendingImpacts
       tags: [impacts]
-      summary: Pending impact responses for a company on a project
-      parameters:
-        - in: path
-          name: companyId
-          required: true
-          schema: { type: integer }
-        - in: path
-          name: projectId
-          required: true
-          schema: { type: integer }
+      summary: Pending impacts for the signed-in user's company on the active project
       responses:
         "200":
           description: OK
@@ -100,6 +112,12 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PendingImpact"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /impacts/{impactId}/respond:
     post:
@@ -124,6 +142,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MilestoneImpact"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
           description: Not found
           content:
@@ -301,3 +331,26 @@ components:
         detailedComment: { type: ["string", "null"] }
         responseStatus: { $ref: "#/components/schemas/ImpactResponseStatus" }
         pmResolutionNote: { type: ["string", "null"] }
+
+    CompanyMembership:
+      type: object
+      required: [companyId, companyName, role]
+      properties:
+        companyId: { type: integer }
+        companyName: { type: string }
+        role: { type: string }
+
+    Me:
+      type: object
+      required: [userId, clerkUserId, companies]
+      properties:
+        userId: { type: integer }
+        clerkUserId: { type: string }
+        email: { type: ["string", "null"] }
+        companies:
+          type: array
+          items: { $ref: "#/components/schemas/CompanyMembership" }
+        activeProjectId: { type: ["integer", "null"] }
+        activeProjectName: { type: ["string", "null"] }
+        activeProjectCode: { type: ["string", "null"] }
+        activeCompanyId: { type: ["integer", "null"] }

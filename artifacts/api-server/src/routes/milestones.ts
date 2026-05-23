@@ -1,11 +1,5 @@
-import { Router, type IRouter } from "express";
-import {
-  GetCompanyUpcomingMilestonesParams,
-  GetCompanyPendingImpactsParams,
-  GetProjectSummaryParams,
-  RespondToImpactParams,
-  RespondToImpactBody,
-} from "@workspace/api-zod";
+import { Router, type IRouter, type Request, type Response } from "express";
+import { RespondToImpactParams, RespondToImpactBody } from "@workspace/api-zod";
 import { db } from "@workspace/db";
 import {
   milestones,
@@ -14,8 +8,11 @@ import {
   projectCompanies,
   changeEvents,
   projects,
+  companies,
+  userCompanies,
 } from "@workspace/db";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { requireAuth, getProjectCompanyIdsForUser } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
@@ -66,12 +63,70 @@ const STAGE_INFO = [
 
 const stageNameByCode = new Map(STAGE_INFO.map((s) => [s.code, s.name]));
 
-router.get("/projects/:projectId/summary", async (req, res) => {
-  const parsed = GetProjectSummaryParams.safeParse(req.params);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "Invalid params" });
+router.get("/me", requireAuth, async (req: Request, res: Response) => {
+  const ctx = req.auth_ctx!;
+
+  const memberships =
+    ctx.companyIds.length === 0
+      ? []
+      : await db
+          .select({
+            companyId: companies.id,
+            companyName: companies.name,
+            role: userCompanies.role,
+          })
+          .from(userCompanies)
+          .innerJoin(companies, eq(userCompanies.companyId, companies.id))
+          .where(eq(userCompanies.userId, ctx.userId));
+
+  let activeProjectName: string | null = null;
+  let activeProjectCode: string | null = null;
+  if (ctx.activeProjectId) {
+    const [p] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, ctx.activeProjectId))
+      .limit(1);
+    if (p) {
+      activeProjectName = p.name;
+      activeProjectCode = p.code;
+    }
   }
-  const { projectId } = parsed.data;
+
+  return res.json({
+    userId: ctx.userId,
+    clerkUserId: ctx.clerkUserId,
+    email: ctx.email,
+    companies: memberships,
+    activeProjectId: ctx.activeProjectId,
+    activeProjectName,
+    activeProjectCode,
+    activeCompanyId: ctx.activeCompanyId,
+  });
+});
+
+async function requireActiveProject(
+  req: Request,
+  res: Response,
+): Promise<{ projectId: number; pcIds: number[] } | null> {
+  const ctx = req.auth_ctx!;
+  if (!ctx.activeProjectId) {
+    res.status(404).json({ error: "No project accessible to this user" });
+    return null;
+  }
+  const pcIds = await getProjectCompanyIdsForUser(
+    ctx.userId,
+    ctx.activeProjectId,
+  );
+  return { projectId: ctx.activeProjectId, pcIds };
+}
+
+router.get("/me/summary", requireAuth, async (req, res) => {
+  const ctx = req.auth_ctx!;
+  if (!ctx.activeProjectId) {
+    return res.status(404).json({ error: "No project accessible to this user" });
+  }
+  const projectId = ctx.activeProjectId;
 
   const [project] = await db
     .select()
@@ -87,44 +142,29 @@ router.get("/projects/:projectId/summary", async (req, res) => {
     .from(milestones)
     .where(eq(milestones.projectId, projectId));
 
-  // For dashboard counts we don't have a companyId in this route — but the
-  // dashboard hardcodes a single company. We aggregate raw stage counts here;
-  // company-scoped counts come from the entries join.
-  const entries = await db
-    .select({
-      milestoneId: milestoneEntryCompanies.milestoneId,
-      projectCompanyId: milestoneEntryCompanies.projectCompanyId,
-    })
-    .from(milestoneEntryCompanies)
-    .innerJoin(
-      milestones,
-      eq(milestoneEntryCompanies.milestoneId, milestones.id),
-    )
-    .where(eq(milestones.projectId, projectId));
+  const pcIds = await getProjectCompanyIdsForUser(ctx.userId, projectId);
 
-  const companyId = Number(req.query.companyId ?? NaN);
-  const hasCompanyFilter = Number.isFinite(companyId);
+  const entries =
+    pcIds.length === 0
+      ? []
+      : await db
+          .select({
+            milestoneId: milestoneEntryCompanies.milestoneId,
+            projectCompanyId: milestoneEntryCompanies.projectCompanyId,
+          })
+          .from(milestoneEntryCompanies)
+          .innerJoin(
+            milestones,
+            eq(milestoneEntryCompanies.milestoneId, milestones.id),
+          )
+          .where(
+            and(
+              eq(milestones.projectId, projectId),
+              inArray(milestoneEntryCompanies.projectCompanyId, pcIds),
+            ),
+          );
 
-  // Find project_company id for this company on this project, if filter set.
-  let companyPcIds: number[] = [];
-  if (hasCompanyFilter) {
-    const pcs = await db
-      .select({ id: projectCompanies.id })
-      .from(projectCompanies)
-      .where(
-        and(
-          eq(projectCompanies.projectId, projectId),
-          eq(projectCompanies.companyId, companyId),
-        ),
-      );
-    companyPcIds = pcs.map((p) => p.id);
-  }
-
-  const companyMilestoneIds = new Set(
-    entries
-      .filter((e) => companyPcIds.includes(e.projectCompanyId))
-      .map((e) => e.milestoneId),
-  );
+  const companyMilestoneIds = new Set(entries.map((e) => e.milestoneId));
 
   const stages = STAGE_INFO.map((s) => {
     const stageMilestones = allMilestones.filter((m) => m.stageCode === s.code);
@@ -141,15 +181,13 @@ router.get("/projects/:projectId/summary", async (req, res) => {
   });
 
   const now = new Date();
-
   let upcomingCount = 0;
   let pendingCount = 0;
 
-  if (hasCompanyFilter && companyPcIds.length > 0) {
-    const upcoming = allMilestones.filter(
+  if (pcIds.length > 0) {
+    upcomingCount = allMilestones.filter(
       (m) => companyMilestoneIds.has(m.id) && m.currentDate > now,
-    );
-    upcomingCount = upcoming.length;
+    ).length;
 
     const pending = await db
       .select({ id: milestoneImpacts.id })
@@ -159,7 +197,7 @@ router.get("/projects/:projectId/summary", async (req, res) => {
         and(
           eq(milestones.projectId, projectId),
           eq(milestoneImpacts.responseStatus, "Pending"),
-          inArray(milestoneImpacts.projectCompanyId, companyPcIds),
+          inArray(milestoneImpacts.projectCompanyId, pcIds),
         ),
       );
     pendingCount = pending.length;
@@ -175,135 +213,100 @@ router.get("/projects/:projectId/summary", async (req, res) => {
   });
 });
 
-router.get(
-  "/company/:companyId/projects/:projectId/milestones/upcoming",
-  async (req, res) => {
-    const parsed = GetCompanyUpcomingMilestonesParams.safeParse(req.params);
-    if (!parsed.success) {
-      return res.status(400).json({ error: "Invalid params" });
-    }
-    const { companyId, projectId } = parsed.data;
+router.get("/me/milestones/upcoming", requireAuth, async (req, res) => {
+  const ctx = await requireActiveProject(req, res);
+  if (!ctx) return;
+  const { projectId, pcIds } = ctx;
+  if (pcIds.length === 0) return res.json([]);
 
-    const pcs = await db
-      .select({ id: projectCompanies.id })
-      .from(projectCompanies)
-      .where(
-        and(
-          eq(projectCompanies.projectId, projectId),
-          eq(projectCompanies.companyId, companyId),
-        ),
-      );
-    if (pcs.length === 0) {
-      return res.json([]);
-    }
-    const pcIds = pcs.map((p) => p.id);
+  const rows = await db
+    .selectDistinct({
+      id: milestones.id,
+      code: milestones.code,
+      name: milestones.name,
+      stageCode: milestones.stageCode,
+      currentDate: milestones.currentDate,
+      baselineDate: milestones.baselineDate,
+      previousDate: milestones.previousDate,
+      status: milestones.status,
+      isKeyOutput: milestones.isKeyOutput,
+      criticalFlag: milestones.criticalFlag,
+      ownerRole: milestones.ownerRole,
+    })
+    .from(milestones)
+    .innerJoin(
+      milestoneEntryCompanies,
+      eq(milestoneEntryCompanies.milestoneId, milestones.id),
+    )
+    .where(
+      and(
+        eq(milestones.projectId, projectId),
+        inArray(milestoneEntryCompanies.projectCompanyId, pcIds),
+        gte(milestones.currentDate, sql`now()`),
+      ),
+    )
+    .orderBy(asc(milestones.currentDate));
 
-    const rows = await db
-      .selectDistinct({
-        id: milestones.id,
-        code: milestones.code,
-        name: milestones.name,
-        stageCode: milestones.stageCode,
-        currentDate: milestones.currentDate,
-        baselineDate: milestones.baselineDate,
-        previousDate: milestones.previousDate,
-        status: milestones.status,
-        isKeyOutput: milestones.isKeyOutput,
-        criticalFlag: milestones.criticalFlag,
-        ownerRole: milestones.ownerRole,
-      })
-      .from(milestones)
-      .innerJoin(
-        milestoneEntryCompanies,
-        eq(milestoneEntryCompanies.milestoneId, milestones.id),
-      )
-      .where(
-        and(
-          eq(milestones.projectId, projectId),
-          inArray(milestoneEntryCompanies.projectCompanyId, pcIds),
-          gte(milestones.currentDate, sql`now()`),
-        ),
-      )
-      .orderBy(asc(milestones.currentDate));
+  return res.json(
+    rows.map((r) => ({
+      ...r,
+      stageName: stageNameByCode.get(r.stageCode) ?? r.stageCode,
+      currentDate: r.currentDate.toISOString(),
+      baselineDate: r.baselineDate.toISOString(),
+      previousDate: r.previousDate ? r.previousDate.toISOString() : null,
+    })),
+  );
+});
 
-    return res.json(
-      rows.map((r) => ({
-        ...r,
-        stageName: stageNameByCode.get(r.stageCode) ?? r.stageCode,
-        currentDate: r.currentDate.toISOString(),
-        baselineDate: r.baselineDate.toISOString(),
-        previousDate: r.previousDate ? r.previousDate.toISOString() : null,
-      })),
-    );
-  },
-);
+router.get("/me/impacts/pending", requireAuth, async (req, res) => {
+  const ctx = await requireActiveProject(req, res);
+  if (!ctx) return;
+  const { projectId, pcIds } = ctx;
+  if (pcIds.length === 0) return res.json([]);
 
-router.get(
-  "/company/:companyId/projects/:projectId/impacts/pending",
-  async (req, res) => {
-    const parsed = GetCompanyPendingImpactsParams.safeParse(req.params);
-    if (!parsed.success) {
-      return res.status(400).json({ error: "Invalid params" });
-    }
-    const { companyId, projectId } = parsed.data;
+  const rows = await db
+    .select({
+      id: milestoneImpacts.id,
+      milestoneId: milestoneImpacts.milestoneId,
+      milestoneName: milestones.name,
+      milestoneCode: milestones.code,
+      stageCode: milestones.stageCode,
+      oldDate: milestoneImpacts.oldDate,
+      newDate: milestoneImpacts.newDate,
+      changeReason: changeEvents.changeReason,
+      changeEventStatus: changeEvents.status,
+      notifiedAt: milestoneImpacts.notifiedAt,
+      responseStatus: milestoneImpacts.responseStatus,
+      isKeyOutput: milestones.isKeyOutput,
+    })
+    .from(milestoneImpacts)
+    .innerJoin(
+      changeEvents,
+      eq(milestoneImpacts.changeEventId, changeEvents.id),
+    )
+    .innerJoin(milestones, eq(milestoneImpacts.milestoneId, milestones.id))
+    .where(
+      and(
+        eq(milestones.projectId, projectId),
+        eq(milestoneImpacts.responseStatus, "Pending"),
+        inArray(milestoneImpacts.projectCompanyId, pcIds),
+      ),
+    )
+    .orderBy(desc(milestoneImpacts.notifiedAt));
 
-    const pcs = await db
-      .select({ id: projectCompanies.id })
-      .from(projectCompanies)
-      .where(
-        and(
-          eq(projectCompanies.projectId, projectId),
-          eq(projectCompanies.companyId, companyId),
-        ),
-      );
-    if (pcs.length === 0) {
-      return res.json([]);
-    }
-    const pcIds = pcs.map((p) => p.id);
+  return res.json(
+    rows.map((r) => ({
+      ...r,
+      stageName: stageNameByCode.get(r.stageCode) ?? r.stageCode,
+      oldDate: r.oldDate.toISOString(),
+      newDate: r.newDate.toISOString(),
+      notifiedAt: r.notifiedAt.toISOString(),
+    })),
+  );
+});
 
-    const rows = await db
-      .select({
-        id: milestoneImpacts.id,
-        milestoneId: milestoneImpacts.milestoneId,
-        milestoneName: milestones.name,
-        milestoneCode: milestones.code,
-        stageCode: milestones.stageCode,
-        oldDate: milestoneImpacts.oldDate,
-        newDate: milestoneImpacts.newDate,
-        changeReason: changeEvents.changeReason,
-        changeEventStatus: changeEvents.status,
-        notifiedAt: milestoneImpacts.notifiedAt,
-        responseStatus: milestoneImpacts.responseStatus,
-        isKeyOutput: milestones.isKeyOutput,
-      })
-      .from(milestoneImpacts)
-      .innerJoin(
-        changeEvents,
-        eq(milestoneImpacts.changeEventId, changeEvents.id),
-      )
-      .innerJoin(milestones, eq(milestoneImpacts.milestoneId, milestones.id))
-      .where(
-        and(
-          eq(milestones.projectId, projectId),
-          eq(milestoneImpacts.responseStatus, "Pending"),
-          inArray(milestoneImpacts.projectCompanyId, pcIds),
-        ),
-      )
-      .orderBy(desc(milestoneImpacts.notifiedAt));
-
-    return res.json(
-      rows.map((r) => ({
-        ...r,
-        stageName: stageNameByCode.get(r.stageCode) ?? r.stageCode,
-        oldDate: r.oldDate.toISOString(),
-        newDate: r.newDate.toISOString(),
-        notifiedAt: r.notifiedAt.toISOString(),
-      })),
-    );
-  },
-);
-
-router.post("/impacts/:impactId/respond", async (req, res) => {
+router.post("/impacts/:impactId/respond", requireAuth, async (req, res) => {
+  const ctx = req.auth_ctx!;
   const paramsParsed = RespondToImpactParams.safeParse(req.params);
   if (!paramsParsed.success) {
     return res.status(400).json({ error: "Invalid impactId" });
@@ -316,6 +319,32 @@ router.post("/impacts/:impactId/respond", async (req, res) => {
   }
   const { impactId } = paramsParsed.data;
   const body = bodyParsed.data;
+
+  const [impact] = await db
+    .select()
+    .from(milestoneImpacts)
+    .where(eq(milestoneImpacts.id, impactId))
+    .limit(1);
+  if (!impact) {
+    return res.status(404).json({ error: "Impact not found" });
+  }
+
+  // Authorization: the impact's project_company must belong to one of the
+  // user's companies on its project. We look up the project_company row and
+  // confirm the user is a member of that company.
+  const [pcRow] = await db
+    .select()
+    .from(projectCompanies)
+    .where(eq(projectCompanies.id, impact.projectCompanyId))
+    .limit(1);
+  if (!pcRow) {
+    return res.status(404).json({ error: "Impact not found" });
+  }
+  if (!ctx.companyIds.includes(pcRow.companyId)) {
+    return res
+      .status(403)
+      .json({ error: "Impact does not belong to your company" });
+  }
 
   const [updated] = await db
     .update(milestoneImpacts)

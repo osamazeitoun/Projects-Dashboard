@@ -1,5 +1,7 @@
-import { APP_CONFIG } from "@/lib/constants";
-import { useGetCompanyUpcomingMilestones, getGetCompanyUpcomingMilestonesQueryKey } from "@workspace/api-client-react";
+import {
+  useGetMyUpcomingMilestones,
+  getGetMyUpcomingMilestonesQueryKey,
+} from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -7,11 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Flag, AlertCircle, CheckCircle2, Clock, PlayCircle } from "lucide-react";
 
 export default function Milestones() {
-  const { data: milestones, isLoading, isError } = useGetCompanyUpcomingMilestones(
-    APP_CONFIG.companyId,
-    APP_CONFIG.projectId,
-    { query: { queryKey: getGetCompanyUpcomingMilestonesQueryKey(APP_CONFIG.companyId, APP_CONFIG.projectId) } }
-  );
+  const { data: milestones, isLoading, isError } = useGetMyUpcomingMilestones({
+    query: { queryKey: getGetMyUpcomingMilestonesQueryKey() },
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {

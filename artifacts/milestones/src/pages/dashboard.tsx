@@ -1,14 +1,15 @@
-import { APP_CONFIG } from "@/lib/constants";
-import { useGetProjectSummary, getGetProjectSummaryQueryKey } from "@workspace/api-client-react";
+import {
+  useGetMyProjectSummary,
+  getGetMyProjectSummaryQueryKey,
+} from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Flag, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Dashboard() {
-  const summaryParams = { companyId: APP_CONFIG.companyId };
-  const { data: summary, isLoading, isError } = useGetProjectSummary(APP_CONFIG.projectId, summaryParams, {
-    query: { queryKey: getGetProjectSummaryQueryKey(APP_CONFIG.projectId, summaryParams) }
+  const { data: summary, isLoading, isError } = useGetMyProjectSummary({
+    query: { queryKey: getGetMyProjectSummaryQueryKey() },
   });
 
   if (isLoading) {
@@ -25,7 +26,11 @@ export default function Dashboard() {
   }
 
   if (isError || !summary) {
-    return <div className="p-6 text-destructive">Failed to load project summary.</div>;
+    return (
+      <div className="p-6 text-destructive">
+        Failed to load project summary.
+      </div>
+    );
   }
 
   return (
@@ -71,8 +76,8 @@ export default function Dashboard() {
           {summary.stages.map((stage) => {
             const hasMilestones = stage.companyMilestoneCount > 0;
             return (
-              <Card 
-                key={stage.stageCode} 
+              <Card
+                key={stage.stageCode}
                 className={`flex flex-col text-sm border-t-4 transition-all ${hasMilestones ? 'border-t-primary bg-primary/5 shadow-sm' : 'border-t-muted bg-card shadow-none opacity-60 hover:opacity-100'}`}
               >
                 <div className="p-3 pb-2 flex-1">
