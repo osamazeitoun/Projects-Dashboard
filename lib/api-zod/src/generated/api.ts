@@ -29,10 +29,50 @@ export const GetMeResponse = zod.object({
   "companyName": zod.string(),
   "role": zod.string()
 })),
+  "workspaces": zod.array(zod.object({
+  "companyId": zod.number(),
+  "companyName": zod.string(),
+  "projectId": zod.number(),
+  "projectName": zod.string(),
+  "projectCode": zod.string()
+})),
   "activeProjectId": zod.number().nullish(),
   "activeProjectName": zod.string().nullish(),
   "activeProjectCode": zod.string().nullish(),
-  "activeCompanyId": zod.number().nullish()
+  "activeCompanyId": zod.number().nullish(),
+  "activeCompanyName": zod.string().nullish()
+})
+
+
+/**
+ * @summary Set the signed-in user's active (company, project) workspace
+ */
+export const SetActiveWorkspaceBody = zod.object({
+  "companyId": zod.number(),
+  "projectId": zod.number()
+})
+
+export const SetActiveWorkspaceResponse = zod.object({
+  "userId": zod.number(),
+  "clerkUserId": zod.string(),
+  "email": zod.string().nullish(),
+  "companies": zod.array(zod.object({
+  "companyId": zod.number(),
+  "companyName": zod.string(),
+  "role": zod.string()
+})),
+  "workspaces": zod.array(zod.object({
+  "companyId": zod.number(),
+  "companyName": zod.string(),
+  "projectId": zod.number(),
+  "projectName": zod.string(),
+  "projectCode": zod.string()
+})),
+  "activeProjectId": zod.number().nullish(),
+  "activeProjectName": zod.string().nullish(),
+  "activeProjectCode": zod.string().nullish(),
+  "activeCompanyId": zod.number().nullish(),
+  "activeCompanyName": zod.string().nullish()
 })
 
 

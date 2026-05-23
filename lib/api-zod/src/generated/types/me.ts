@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CompanyMembership } from './companyMembership';
+import type { Workspace } from './workspace';
 
 export interface Me {
   userId: number;
@@ -13,6 +14,7 @@ export interface Me {
   /** @nullable */
   email?: string | null;
   companies: CompanyMembership[];
+  workspaces: Workspace[];
   /** @nullable */
   activeProjectId?: number | null;
   /** @nullable */
@@ -21,4 +23,6 @@ export interface Me {
   activeProjectCode?: string | null;
   /** @nullable */
   activeCompanyId?: number | null;
+  /** @nullable */
+  activeCompanyName?: string | null;
 }

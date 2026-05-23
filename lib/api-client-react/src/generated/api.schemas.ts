@@ -384,12 +384,26 @@ export interface CompanyMembership {
   role: string;
 }
 
+export interface Workspace {
+  companyId: number;
+  companyName: string;
+  projectId: number;
+  projectName: string;
+  projectCode: string;
+}
+
+export interface SetActiveWorkspaceInput {
+  companyId: number;
+  projectId: number;
+}
+
 export interface Me {
   userId: number;
   clerkUserId: string;
   /** @nullable */
   email?: string | null;
   companies: CompanyMembership[];
+  workspaces: Workspace[];
   /** @nullable */
   activeProjectId?: number | null;
   /** @nullable */
@@ -398,5 +412,7 @@ export interface Me {
   activeProjectCode?: string | null;
   /** @nullable */
   activeCompanyId?: number | null;
+  /** @nullable */
+  activeCompanyName?: string | null;
 }
 

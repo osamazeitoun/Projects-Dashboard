@@ -34,6 +34,7 @@ import type {
   ProjectCompanyDetail,
   ProjectListItem,
   ProjectSummary,
+  SetActiveWorkspaceInput,
   UpcomingMilestone
 } from './api.schemas';
 
@@ -203,6 +204,77 @@ export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = Err
 
 
 
+
+export const getSetActiveWorkspaceUrl = () => {
+
+
+
+
+  return `/api/me/active-workspace`
+}
+
+/**
+ * @summary Set the signed-in user's active (company, project) workspace
+ */
+export const setActiveWorkspace = async (setActiveWorkspaceInput: SetActiveWorkspaceInput, options?: RequestInit): Promise<Me> => {
+
+  return customFetch<Me>(getSetActiveWorkspaceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      setActiveWorkspaceInput,)
+  }
+);}
+
+
+
+
+export const getSetActiveWorkspaceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setActiveWorkspace>>, TError,{data: BodyType<SetActiveWorkspaceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setActiveWorkspace>>, TError,{data: BodyType<SetActiveWorkspaceInput>}, TContext> => {
+
+const mutationKey = ['setActiveWorkspace'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setActiveWorkspace>>, {data: BodyType<SetActiveWorkspaceInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  setActiveWorkspace(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetActiveWorkspaceMutationResult = NonNullable<Awaited<ReturnType<typeof setActiveWorkspace>>>
+    export type SetActiveWorkspaceMutationBody = BodyType<SetActiveWorkspaceInput>
+    export type SetActiveWorkspaceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Set the signed-in user's active (company, project) workspace
+ */
+export const useSetActiveWorkspace = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setActiveWorkspace>>, TError,{data: BodyType<SetActiveWorkspaceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setActiveWorkspace>>,
+        TError,
+        {data: BodyType<SetActiveWorkspaceInput>},
+        TContext
+      > => {
+      return useMutation(getSetActiveWorkspaceMutationOptions(options));
+    }
 
 export const getGetMyProjectSummaryUrl = () => {
 

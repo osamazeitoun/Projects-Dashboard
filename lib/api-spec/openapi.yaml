@@ -52,6 +52,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /me/active-workspace:
+    post:
+      operationId: setActiveWorkspace
+      tags: [me]
+      summary: Set the signed-in user's active (company, project) workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetActiveWorkspaceInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "400":
+          description: Invalid workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /me/summary:
     get:
       operationId: getMyProjectSummary
@@ -788,9 +819,26 @@ components:
         companyName: { type: string }
         role: { type: string }
 
+    Workspace:
+      type: object
+      required: [companyId, companyName, projectId, projectName, projectCode]
+      properties:
+        companyId: { type: integer }
+        companyName: { type: string }
+        projectId: { type: integer }
+        projectName: { type: string }
+        projectCode: { type: string }
+
+    SetActiveWorkspaceInput:
+      type: object
+      required: [companyId, projectId]
+      properties:
+        companyId: { type: integer }
+        projectId: { type: integer }
+
     Me:
       type: object
-      required: [userId, clerkUserId, companies]
+      required: [userId, clerkUserId, companies, workspaces]
       properties:
         userId: { type: integer }
         clerkUserId: { type: string }
@@ -798,7 +846,11 @@ components:
         companies:
           type: array
           items: { $ref: "#/components/schemas/CompanyMembership" }
+        workspaces:
+          type: array
+          items: { $ref: "#/components/schemas/Workspace" }
         activeProjectId: { type: ["integer", "null"] }
         activeProjectName: { type: ["string", "null"] }
         activeProjectCode: { type: ["string", "null"] }
         activeCompanyId: { type: ["integer", "null"] }
+        activeCompanyName: { type: ["string", "null"] }

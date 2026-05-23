@@ -1,5 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { RespondToImpactParams, RespondToImpactBody } from "@workspace/api-zod";
+import {
+  RespondToImpactParams,
+  RespondToImpactBody,
+  SetActiveWorkspaceBody,
+} from "@workspace/api-zod";
 import { db } from "@workspace/db";
 import {
   milestones,
@@ -12,7 +16,12 @@ import {
   userCompanies,
 } from "@workspace/db";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
-import { requireAuth, getProjectCompanyIdsForUser } from "../middlewares/auth";
+import {
+  requireAuth,
+  getProjectCompanyIdsForUser,
+  listWorkspacesForUser,
+  ACTIVE_WORKSPACE_COOKIE,
+} from "../middlewares/auth";
 
 const router: IRouter = Router();
 
@@ -63,9 +72,7 @@ const STAGE_INFO = [
 
 const stageNameByCode = new Map(STAGE_INFO.map((s) => [s.code, s.name]));
 
-router.get("/me", requireAuth, async (req: Request, res: Response) => {
-  const ctx = req.auth_ctx!;
-
+async function buildMeResponse(ctx: NonNullable<Request["auth_ctx"]>) {
   const memberships =
     ctx.companyIds.length === 0
       ? []
@@ -79,31 +86,71 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
           .innerJoin(companies, eq(userCompanies.companyId, companies.id))
           .where(eq(userCompanies.userId, ctx.userId));
 
-  let activeProjectName: string | null = null;
-  let activeProjectCode: string | null = null;
-  if (ctx.activeProjectId) {
-    const [p] = await db
-      .select()
-      .from(projects)
-      .where(eq(projects.id, ctx.activeProjectId))
-      .limit(1);
-    if (p) {
-      activeProjectName = p.name;
-      activeProjectCode = p.code;
-    }
-  }
+  const activeWorkspace = ctx.workspaces.find(
+    (w) =>
+      w.companyId === ctx.activeCompanyId &&
+      w.projectId === ctx.activeProjectId,
+  );
 
-  return res.json({
+  return {
     userId: ctx.userId,
     clerkUserId: ctx.clerkUserId,
     email: ctx.email,
     companies: memberships,
+    workspaces: ctx.workspaces,
     activeProjectId: ctx.activeProjectId,
-    activeProjectName,
-    activeProjectCode,
+    activeProjectName: activeWorkspace?.projectName ?? null,
+    activeProjectCode: activeWorkspace?.projectCode ?? null,
     activeCompanyId: ctx.activeCompanyId,
-  });
+    activeCompanyName: activeWorkspace?.companyName ?? null,
+  };
+}
+
+router.get("/me", requireAuth, async (req: Request, res: Response) => {
+  return res.json(await buildMeResponse(req.auth_ctx!));
 });
+
+router.post(
+  "/me/active-workspace",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const parsed = SetActiveWorkspaceBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: "Invalid request body: " + parsed.error.message });
+    }
+    const { companyId, projectId } = parsed.data;
+
+    // Re-fetch workspaces from the DB rather than trusting the ones already on
+    // ctx, so we're authoritative about access here.
+    const workspaces = await listWorkspacesForUser(req.auth_ctx!.userId);
+    const match = workspaces.find(
+      (w) => w.companyId === companyId && w.projectId === projectId,
+    );
+    if (!match) {
+      return res
+        .status(400)
+        .json({ error: "Workspace not accessible to this user" });
+    }
+
+    res.cookie(ACTIVE_WORKSPACE_COOKIE, `${companyId}:${projectId}`, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 1000 * 60 * 60 * 24 * 365,
+    });
+
+    const updatedCtx = {
+      ...req.auth_ctx!,
+      workspaces,
+      activeCompanyId: companyId,
+      activeProjectId: projectId,
+    };
+    return res.json(await buildMeResponse(updatedCtx));
+  },
+);
 
 async function requireActiveProject(
   req: Request,
@@ -117,6 +164,7 @@ async function requireActiveProject(
   const pcIds = await getProjectCompanyIdsForUser(
     ctx.userId,
     ctx.activeProjectId,
+    ctx.activeCompanyId,
   );
   return { projectId: ctx.activeProjectId, pcIds };
 }
@@ -142,7 +190,11 @@ router.get("/me/summary", requireAuth, async (req, res) => {
     .from(milestones)
     .where(eq(milestones.projectId, projectId));
 
-  const pcIds = await getProjectCompanyIdsForUser(ctx.userId, projectId);
+  const pcIds = await getProjectCompanyIdsForUser(
+    ctx.userId,
+    projectId,
+    ctx.activeCompanyId,
+  );
 
   const entries =
     pcIds.length === 0
