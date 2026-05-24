@@ -349,6 +349,22 @@ export interface ChangeEventDetail {
   impacts: MilestoneImpactDetail[];
 }
 
+export type TransitionChangeEventAction = typeof TransitionChangeEventAction[keyof typeof TransitionChangeEventAction];
+
+
+export const TransitionChangeEventAction = {
+  send: 'send',
+  client_approve: 'client_approve',
+  client_reject: 'client_reject',
+  pm_approve: 'pm_approve',
+  cancel: 'cancel',
+} as const;
+
+export interface TransitionChangeEventInput {
+  action: TransitionChangeEventAction;
+  clientComment?: string;
+}
+
 export interface CreateChangeEventInput {
   proposedNewDate: string;
   /** @minLength 1 */

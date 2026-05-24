@@ -45,6 +45,7 @@ import type {
   ProjectListItem,
   ProjectSummary,
   SetActiveWorkspaceInput,
+  TransitionChangeEventInput,
   UpcomingMilestone
 } from './api.schemas';
 
@@ -1127,6 +1128,78 @@ export function useGetChangeEventDetail<TData = Awaited<ReturnType<typeof getCha
 
 
 
+
+export const getTransitionChangeEventUrl = (changeEventId: number,) => {
+
+
+
+
+  return `/api/change-events/${changeEventId}/transition`
+}
+
+/**
+ * @summary Move a change event through its lifecycle (send / approve / reject / cancel)
+ */
+export const transitionChangeEvent = async (changeEventId: number,
+    transitionChangeEventInput: TransitionChangeEventInput, options?: RequestInit): Promise<ChangeEventDetail> => {
+
+  return customFetch<ChangeEventDetail>(getTransitionChangeEventUrl(changeEventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      transitionChangeEventInput,)
+  }
+);}
+
+
+
+
+export const getTransitionChangeEventMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transitionChangeEvent>>, TError,{changeEventId: number;data: BodyType<TransitionChangeEventInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof transitionChangeEvent>>, TError,{changeEventId: number;data: BodyType<TransitionChangeEventInput>}, TContext> => {
+
+const mutationKey = ['transitionChangeEvent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof transitionChangeEvent>>, {changeEventId: number;data: BodyType<TransitionChangeEventInput>}> = (props) => {
+          const {changeEventId,data} = props ?? {};
+
+          return  transitionChangeEvent(changeEventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TransitionChangeEventMutationResult = NonNullable<Awaited<ReturnType<typeof transitionChangeEvent>>>
+    export type TransitionChangeEventMutationBody = BodyType<TransitionChangeEventInput>
+    export type TransitionChangeEventMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Move a change event through its lifecycle (send / approve / reject / cancel)
+ */
+export const useTransitionChangeEvent = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transitionChangeEvent>>, TError,{changeEventId: number;data: BodyType<TransitionChangeEventInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof transitionChangeEvent>>,
+        TError,
+        {changeEventId: number;data: BodyType<TransitionChangeEventInput>},
+        TContext
+      > => {
+      return useMutation(getTransitionChangeEventMutationOptions(options));
+    }
 
 export const getAdminListProjectsUrl = () => {
 

@@ -322,6 +322,44 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /change-events/{changeEventId}/transition:
+    post:
+      operationId: transitionChangeEvent
+      tags: [impacts]
+      summary: Move a change event through its lifecycle (send / approve / reject / cancel)
+      parameters:
+        - in: path
+          name: changeEventId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransitionChangeEventInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChangeEventDetail" }
+        "400":
+          description: Invalid transition or input
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Change event not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /admin/projects:
     get:
       operationId: adminListProjects
@@ -1138,6 +1176,17 @@ components:
         impacts:
           type: array
           items: { $ref: "#/components/schemas/MilestoneImpactDetail" }
+
+    TransitionChangeEventAction:
+      type: string
+      enum: [send, client_approve, client_reject, pm_approve, cancel]
+
+    TransitionChangeEventInput:
+      type: object
+      required: [action]
+      properties:
+        action: { $ref: "#/components/schemas/TransitionChangeEventAction" }
+        clientComment: { type: string }
 
     CreateChangeEventInput:
       type: object

@@ -1,10 +1,41 @@
 import { useRoute, Link } from "wouter";
-import { useGetChangeEventDetail } from "@workspace/api-client-react";
+import {
+  useGetChangeEventDetail,
+  useTransitionChangeEvent,
+  getGetChangeEventDetailQueryKey,
+  getGetMilestoneDetailQueryKey,
+  type ChangeEventDetail,
+  type TransitionChangeEventAction,
+} from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { format, formatDistanceToNow, differenceInDays } from "date-fns";
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  Send,
+  ThumbsUp,
+  ThumbsDown,
+  Stamp,
+  Ban,
+} from "lucide-react";
 
 function riskBadge(level: string | null | undefined) {
   if (!level) return null;
@@ -19,10 +50,261 @@ function riskBadge(level: string | null | undefined) {
   return <Badge variant="outline" className={tone}>{level} risk</Badge>;
 }
 
+function statusBadge(status: ChangeEventDetail["status"]) {
+  const tone =
+    status === "PMApproved"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : status === "ClientApproved"
+        ? "bg-blue-50 text-blue-700 border-blue-200"
+        : status === "ClientRejected" || status === "Cancelled"
+          ? "bg-destructive/10 text-destructive border-destructive/30"
+          : status === "SentForClientReview"
+            ? "bg-amber-50 text-amber-700 border-amber-200"
+            : "bg-muted text-muted-foreground";
+  return (
+    <Badge variant="outline" className={tone}>
+      {status}
+    </Badge>
+  );
+}
+
+type TransitionConfig = {
+  action: TransitionChangeEventAction;
+  label: string;
+  icon: typeof Send;
+  variant?: "default" | "outline" | "destructive" | "secondary";
+  requireComment?: boolean;
+  commentLabel?: string;
+  title: string;
+  description: string;
+  successMessage: string;
+};
+
+function getAvailableTransitions(
+  status: ChangeEventDetail["status"],
+): TransitionConfig[] {
+  switch (status) {
+    case "Draft":
+      return [
+        {
+          action: "send",
+          label: "Send to client for review",
+          icon: Send,
+          variant: "default",
+          title: "Send for client review",
+          description:
+            "Notify the client that a date change has been proposed and is awaiting their decision.",
+          successMessage: "Change event sent for client review.",
+        },
+        {
+          action: "cancel",
+          label: "Cancel",
+          icon: Ban,
+          variant: "outline",
+          title: "Cancel change event",
+          description: "This change event will be closed and no further action can be taken on it.",
+          successMessage: "Change event cancelled.",
+        },
+      ];
+    case "SentForClientReview":
+      return [
+        {
+          action: "client_approve",
+          label: "Record client approval",
+          icon: ThumbsUp,
+          variant: "default",
+          commentLabel: "Client comment (optional)",
+          title: "Record client approval",
+          description:
+            "Mark that the client has approved this date change. You can capture any comment they shared.",
+          successMessage: "Client approval recorded.",
+        },
+        {
+          action: "client_reject",
+          label: "Record client rejection",
+          icon: ThumbsDown,
+          variant: "destructive",
+          requireComment: true,
+          commentLabel: "Client comment (required)",
+          title: "Record client rejection",
+          description:
+            "Mark that the client has rejected this date change. A reason from the client is required.",
+          successMessage: "Client rejection recorded.",
+        },
+        {
+          action: "cancel",
+          label: "Cancel",
+          icon: Ban,
+          variant: "outline",
+          title: "Cancel change event",
+          description: "This change event will be closed without a client decision.",
+          successMessage: "Change event cancelled.",
+        },
+      ];
+    case "ClientApproved":
+      return [
+        {
+          action: "pm_approve",
+          label: "Approve and update milestone",
+          icon: Stamp,
+          variant: "default",
+          title: "Finalize change event",
+          description:
+            "PM approval will update the milestone's current date to the proposed date and record the change reason.",
+          successMessage: "Change event approved. Milestone has been updated.",
+        },
+        {
+          action: "cancel",
+          label: "Cancel",
+          icon: Ban,
+          variant: "outline",
+          title: "Cancel change event",
+          description: "This change event will be closed without applying it to the milestone.",
+          successMessage: "Change event cancelled.",
+        },
+      ];
+    case "ClientRejected":
+      return [
+        {
+          action: "cancel",
+          label: "Cancel",
+          icon: Ban,
+          variant: "outline",
+          title: "Cancel change event",
+          description: "Close this change event so it no longer appears as open.",
+          successMessage: "Change event cancelled.",
+        },
+      ];
+    default:
+      return [];
+  }
+}
+
+function TransitionDialog({
+  open,
+  onOpenChange,
+  config,
+  changeEvent,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  config: TransitionConfig | null;
+  changeEvent: ChangeEventDetail;
+}) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [comment, setComment] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const mutation = useTransitionChangeEvent({
+    mutation: {
+      onSuccess: (data) => {
+        toast({
+          title: config?.successMessage ?? "Change event updated",
+        });
+        qc.invalidateQueries({ queryKey: getGetChangeEventDetailQueryKey(data.id) });
+        qc.invalidateQueries({ queryKey: getGetMilestoneDetailQueryKey(data.milestoneId) });
+        qc.invalidateQueries({
+          predicate: (q) => {
+            const key = q.queryKey[0];
+            return (
+              typeof key === "string" &&
+              (key.includes("/change-events") || key.includes("/pm-summary"))
+            );
+          },
+        });
+        onOpenChange(false);
+        setComment("");
+        setError(null);
+      },
+      onError: (err) => {
+        toast({
+          variant: "destructive",
+          title: "Action failed",
+          description: (err as unknown as { error?: string })?.error ?? "Please try again.",
+        });
+      },
+    },
+  });
+
+  if (!config) return null;
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!config) return;
+    const trimmed = comment.trim();
+    if (config.requireComment && trimmed.length === 0) {
+      setError("A comment is required for this action.");
+      return;
+    }
+    setError(null);
+    mutation.mutate({
+      changeEventId: changeEvent.id,
+      data: {
+        action: config.action,
+        ...(trimmed.length > 0 ? { clientComment: trimmed } : {}),
+      },
+    });
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          setComment("");
+          setError(null);
+        }
+        onOpenChange(o);
+      }}
+    >
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>{config.title}</DialogTitle>
+          <DialogDescription>{config.description}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-4">
+          {config.commentLabel && (
+            <div className="space-y-1.5">
+              <Label htmlFor="client-comment">{config.commentLabel}</Label>
+              <Textarea
+                id="client-comment"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Capture what the client said..."
+                className="h-24 resize-none"
+              />
+              {error && <p className="text-xs text-destructive">{error}</p>}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={mutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant={config.variant ?? "default"}
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending ? "Working..." : config.label}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function PmChangeEventDetail() {
   const [, params] = useRoute("/pm/change-event/:id");
   const id = Number(params?.id);
   const { data, isLoading, isError } = useGetChangeEventDetail(id);
+  const [activeTransition, setActiveTransition] = useState<TransitionConfig | null>(null);
 
   if (isLoading) {
     return (
@@ -35,6 +317,8 @@ export default function PmChangeEventDetail() {
   if (isError || !data) return <div className="p-6 text-destructive">Failed to load change event.</div>;
 
   const shift = differenceInDays(new Date(data.proposedNewDate), new Date(data.oldDate));
+  const transitions = getAvailableTransitions(data.status);
+  const isTerminal = data.status === "PMApproved" || data.status === "Cancelled";
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -48,8 +332,13 @@ export default function PmChangeEventDetail() {
         <div className="flex items-center gap-2 text-xs flex-wrap">
           <Badge variant="outline">{data.stageName}</Badge>
           <Link href={`/pm/milestone/${data.milestoneId}`} className="font-mono text-muted-foreground hover:text-primary">{data.milestoneCode}</Link>
-          <Badge variant="outline">{data.status}</Badge>
+          {statusBadge(data.status)}
           <span className="text-muted-foreground">Opened {formatDistanceToNow(new Date(data.initiatedAt), { addSuffix: true })}</span>
+          {data.clientDecisionAt && (
+            <span className="text-muted-foreground">
+              · Client decided {formatDistanceToNow(new Date(data.clientDecisionAt), { addSuffix: true })}
+            </span>
+          )}
         </div>
         <h1 className="text-3xl font-bold tracking-tight">{data.milestoneName}</h1>
         <p className="text-muted-foreground italic">"{data.changeReason}"</p>
@@ -72,6 +361,51 @@ export default function PmChangeEventDetail() {
             <div className="ml-auto text-sm text-muted-foreground italic max-w-md">
               <span className="font-medium not-italic text-foreground">Client:</span> "{data.clientComment}"
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Workflow</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {isTerminal ? (
+            <p className="text-sm text-muted-foreground">
+              {data.status === "PMApproved"
+                ? "This change event has been approved and applied to the milestone. No further action is needed."
+                : "This change event has been cancelled and is closed."}
+            </p>
+          ) : transitions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No actions are available on this change event.</p>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                {data.status === "Draft" &&
+                  "This change event is still a draft. Send it to the client to start their review."}
+                {data.status === "SentForClientReview" &&
+                  "Awaiting the client's decision. Record their response here once they reply."}
+                {data.status === "ClientApproved" &&
+                  "The client has approved. Finalize this change event to apply the new date to the milestone."}
+                {data.status === "ClientRejected" &&
+                  "The client has rejected this change. You can close it out by cancelling."}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {transitions.map((t) => {
+                  const Icon = t.icon;
+                  return (
+                    <Button
+                      key={t.action}
+                      variant={t.variant ?? "default"}
+                      onClick={() => setActiveTransition(t)}
+                    >
+                      <Icon className="w-4 h-4 mr-1.5" />
+                      {t.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -114,6 +448,15 @@ export default function PmChangeEventDetail() {
           </div>
         </CardContent>
       </Card>
+
+      <TransitionDialog
+        open={activeTransition !== null}
+        onOpenChange={(o) => {
+          if (!o) setActiveTransition(null);
+        }}
+        config={activeTransition}
+        changeEvent={data}
+      />
     </div>
   );
 }

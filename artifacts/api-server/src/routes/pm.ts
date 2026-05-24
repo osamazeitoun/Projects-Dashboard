@@ -10,7 +10,12 @@ import {
   companies,
 } from "@workspace/db";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { CreateChangeEventBody, CreateChangeEventParams } from "@workspace/api-zod";
+import {
+  CreateChangeEventBody,
+  CreateChangeEventParams,
+  TransitionChangeEventBody,
+  TransitionChangeEventParams,
+} from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import {
   getEffectiveProjectAccess,
@@ -860,6 +865,188 @@ router.post("/milestones/:milestoneId/change-events", async (req, res) => {
       detailedComment: i.detailedComment,
     })),
   });
+});
+
+async function loadChangeEventDetailResponse(id: number) {
+  const [ev] = await db
+    .select({
+      id: changeEvents.id,
+      milestoneId: changeEvents.milestoneId,
+      milestoneCode: milestones.code,
+      milestoneName: milestones.name,
+      stageCode: milestones.stageCode,
+      initiatedAt: changeEvents.initiatedAt,
+      oldDate: changeEvents.oldDate,
+      proposedNewDate: changeEvents.proposedNewDate,
+      changeReason: changeEvents.changeReason,
+      status: changeEvents.status,
+      clientComment: changeEvents.clientComment,
+      clientDecisionAt: changeEvents.clientDecisionAt,
+    })
+    .from(changeEvents)
+    .innerJoin(milestones, eq(milestones.id, changeEvents.milestoneId))
+    .where(eq(changeEvents.id, id))
+    .limit(1);
+  if (!ev) return null;
+
+  const impacts = await db
+    .select({
+      id: milestoneImpacts.id,
+      projectCompanyId: milestoneImpacts.projectCompanyId,
+      companyName: companies.name,
+      companyRole: projectCompanies.roleOnProject,
+      responseStatus: milestoneImpacts.responseStatus,
+      notifiedAt: milestoneImpacts.notifiedAt,
+      respondedAt: milestoneImpacts.respondedAt,
+      impactRiskLevel: milestoneImpacts.impactRiskLevel,
+      impactRiskType: milestoneImpacts.impactRiskType,
+      mainRiskIssue: milestoneImpacts.mainRiskIssue,
+      detailedComment: milestoneImpacts.detailedComment,
+    })
+    .from(milestoneImpacts)
+    .innerJoin(projectCompanies, eq(projectCompanies.id, milestoneImpacts.projectCompanyId))
+    .innerJoin(companies, eq(companies.id, projectCompanies.companyId))
+    .where(eq(milestoneImpacts.changeEventId, id))
+    .orderBy(asc(companies.name));
+
+  return {
+    id: ev.id,
+    milestoneId: ev.milestoneId,
+    milestoneCode: ev.milestoneCode,
+    milestoneName: ev.milestoneName,
+    stageCode: ev.stageCode,
+    stageName: stageNameByCode.get(ev.stageCode) ?? ev.stageCode,
+    initiatedAt: ev.initiatedAt.toISOString(),
+    oldDate: ev.oldDate.toISOString(),
+    proposedNewDate: ev.proposedNewDate.toISOString(),
+    changeReason: ev.changeReason,
+    status: ev.status,
+    clientComment: ev.clientComment,
+    clientDecisionAt: isoOrNull(ev.clientDecisionAt),
+    impacts: impacts.map((i) => ({
+      id: i.id,
+      projectCompanyId: i.projectCompanyId,
+      companyName: i.companyName,
+      companyRole: i.companyRole,
+      responseStatus: i.responseStatus,
+      notifiedAt: i.notifiedAt.toISOString(),
+      respondedAt: isoOrNull(i.respondedAt),
+      impactRiskLevel: i.impactRiskLevel,
+      impactRiskType: i.impactRiskType,
+      mainRiskIssue: i.mainRiskIssue,
+      detailedComment: i.detailedComment,
+    })),
+  };
+}
+
+router.post("/change-events/:changeEventId/transition", async (req, res) => {
+  const paramsParsed = TransitionChangeEventParams.safeParse(req.params);
+  if (!paramsParsed.success) {
+    return res.status(400).json({ error: "Invalid changeEventId" });
+  }
+  const bodyParsed = TransitionChangeEventBody.safeParse(req.body);
+  if (!bodyParsed.success) {
+    return res
+      .status(400)
+      .json({ error: "Invalid request body: " + bodyParsed.error.message });
+  }
+  const { changeEventId } = paramsParsed.data;
+  const { action, clientComment } = bodyParsed.data;
+
+  const projectId = await getProjectIdForChangeEvent(changeEventId);
+  if (!projectId) return res.status(404).json({ error: "Change event not found" });
+  if (!(await requirePmAccess(req, res, projectId))) return;
+
+  const [ev] = await db
+    .select()
+    .from(changeEvents)
+    .where(eq(changeEvents.id, changeEventId))
+    .limit(1);
+  if (!ev) return res.status(404).json({ error: "Change event not found" });
+
+  // Determine next status from action + current state.
+  let nextStatus: typeof ev.status;
+  switch (action) {
+    case "send":
+      if (ev.status !== "Draft") {
+        return res
+          .status(400)
+          .json({ error: `Cannot send a change event in status ${ev.status}` });
+      }
+      nextStatus = "SentForClientReview";
+      break;
+    case "client_approve":
+      if (ev.status !== "SentForClientReview") {
+        return res.status(400).json({
+          error: `Cannot record a client decision on a change event in status ${ev.status}`,
+        });
+      }
+      nextStatus = "ClientApproved";
+      break;
+    case "client_reject":
+      if (ev.status !== "SentForClientReview") {
+        return res.status(400).json({
+          error: `Cannot record a client decision on a change event in status ${ev.status}`,
+        });
+      }
+      nextStatus = "ClientRejected";
+      break;
+    case "pm_approve":
+      if (ev.status !== "ClientApproved") {
+        return res.status(400).json({
+          error: `PM approval requires the client to have approved first (current status: ${ev.status})`,
+        });
+      }
+      nextStatus = "PMApproved";
+      break;
+    case "cancel":
+      if (ev.status === "PMApproved" || ev.status === "Cancelled") {
+        return res
+          .status(400)
+          .json({ error: `Cannot cancel a change event in status ${ev.status}` });
+      }
+      nextStatus = "Cancelled";
+      break;
+    default:
+      return res.status(400).json({ error: "Unknown action" });
+  }
+
+  const now = new Date();
+  const isClientDecision = action === "client_approve" || action === "client_reject";
+  const trimmedComment = clientComment?.trim();
+
+  await db.transaction(async (tx) => {
+    const updates: Partial<typeof changeEvents.$inferInsert> = {
+      status: nextStatus,
+    };
+    if (isClientDecision) {
+      updates.clientDecisionAt = now;
+      updates.clientUserId = req.auth_ctx!.userId;
+      if (trimmedComment !== undefined && trimmedComment.length > 0) {
+        updates.clientComment = trimmedComment;
+      }
+    } else if (trimmedComment !== undefined && trimmedComment.length > 0) {
+      // Allow PMs to append/replace a client comment when acting on behalf.
+      updates.clientComment = trimmedComment;
+    }
+
+    await tx.update(changeEvents).set(updates).where(eq(changeEvents.id, changeEventId));
+
+    if (nextStatus === "PMApproved") {
+      await tx
+        .update(milestones)
+        .set({
+          previousDate: ev.oldDate,
+          currentDate: ev.proposedNewDate,
+          changeReasonLatest: ev.changeReason,
+        })
+        .where(eq(milestones.id, ev.milestoneId));
+    }
+  });
+
+  const detail = await loadChangeEventDetailResponse(changeEventId);
+  if (!detail) return res.status(404).json({ error: "Change event not found" });
+  return res.json(detail);
 });
 
 export default router;
