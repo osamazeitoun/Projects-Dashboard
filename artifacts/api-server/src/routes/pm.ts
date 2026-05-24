@@ -8,6 +8,7 @@ import {
   changeEvents,
   projects,
   companies,
+  notificationDeliveries,
 } from "@workspace/db";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import {
@@ -23,6 +24,8 @@ import {
   getProjectIdForChangeEvent,
   listPmProjectIds,
 } from "../middlewares/permissions";
+import { sendChangeEventNotifications } from "../services/notifications";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -66,6 +69,51 @@ const OVERDUE_DAYS = 3;
 
 function isoOrNull(d: Date | null): string | null {
   return d ? d.toISOString() : null;
+}
+
+type LatestDelivery = {
+  status: "Sent" | "Failed";
+  channel: "email" | "log";
+  attemptedAt: Date;
+  errorMessage: string | null;
+  recipientEmail: string;
+};
+
+async function getLatestDeliveriesByImpactId(
+  impactIds: number[],
+): Promise<{ latest: Map<number, LatestDelivery>; counts: Map<number, number> }> {
+  if (impactIds.length === 0) {
+    return { latest: new Map(), counts: new Map() };
+  }
+  const rows = await db
+    .select({
+      id: notificationDeliveries.id,
+      milestoneImpactId: notificationDeliveries.milestoneImpactId,
+      status: notificationDeliveries.status,
+      channel: notificationDeliveries.channel,
+      attemptedAt: notificationDeliveries.attemptedAt,
+      errorMessage: notificationDeliveries.errorMessage,
+      recipientEmail: notificationDeliveries.recipientEmail,
+    })
+    .from(notificationDeliveries)
+    .where(inArray(notificationDeliveries.milestoneImpactId, impactIds))
+    .orderBy(desc(notificationDeliveries.attemptedAt));
+
+  const latest = new Map<number, LatestDelivery>();
+  const counts = new Map<number, number>();
+  for (const r of rows) {
+    counts.set(r.milestoneImpactId, (counts.get(r.milestoneImpactId) ?? 0) + 1);
+    if (!latest.has(r.milestoneImpactId)) {
+      latest.set(r.milestoneImpactId, {
+        status: r.status as "Sent" | "Failed",
+        channel: r.channel as "email" | "log",
+        attemptedAt: r.attemptedAt,
+        errorMessage: r.errorMessage,
+        recipientEmail: r.recipientEmail,
+      });
+    }
+  }
+  return { latest, counts };
 }
 
 function deriveContact(companyName: string): { name: string; email: string } {
@@ -405,6 +453,9 @@ router.get("/milestones/:milestoneId/detail", async (req, res) => {
         .where(sql`${milestoneImpacts.changeEventId} IN ${eventIds}`)
     : [];
 
+  const { latest: latestByImpactDetail, counts: countsByImpactDetail } =
+    await getLatestDeliveriesByImpactId(impacts.map((i) => i.id));
+
   // Outstanding companies for the latest open event: those involved in milestone who haven't responded.
   const latestOpen = events.find((e) => !["PMApproved", "Cancelled", "ClientRejected"].includes(e.status));
   const outstandingCompanies: typeof cos = [];
@@ -463,19 +514,28 @@ router.get("/milestones/:milestoneId/detail", async (req, res) => {
       status: e.status,
       impacts: impacts
         .filter((i) => i.changeEventId === e.id)
-        .map((i) => ({
-          id: i.id,
-          projectCompanyId: i.projectCompanyId,
-          companyName: i.companyName,
-          companyRole: i.companyRole,
-          responseStatus: i.responseStatus,
-          notifiedAt: i.notifiedAt.toISOString(),
-          respondedAt: isoOrNull(i.respondedAt),
-          impactRiskLevel: i.impactRiskLevel,
-          impactRiskType: i.impactRiskType,
-          mainRiskIssue: i.mainRiskIssue,
-          detailedComment: i.detailedComment,
-        })),
+        .map((i) => {
+          const d = latestByImpactDetail.get(i.id) ?? null;
+          return {
+            id: i.id,
+            projectCompanyId: i.projectCompanyId,
+            companyName: i.companyName,
+            companyRole: i.companyRole,
+            responseStatus: i.responseStatus,
+            notifiedAt: i.notifiedAt.toISOString(),
+            respondedAt: isoOrNull(i.respondedAt),
+            impactRiskLevel: i.impactRiskLevel,
+            impactRiskType: i.impactRiskType,
+            mainRiskIssue: i.mainRiskIssue,
+            detailedComment: i.detailedComment,
+            lastDeliveryStatus: d?.status ?? null,
+            lastDeliveryChannel: d?.channel ?? null,
+            lastDeliveryAt: d ? d.attemptedAt.toISOString() : null,
+            lastDeliveryError: d?.errorMessage ?? null,
+            deliveryAttemptCount: countsByImpactDetail.get(i.id) ?? 0,
+            recipientEmail: d?.recipientEmail ?? null,
+          };
+        }),
     })),
     outstandingCompanies: outstandingCompanies.map(({ projectCompanyId, companyId, name, role }) => ({
       projectCompanyId,
@@ -701,6 +761,9 @@ router.get("/change-events/:changeEventId/detail", async (req, res) => {
     .where(eq(milestoneImpacts.changeEventId, id))
     .orderBy(asc(companies.name));
 
+  const { latest: latestByImpactCE, counts: countsByImpactCE } =
+    await getLatestDeliveriesByImpactId(impacts.map((i) => i.id));
+
   return res.json({
     id: ev.id,
     milestoneId: ev.milestoneId,
@@ -715,18 +778,89 @@ router.get("/change-events/:changeEventId/detail", async (req, res) => {
     status: ev.status,
     clientComment: ev.clientComment,
     clientDecisionAt: isoOrNull(ev.clientDecisionAt),
-    impacts: impacts.map((i) => ({
-      id: i.id,
-      projectCompanyId: i.projectCompanyId,
-      companyName: i.companyName,
-      companyRole: i.companyRole,
-      responseStatus: i.responseStatus,
-      notifiedAt: i.notifiedAt.toISOString(),
-      respondedAt: isoOrNull(i.respondedAt),
-      impactRiskLevel: i.impactRiskLevel,
-      impactRiskType: i.impactRiskType,
-      mainRiskIssue: i.mainRiskIssue,
-      detailedComment: i.detailedComment,
+    impacts: impacts.map((i) => {
+      const d = latestByImpactCE.get(i.id) ?? null;
+      return {
+        id: i.id,
+        projectCompanyId: i.projectCompanyId,
+        companyName: i.companyName,
+        companyRole: i.companyRole,
+        responseStatus: i.responseStatus,
+        notifiedAt: i.notifiedAt.toISOString(),
+        respondedAt: isoOrNull(i.respondedAt),
+        impactRiskLevel: i.impactRiskLevel,
+        impactRiskType: i.impactRiskType,
+        mainRiskIssue: i.mainRiskIssue,
+        detailedComment: i.detailedComment,
+        lastDeliveryStatus: d?.status ?? null,
+        lastDeliveryChannel: d?.channel ?? null,
+        lastDeliveryAt: d ? d.attemptedAt.toISOString() : null,
+        lastDeliveryError: d?.errorMessage ?? null,
+        deliveryAttemptCount: countsByImpactCE.get(i.id) ?? 0,
+        recipientEmail: d?.recipientEmail ?? null,
+      };
+    }),
+  });
+});
+
+router.post("/change-events/:changeEventId/resend-notifications", async (req, res) => {
+  const id = Number(req.params.changeEventId);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: "Invalid changeEventId" });
+
+  const projectId = await getProjectIdForChangeEvent(id);
+  if (!projectId) return res.status(404).json({ error: "Change event not found" });
+  if (!(await requirePmAccess(req, res, projectId))) return;
+
+  const rawImpactIds = Array.isArray(req.body?.impactIds) ? req.body.impactIds : undefined;
+  let impactIds: number[] | undefined;
+  if (rawImpactIds) {
+    impactIds = rawImpactIds.map((n: unknown) => Number(n)).filter((n: number) => Number.isFinite(n));
+    if (impactIds && impactIds.length > 0) {
+      const owned = await db
+        .select({ id: milestoneImpacts.id })
+        .from(milestoneImpacts)
+        .where(
+          and(
+            eq(milestoneImpacts.changeEventId, id),
+            inArray(milestoneImpacts.id, impactIds),
+          ),
+        );
+      if (owned.length !== impactIds.length) {
+        return res
+          .status(400)
+          .json({ error: "One or more impactIds do not belong to this change event" });
+      }
+    }
+  }
+
+  let results;
+  try {
+    results = await sendChangeEventNotifications({
+      changeEventId: id,
+      impactIds,
+      triggeredByUserId: req.auth_ctx!.userId,
+    });
+  } catch (err) {
+    logger.error({ err, changeEventId: id }, "resend-notifications: unexpected failure");
+    return res.status(500).json({ error: "Failed to send notifications" });
+  }
+
+  const sent = results.filter((r) => r.status === "Sent").length;
+  const failed = results.length - sent;
+
+  return res.json({
+    changeEventId: id,
+    attempted: results.length,
+    sent,
+    failed,
+    results: results.map((r) => ({
+      impactId: r.impactId,
+      projectCompanyId: r.projectCompanyId,
+      companyName: r.companyName,
+      recipientEmail: r.recipientEmail,
+      status: r.status,
+      channel: r.channel,
+      errorMessage: r.errorMessage,
     })),
   });
 });
@@ -817,6 +951,21 @@ router.post("/milestones/:milestoneId/change-events", async (req, res) => {
     return ev;
   });
 
+  // Deliver real notifications to impacted companies. Per-company failures are
+  // recorded in notification_deliveries and surfaced to the PM via the change-event
+  // detail; we never fail the whole create just because email delivery failed.
+  try {
+    await sendChangeEventNotifications({
+      changeEventId: created.id,
+      triggeredByUserId: userId,
+    });
+  } catch (err) {
+    logger.error(
+      { err, changeEventId: created.id },
+      "createChangeEvent: notification batch failed (continuing)",
+    );
+  }
+
   const impacts = await db
     .select({
       id: milestoneImpacts.id,
@@ -837,6 +986,9 @@ router.post("/milestones/:milestoneId/change-events", async (req, res) => {
     .where(eq(milestoneImpacts.changeEventId, created.id))
     .orderBy(asc(companies.name));
 
+  const { latest: latestByImpactNew, counts: countsByImpactNew } =
+    await getLatestDeliveriesByImpactId(impacts.map((i) => i.id));
+
   return res.status(201).json({
     id: created.id,
     milestoneId: m.id,
@@ -851,19 +1003,28 @@ router.post("/milestones/:milestoneId/change-events", async (req, res) => {
     status: created.status,
     clientComment: created.clientComment,
     clientDecisionAt: isoOrNull(created.clientDecisionAt),
-    impacts: impacts.map((i) => ({
-      id: i.id,
-      projectCompanyId: i.projectCompanyId,
-      companyName: i.companyName,
-      companyRole: i.companyRole,
-      responseStatus: i.responseStatus,
-      notifiedAt: i.notifiedAt.toISOString(),
-      respondedAt: isoOrNull(i.respondedAt),
-      impactRiskLevel: i.impactRiskLevel,
-      impactRiskType: i.impactRiskType,
-      mainRiskIssue: i.mainRiskIssue,
-      detailedComment: i.detailedComment,
-    })),
+    impacts: impacts.map((i) => {
+      const d = latestByImpactNew.get(i.id) ?? null;
+      return {
+        id: i.id,
+        projectCompanyId: i.projectCompanyId,
+        companyName: i.companyName,
+        companyRole: i.companyRole,
+        responseStatus: i.responseStatus,
+        notifiedAt: i.notifiedAt.toISOString(),
+        respondedAt: isoOrNull(i.respondedAt),
+        impactRiskLevel: i.impactRiskLevel,
+        impactRiskType: i.impactRiskType,
+        mainRiskIssue: i.mainRiskIssue,
+        detailedComment: i.detailedComment,
+        lastDeliveryStatus: d?.status ?? null,
+        lastDeliveryChannel: d?.channel ?? null,
+        lastDeliveryAt: d ? d.attemptedAt.toISOString() : null,
+        lastDeliveryError: d?.errorMessage ?? null,
+        deliveryAttemptCount: countsByImpactNew.get(i.id) ?? 0,
+        recipientEmail: d?.recipientEmail ?? null,
+      };
+    }),
   });
 });
 

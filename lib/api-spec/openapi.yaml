@@ -300,6 +300,45 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /change-events/{changeEventId}/resend-notifications:
+    post:
+      operationId: resendChangeEventNotifications
+      tags: [impacts]
+      summary: Re-send change event notifications to impacted companies (e.g. non-responders)
+      parameters:
+        - in: path
+          name: changeEventId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResendNotificationsInput"
+      responses:
+        "200":
+          description: Delivery results per impact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResendNotificationsResult"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Change event not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /change-events/{changeEventId}/detail:
     get:
       operationId: getChangeEventDetail
@@ -1006,6 +1045,18 @@ components:
             - { type: "null" }
         mainRiskIssue: { type: ["string", "null"] }
         detailedComment: { type: ["string", "null"] }
+        lastDeliveryStatus:
+          oneOf:
+            - { type: string, enum: [Sent, Failed] }
+            - { type: "null" }
+        lastDeliveryChannel:
+          oneOf:
+            - { type: string, enum: [email, log] }
+            - { type: "null" }
+        lastDeliveryAt: { type: ["string", "null"], format: date-time }
+        lastDeliveryError: { type: ["string", "null"] }
+        deliveryAttemptCount: { type: integer }
+        recipientEmail: { type: ["string", "null"] }
 
     ChangeEventHistoryItem:
       type: object
@@ -1187,6 +1238,42 @@ components:
       properties:
         action: { $ref: "#/components/schemas/TransitionChangeEventAction" }
         clientComment: { type: string }
+
+    ResendNotificationsInput:
+      type: object
+      properties:
+        impactIds:
+          type: array
+          items: { type: integer }
+          description: Optional list of milestone_impact ids to resend. Omit to resend to all impacted companies on the event.
+
+    NotificationDeliveryResult:
+      type: object
+      required: [impactId, projectCompanyId, companyName, recipientEmail, status, channel]
+      properties:
+        impactId: { type: integer }
+        projectCompanyId: { type: integer }
+        companyName: { type: string }
+        recipientEmail: { type: string }
+        status:
+          type: string
+          enum: [Sent, Failed]
+        channel:
+          type: string
+          enum: [email, log]
+        errorMessage: { type: ["string", "null"] }
+
+    ResendNotificationsResult:
+      type: object
+      required: [changeEventId, attempted, sent, failed, results]
+      properties:
+        changeEventId: { type: integer }
+        attempted: { type: integer }
+        sent: { type: integer }
+        failed: { type: integer }
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/NotificationDeliveryResult" }
 
     CreateChangeEventInput:
       type: object

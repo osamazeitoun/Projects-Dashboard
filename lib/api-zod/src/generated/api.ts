@@ -295,7 +295,13 @@ export const GetMilestoneDetailResponse = zod.object({
   "impactRiskLevel": zod.union([zod.enum(['None', 'Low', 'Medium', 'High']),zod.null()]).optional(),
   "impactRiskType": zod.union([zod.enum(['Time', 'Cost', 'Quality', 'Scope', 'Resources', 'Authority', 'Other']),zod.null()]).optional(),
   "mainRiskIssue": zod.string().nullish(),
-  "detailedComment": zod.string().nullish()
+  "detailedComment": zod.string().nullish(),
+  "lastDeliveryStatus": zod.union([zod.enum(['Sent', 'Failed']),zod.null()]).optional(),
+  "lastDeliveryChannel": zod.union([zod.enum(['email', 'log']),zod.null()]).optional(),
+  "lastDeliveryAt": zod.coerce.date().nullish(),
+  "lastDeliveryError": zod.string().nullish(),
+  "deliveryAttemptCount": zod.number().optional(),
+  "recipientEmail": zod.string().nullish()
 }))
 })),
   "outstandingCompanies": zod.array(zod.object({
@@ -380,6 +386,34 @@ export const CreateChangeEventBody = zod.object({
 
 
 /**
+ * @summary Re-send change event notifications to impacted companies (e.g. non-responders)
+ */
+export const ResendChangeEventNotificationsParams = zod.object({
+  "changeEventId": zod.coerce.number()
+})
+
+export const ResendChangeEventNotificationsBody = zod.object({
+  "impactIds": zod.array(zod.number()).optional().describe('Optional list of milestone_impact ids to resend. Omit to resend to all impacted companies on the event.')
+})
+
+export const ResendChangeEventNotificationsResponse = zod.object({
+  "changeEventId": zod.number(),
+  "attempted": zod.number(),
+  "sent": zod.number(),
+  "failed": zod.number(),
+  "results": zod.array(zod.object({
+  "impactId": zod.number(),
+  "projectCompanyId": zod.number(),
+  "companyName": zod.string(),
+  "recipientEmail": zod.string(),
+  "status": zod.enum(['Sent', 'Failed']),
+  "channel": zod.enum(['email', 'log']),
+  "errorMessage": zod.string().nullish()
+}))
+})
+
+
+/**
  * @summary Drill-in detail for a change event including all per-company responses
  */
 export const GetChangeEventDetailParams = zod.object({
@@ -411,7 +445,13 @@ export const GetChangeEventDetailResponse = zod.object({
   "impactRiskLevel": zod.union([zod.enum(['None', 'Low', 'Medium', 'High']),zod.null()]).optional(),
   "impactRiskType": zod.union([zod.enum(['Time', 'Cost', 'Quality', 'Scope', 'Resources', 'Authority', 'Other']),zod.null()]).optional(),
   "mainRiskIssue": zod.string().nullish(),
-  "detailedComment": zod.string().nullish()
+  "detailedComment": zod.string().nullish(),
+  "lastDeliveryStatus": zod.union([zod.enum(['Sent', 'Failed']),zod.null()]).optional(),
+  "lastDeliveryChannel": zod.union([zod.enum(['email', 'log']),zod.null()]).optional(),
+  "lastDeliveryAt": zod.coerce.date().nullish(),
+  "lastDeliveryError": zod.string().nullish(),
+  "deliveryAttemptCount": zod.number().optional(),
+  "recipientEmail": zod.string().nullish()
 }))
 })
 
@@ -453,7 +493,13 @@ export const TransitionChangeEventResponse = zod.object({
   "impactRiskLevel": zod.union([zod.enum(['None', 'Low', 'Medium', 'High']),zod.null()]).optional(),
   "impactRiskType": zod.union([zod.enum(['Time', 'Cost', 'Quality', 'Scope', 'Resources', 'Authority', 'Other']),zod.null()]).optional(),
   "mainRiskIssue": zod.string().nullish(),
-  "detailedComment": zod.string().nullish()
+  "detailedComment": zod.string().nullish(),
+  "lastDeliveryStatus": zod.union([zod.enum(['Sent', 'Failed']),zod.null()]).optional(),
+  "lastDeliveryChannel": zod.union([zod.enum(['email', 'log']),zod.null()]).optional(),
+  "lastDeliveryAt": zod.coerce.date().nullish(),
+  "lastDeliveryError": zod.string().nullish(),
+  "deliveryAttemptCount": zod.number().optional(),
+  "recipientEmail": zod.string().nullish()
 }))
 })
 

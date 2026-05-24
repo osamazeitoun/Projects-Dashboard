@@ -44,6 +44,8 @@ import type {
   ProjectCompanyRole,
   ProjectListItem,
   ProjectSummary,
+  ResendNotificationsInput,
+  ResendNotificationsResult,
   SetActiveWorkspaceInput,
   TransitionChangeEventInput,
   UpcomingMilestone
@@ -1050,6 +1052,78 @@ export const useCreateChangeEvent = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getCreateChangeEventMutationOptions(options));
+    }
+
+export const getResendChangeEventNotificationsUrl = (changeEventId: number,) => {
+
+
+
+
+  return `/api/change-events/${changeEventId}/resend-notifications`
+}
+
+/**
+ * @summary Re-send change event notifications to impacted companies (e.g. non-responders)
+ */
+export const resendChangeEventNotifications = async (changeEventId: number,
+    resendNotificationsInput?: ResendNotificationsInput, options?: RequestInit): Promise<ResendNotificationsResult> => {
+
+  return customFetch<ResendNotificationsResult>(getResendChangeEventNotificationsUrl(changeEventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      resendNotificationsInput,)
+  }
+);}
+
+
+
+
+export const getResendChangeEventNotificationsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendChangeEventNotifications>>, TError,{changeEventId: number;data?: BodyType<ResendNotificationsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resendChangeEventNotifications>>, TError,{changeEventId: number;data?: BodyType<ResendNotificationsInput>}, TContext> => {
+
+const mutationKey = ['resendChangeEventNotifications'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resendChangeEventNotifications>>, {changeEventId: number;data?: BodyType<ResendNotificationsInput>}> = (props) => {
+          const {changeEventId,data} = props ?? {};
+
+          return  resendChangeEventNotifications(changeEventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResendChangeEventNotificationsMutationResult = NonNullable<Awaited<ReturnType<typeof resendChangeEventNotifications>>>
+    export type ResendChangeEventNotificationsMutationBody = BodyType<ResendNotificationsInput> | undefined
+    export type ResendChangeEventNotificationsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Re-send change event notifications to impacted companies (e.g. non-responders)
+ */
+export const useResendChangeEventNotifications = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendChangeEventNotifications>>, TError,{changeEventId: number;data?: BodyType<ResendNotificationsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resendChangeEventNotifications>>,
+        TError,
+        {changeEventId: number;data?: BodyType<ResendNotificationsInput>},
+        TContext
+      > => {
+      return useMutation(getResendChangeEventNotificationsMutationOptions(options));
     }
 
 export const getGetChangeEventDetailUrl = (changeEventId: number,) => {

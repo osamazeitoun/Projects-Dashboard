@@ -257,6 +257,40 @@ export const projectAssignments = pgTable(
   }),
 );
 
+export const notificationChannelEnum = pgEnum("notification_channel", [
+  "email",
+  "log",
+]);
+
+export const notificationStatusEnum = pgEnum("notification_status", [
+  "Sent",
+  "Failed",
+]);
+
+export const notificationDeliveries = pgTable("notification_deliveries", {
+  id: serial("id").primaryKey(),
+  changeEventId: integer("change_event_id")
+    .notNull()
+    .references(() => changeEvents.id, { onDelete: "cascade" }),
+  milestoneImpactId: integer("milestone_impact_id")
+    .notNull()
+    .references(() => milestoneImpacts.id, { onDelete: "cascade" }),
+  projectCompanyId: integer("project_company_id")
+    .notNull()
+    .references(() => projectCompanies.id, { onDelete: "cascade" }),
+  channel: notificationChannelEnum("channel").notNull(),
+  status: notificationStatusEnum("status").notNull(),
+  recipientEmail: text("recipient_email").notNull(),
+  subject: text("subject").notNull(),
+  errorMessage: text("error_message"),
+  attemptedAt: timestamp("attempted_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  triggeredByUserId: integer("triggered_by_user_id"),
+});
+
+export type NotificationDelivery = typeof notificationDeliveries.$inferSelect;
+
 export type User = typeof users.$inferSelect;
 export type UserCompany = typeof userCompanies.$inferSelect;
 export type ProjectAssignment = typeof projectAssignments.$inferSelect;

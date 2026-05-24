@@ -24,4 +24,13 @@ export interface MilestoneImpactDetail {
   mainRiskIssue?: string | null;
   /** @nullable */
   detailedComment?: string | null;
+  lastDeliveryStatus?: 'Sent' | 'Failed' | null;
+  lastDeliveryChannel?: 'email' | 'log' | null;
+  /** @nullable */
+  lastDeliveryAt?: Date | null;
+  /** @nullable */
+  lastDeliveryError?: string | null;
+  deliveryAttemptCount?: number;
+  /** @nullable */
+  recipientEmail?: string | null;
 }

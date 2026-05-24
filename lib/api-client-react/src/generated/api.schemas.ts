@@ -236,6 +236,15 @@ export interface MilestoneImpactDetail {
   mainRiskIssue?: string | null;
   /** @nullable */
   detailedComment?: string | null;
+  lastDeliveryStatus?: 'Sent' | 'Failed' | null;
+  lastDeliveryChannel?: 'email' | 'log' | null;
+  /** @nullable */
+  lastDeliveryAt?: string | null;
+  /** @nullable */
+  lastDeliveryError?: string | null;
+  deliveryAttemptCount?: number;
+  /** @nullable */
+  recipientEmail?: string | null;
 }
 
 export interface ChangeEventHistoryItem {
@@ -363,6 +372,46 @@ export const TransitionChangeEventAction = {
 export interface TransitionChangeEventInput {
   action: TransitionChangeEventAction;
   clientComment?: string;
+}
+
+export interface ResendNotificationsInput {
+  /** Optional list of milestone_impact ids to resend. Omit to resend to all impacted companies on the event. */
+  impactIds?: number[];
+}
+
+export type NotificationDeliveryResultStatus = typeof NotificationDeliveryResultStatus[keyof typeof NotificationDeliveryResultStatus];
+
+
+export const NotificationDeliveryResultStatus = {
+  Sent: 'Sent',
+  Failed: 'Failed',
+} as const;
+
+export type NotificationDeliveryResultChannel = typeof NotificationDeliveryResultChannel[keyof typeof NotificationDeliveryResultChannel];
+
+
+export const NotificationDeliveryResultChannel = {
+  email: 'email',
+  log: 'log',
+} as const;
+
+export interface NotificationDeliveryResult {
+  impactId: number;
+  projectCompanyId: number;
+  companyName: string;
+  recipientEmail: string;
+  status: NotificationDeliveryResultStatus;
+  channel: NotificationDeliveryResultChannel;
+  /** @nullable */
+  errorMessage?: string | null;
+}
+
+export interface ResendNotificationsResult {
+  changeEventId: number;
+  attempted: number;
+  sent: number;
+  failed: number;
+  results: NotificationDeliveryResult[];
 }
 
 export interface CreateChangeEventInput {
