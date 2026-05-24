@@ -24,6 +24,9 @@ import PmMilestoneDetail from "@/pages/pm/milestone-detail";
 import PmCompanies from "@/pages/pm/companies";
 import PmChangeEvents from "@/pages/pm/change-events";
 import PmChangeEventDetail from "@/pages/pm/change-event-detail";
+import ClientLayout from "@/components/client-layout";
+import ClientInbox from "@/pages/client/inbox";
+import ClientChangeEventDetail from "@/pages/client/change-event-detail";
 
 const queryClient = new QueryClient();
 
@@ -104,6 +107,7 @@ function SmartHomeRedirect() {
   if ((me.pmProjectIds?.length ?? 0) > 0) return <Redirect to="/pm" />;
   if ((me.contractorProjectIds?.length ?? 0) > 0)
     return <Redirect to="/dashboard" />;
+  if ((me.clientProjectIds?.length ?? 0) > 0) return <Redirect to="/client" />;
   return <NoAccessGate perspective="contractor"><div /></NoAccessGate>;
 }
 
@@ -167,6 +171,28 @@ function ProtectedPmPage({ children }: { children: React.ReactNode }) {
       <Show when="signed-in">
         <NoAccessGate perspective="pm">
           <PmLayout>{children}</PmLayout>
+        </NoAccessGate>
+      </Show>
+      <Show when="signed-out">
+        <Redirect to="/" />
+      </Show>
+    </>
+  );
+}
+
+function ProtectedClientPage({ children }: { children: React.ReactNode }) {
+  if (DEV_AUTH) {
+    return (
+      <NoAccessGate perspective="client">
+        <ClientLayout>{children}</ClientLayout>
+      </NoAccessGate>
+    );
+  }
+  return (
+    <>
+      <Show when="signed-in">
+        <NoAccessGate perspective="client">
+          <ClientLayout>{children}</ClientLayout>
         </NoAccessGate>
       </Show>
       <Show when="signed-out">
@@ -263,6 +289,12 @@ function AppRoutes() {
             </Route>
             <Route path="/pm/change-event/:id">
               <ProtectedPmPage><PmChangeEventDetail /></ProtectedPmPage>
+            </Route>
+            <Route path="/client">
+              <ProtectedClientPage><ClientInbox /></ProtectedClientPage>
+            </Route>
+            <Route path="/client/change-event/:id">
+              <ProtectedClientPage><ClientChangeEventDetail /></ProtectedClientPage>
             </Route>
             <Route path="/admin">
               <ProtectedAdminPage><AdminProjects /></ProtectedAdminPage>

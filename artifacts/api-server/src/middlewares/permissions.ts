@@ -8,6 +8,7 @@ import {
   milestones,
   changeEvents,
   milestoneImpacts,
+  companies,
 } from "@workspace/db";
 import { and, eq, inArray } from "drizzle-orm";
 
@@ -246,6 +247,89 @@ export async function listPmProjectIds(userId: number): Promise<number[]> {
   for (const r of fromAdminCompanies) set.add(r.projectId);
   for (const a of pmAssignments) set.add(a.projectId);
   return Array.from(set);
+}
+
+/**
+ * Return projectIds where the user has client-side standing — i.e. they
+ * have an assignment (or are a company admin) on a company of type 'Client'
+ * that participates in the project. These are the projects on which the
+ * user can approve/reject change events as the client.
+ */
+export async function listClientProjectIds(userId: number): Promise<number[]> {
+  const [adminMemberships, assignedCompanies] = await Promise.all([
+    db
+      .select({ companyId: userCompanies.companyId })
+      .from(userCompanies)
+      .where(
+        and(eq(userCompanies.userId, userId), eq(userCompanies.role, "admin")),
+      ),
+    db
+      .select({
+        projectId: projectAssignments.projectId,
+        companyId: projectAssignments.companyId,
+      })
+      .from(projectAssignments)
+      .where(eq(projectAssignments.userId, userId)),
+  ]);
+
+  const set = new Set<number>();
+
+  const adminCompanyIds = adminMemberships.map((m) => m.companyId);
+  if (adminCompanyIds.length > 0) {
+    const rows = await db
+      .select({ projectId: projectCompanies.projectId })
+      .from(projectCompanies)
+      .innerJoin(companies, eq(companies.id, projectCompanies.companyId))
+      .where(
+        and(
+          inArray(projectCompanies.companyId, adminCompanyIds),
+          eq(companies.type, "Client"),
+        ),
+      );
+    for (const r of rows) set.add(r.projectId);
+  }
+
+  const candidatePairs = assignedCompanies.filter(
+    (a): a is { projectId: number; companyId: number } => a.companyId != null,
+  );
+  if (candidatePairs.length > 0) {
+    const companyIds = Array.from(
+      new Set(candidatePairs.map((p) => p.companyId)),
+    );
+    const clientCompanyRows = await db
+      .select({ id: companies.id })
+      .from(companies)
+      .where(and(inArray(companies.id, companyIds), eq(companies.type, "Client")));
+    const clientCompanyIds = new Set(clientCompanyRows.map((r) => r.id));
+    for (const a of candidatePairs) {
+      if (clientCompanyIds.has(a.companyId)) set.add(a.projectId);
+    }
+  }
+
+  return Array.from(set);
+}
+
+/**
+ * Helper for routes: require the user has client-side standing on the
+ * given project (admin/assignment via a Client-type company). Returns
+ * true if allowed; otherwise responds 401/403 and returns false.
+ */
+export async function requireClientAccess(
+  req: Request,
+  res: Response,
+  projectId: number,
+): Promise<boolean> {
+  const ctx = req.auth_ctx;
+  if (!ctx) {
+    res.status(401).json({ error: "Unauthorized" });
+    return false;
+  }
+  const ids = await listClientProjectIds(ctx.userId);
+  if (!ids.includes(projectId)) {
+    res.status(403).json({ error: "Client access required for this project" });
+    return false;
+  }
+  return true;
 }
 
 /**

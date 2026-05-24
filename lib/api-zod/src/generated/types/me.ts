@@ -30,4 +30,5 @@ export interface Me {
   pmProjectIds: number[];
   contractorProjectIds: number[];
   adminProjectIds: number[];
+  clientProjectIds: number[];
 }

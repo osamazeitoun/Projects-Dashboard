@@ -383,6 +383,36 @@ export interface ChangeEventDetail {
   timeline: ChangeEventTimelineEntry[];
 }
 
+export interface ClientReviewItem {
+  id: number;
+  projectId: number;
+  projectName: string;
+  projectCode: string;
+  milestoneId: number;
+  milestoneCode: string;
+  milestoneName: string;
+  stageCode: StageCode;
+  stageName: string;
+  initiatedAt: string;
+  oldDate: string;
+  proposedNewDate: string;
+  changeReason: string;
+  status: ChangeEventStatus;
+}
+
+export type ClientDecisionInputDecision = typeof ClientDecisionInputDecision[keyof typeof ClientDecisionInputDecision];
+
+
+export const ClientDecisionInputDecision = {
+  approve: 'approve',
+  reject: 'reject',
+} as const;
+
+export interface ClientDecisionInput {
+  decision: ClientDecisionInputDecision;
+  comment?: string;
+}
+
 export type TransitionChangeEventAction = typeof TransitionChangeEventAction[keyof typeof TransitionChangeEventAction];
 
 
@@ -525,6 +555,7 @@ export interface Me {
   pmProjectIds: number[];
   contractorProjectIds: number[];
   adminProjectIds: number[];
+  clientProjectIds: number[];
 }
 
 export interface AdminProjectListItem {

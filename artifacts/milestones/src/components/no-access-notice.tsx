@@ -5,7 +5,7 @@ import { ShieldAlert, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
-type Perspective = "contractor" | "pm";
+type Perspective = "contractor" | "pm" | "client";
 
 export default function NoAccessGate({
   perspective,
@@ -23,7 +23,9 @@ export default function NoAccessGate({
     me.isCompanyAdmin ||
     (perspective === "pm"
       ? (me.pmProjectIds?.length ?? 0) > 0
-      : (me.contractorProjectIds?.length ?? 0) > 0);
+      : perspective === "client"
+        ? (me.clientProjectIds?.length ?? 0) > 0
+        : (me.contractorProjectIds?.length ?? 0) > 0);
 
   if (allowed) return <>{children}</>;
 

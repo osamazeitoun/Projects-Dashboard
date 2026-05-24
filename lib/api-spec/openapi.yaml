@@ -20,6 +20,8 @@ tags:
     description: Current user
   - name: admin
     description: Company admin operations
+  - name: client
+    description: Client-side review of change events
 paths:
   /healthz:
     get:
@@ -151,6 +153,89 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /me/client-reviews:
+    get:
+      operationId: listClientReviews
+      tags: [client]
+      summary: Change events awaiting the signed-in user's client-side decision
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ClientReviewItem" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /me/client-reviews/{changeEventId}:
+    get:
+      operationId: getClientReviewDetail
+      tags: [client]
+      summary: Detail of a change event the signed-in user can decide on as a client
+      parameters:
+        - in: path
+          name: changeEventId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChangeEventDetail" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /me/client-reviews/{changeEventId}/decision:
+    post:
+      operationId: submitClientDecision
+      tags: [client]
+      summary: Record the client's approve/reject decision on a change event
+      parameters:
+        - in: path
+          name: changeEventId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ClientDecisionInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChangeEventDetail" }
+        "400":
+          description: Invalid input or transition
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
 
   /projects:
     get:
@@ -1288,6 +1373,48 @@ components:
         actorEmail: { type: ["string", "null"] }
         comment: { type: ["string", "null"] }
 
+    ClientReviewItem:
+      type: object
+      required:
+        - id
+        - projectId
+        - projectName
+        - projectCode
+        - milestoneId
+        - milestoneCode
+        - milestoneName
+        - stageCode
+        - stageName
+        - initiatedAt
+        - oldDate
+        - proposedNewDate
+        - changeReason
+        - status
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        projectName: { type: string }
+        projectCode: { type: string }
+        milestoneId: { type: integer }
+        milestoneCode: { type: string }
+        milestoneName: { type: string }
+        stageCode: { $ref: "#/components/schemas/StageCode" }
+        stageName: { type: string }
+        initiatedAt: { type: string, format: date-time }
+        oldDate: { type: string, format: date-time }
+        proposedNewDate: { type: string, format: date-time }
+        changeReason: { type: string }
+        status: { $ref: "#/components/schemas/ChangeEventStatus" }
+
+    ClientDecisionInput:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [approve, reject]
+        comment: { type: string }
+
     TransitionChangeEventAction:
       type: string
       enum: [send, client_approve, client_reject, pm_approve, cancel]
@@ -1430,6 +1557,7 @@ components:
         - pmProjectIds
         - contractorProjectIds
         - adminProjectIds
+        - clientProjectIds
       properties:
         userId: { type: integer }
         clerkUserId: { type: string }
@@ -1454,6 +1582,9 @@ components:
           type: array
           items: { type: integer }
         adminProjectIds:
+          type: array
+          items: { type: integer }
+        clientProjectIds:
           type: array
           items: { type: integer }
 

@@ -25,6 +25,7 @@ import {
 import {
   isCompanyAdmin,
   listAccessibleProjectIds,
+  listClientProjectIds,
   getEffectiveProjectAccess,
 } from "../middlewares/permissions";
 import { projectAssignments } from "@workspace/db";
@@ -79,7 +80,7 @@ const STAGE_INFO = [
 const stageNameByCode = new Map(STAGE_INFO.map((s) => [s.code, s.name]));
 
 async function buildMeResponse(ctx: NonNullable<Request["auth_ctx"]>) {
-  const [memberships, accessibleProjectIds, admin, assignments] =
+  const [memberships, accessibleProjectIds, admin, assignments, clientProjectIds] =
     await Promise.all([
       db
         .select({
@@ -99,6 +100,7 @@ async function buildMeResponse(ctx: NonNullable<Request["auth_ctx"]>) {
         })
         .from(projectAssignments)
         .where(eq(projectAssignments.userId, ctx.userId)),
+      listClientProjectIds(ctx.userId),
     ]);
 
   const activeWorkspace = ctx.workspaces.find(
@@ -141,6 +143,7 @@ async function buildMeResponse(ctx: NonNullable<Request["auth_ctx"]>) {
     pmProjectIds: Array.from(pmSet),
     contractorProjectIds: Array.from(contractorSet),
     adminProjectIds: Array.from(adminSet),
+    clientProjectIds,
   };
 }
 

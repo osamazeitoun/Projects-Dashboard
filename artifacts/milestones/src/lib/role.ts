@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 
-export type Perspective = "pm" | "company";
+export type Perspective = "pm" | "company" | "client";
 
 const KEY = "milestones.perspective";
 
 function read(): Perspective {
   if (typeof window === "undefined") return "company";
   const v = window.localStorage.getItem(KEY);
-  return v === "pm" ? "pm" : "company";
+  if (v === "pm" || v === "client") return v;
+  return "company";
 }
 
 const listeners = new Set<(p: Perspective) => void>();

@@ -30,6 +30,8 @@ import type {
   AdminUpsertAssignmentInput,
   ChangeEventDetail,
   ChangeEventSummary,
+  ClientDecisionInput,
+  ClientReviewItem,
   CreateChangeEventInput,
   EditChangeEventInput,
   ErrorResponse,
@@ -520,6 +522,232 @@ export function useGetMyPendingImpacts<TData = Awaited<ReturnType<typeof getMyPe
 
 
 
+
+export const getListClientReviewsUrl = () => {
+
+
+
+
+  return `/api/me/client-reviews`
+}
+
+/**
+ * @summary Change events awaiting the signed-in user's client-side decision
+ */
+export const listClientReviews = async ( options?: RequestInit): Promise<ClientReviewItem[]> => {
+
+  return customFetch<ClientReviewItem[]>(getListClientReviewsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientReviewsQueryKey = () => {
+    return [
+    `/api/me/client-reviews`
+    ] as const;
+    }
+
+
+export const getListClientReviewsQueryOptions = <TData = Awaited<ReturnType<typeof listClientReviews>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientReviews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientReviewsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientReviews>>> = ({ signal }) => listClientReviews({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientReviews>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClientReviewsQueryResult = NonNullable<Awaited<ReturnType<typeof listClientReviews>>>
+export type ListClientReviewsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Change events awaiting the signed-in user's client-side decision
+ */
+
+export function useListClientReviews<TData = Awaited<ReturnType<typeof listClientReviews>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientReviews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClientReviewsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetClientReviewDetailUrl = (changeEventId: number,) => {
+
+
+
+
+  return `/api/me/client-reviews/${changeEventId}`
+}
+
+/**
+ * @summary Detail of a change event the signed-in user can decide on as a client
+ */
+export const getClientReviewDetail = async (changeEventId: number, options?: RequestInit): Promise<ChangeEventDetail> => {
+
+  return customFetch<ChangeEventDetail>(getGetClientReviewDetailUrl(changeEventId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientReviewDetailQueryKey = (changeEventId: number,) => {
+    return [
+    `/api/me/client-reviews/${changeEventId}`
+    ] as const;
+    }
+
+
+export const getGetClientReviewDetailQueryOptions = <TData = Awaited<ReturnType<typeof getClientReviewDetail>>, TError = ErrorType<ErrorResponse>>(changeEventId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientReviewDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientReviewDetailQueryKey(changeEventId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientReviewDetail>>> = ({ signal }) => getClientReviewDetail(changeEventId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(changeEventId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientReviewDetail>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetClientReviewDetailQueryResult = NonNullable<Awaited<ReturnType<typeof getClientReviewDetail>>>
+export type GetClientReviewDetailQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Detail of a change event the signed-in user can decide on as a client
+ */
+
+export function useGetClientReviewDetail<TData = Awaited<ReturnType<typeof getClientReviewDetail>>, TError = ErrorType<ErrorResponse>>(
+ changeEventId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientReviewDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetClientReviewDetailQueryOptions(changeEventId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSubmitClientDecisionUrl = (changeEventId: number,) => {
+
+
+
+
+  return `/api/me/client-reviews/${changeEventId}/decision`
+}
+
+/**
+ * @summary Record the client's approve/reject decision on a change event
+ */
+export const submitClientDecision = async (changeEventId: number,
+    clientDecisionInput: ClientDecisionInput, options?: RequestInit): Promise<ChangeEventDetail> => {
+
+  return customFetch<ChangeEventDetail>(getSubmitClientDecisionUrl(changeEventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      clientDecisionInput,)
+  }
+);}
+
+
+
+
+export const getSubmitClientDecisionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitClientDecision>>, TError,{changeEventId: number;data: BodyType<ClientDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitClientDecision>>, TError,{changeEventId: number;data: BodyType<ClientDecisionInput>}, TContext> => {
+
+const mutationKey = ['submitClientDecision'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitClientDecision>>, {changeEventId: number;data: BodyType<ClientDecisionInput>}> = (props) => {
+          const {changeEventId,data} = props ?? {};
+
+          return  submitClientDecision(changeEventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitClientDecisionMutationResult = NonNullable<Awaited<ReturnType<typeof submitClientDecision>>>
+    export type SubmitClientDecisionMutationBody = BodyType<ClientDecisionInput>
+    export type SubmitClientDecisionMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Record the client's approve/reject decision on a change event
+ */
+export const useSubmitClientDecision = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitClientDecision>>, TError,{changeEventId: number;data: BodyType<ClientDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitClientDecision>>,
+        TError,
+        {changeEventId: number;data: BodyType<ClientDecisionInput>},
+        TContext
+      > => {
+      return useMutation(getSubmitClientDecisionMutationOptions(options));
+    }
 
 export const getListProjectsUrl = () => {
 
