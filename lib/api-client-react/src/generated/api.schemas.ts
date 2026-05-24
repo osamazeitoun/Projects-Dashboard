@@ -519,19 +519,25 @@ export interface AdminUpsertAssignmentInput {
   companyId?: number | null;
 }
 
-export type AdminAddContractorInputRoleOnProject = typeof AdminAddContractorInputRoleOnProject[keyof typeof AdminAddContractorInputRoleOnProject];
-
-
-export const AdminAddContractorInputRoleOnProject = {
-  Client: 'Client',
-  MainContractor: 'MainContractor',
-  ArchConsultant: 'ArchConsultant',
-  MEPConsultant: 'MEPConsultant',
-  InteriorContractor: 'InteriorContractor',
-} as const;
-
 export interface AdminAddContractorInput {
   companyId: number;
-  roleOnProject: AdminAddContractorInputRoleOnProject;
+  /** @minLength 1 */
+  roleOnProject: string;
+}
+
+export interface ProjectCompanyRole {
+  id: number;
+  key: string;
+  label: string;
+  isBuiltIn: boolean;
+  referenceCount: number;
+}
+
+export interface AdminCreateProjectCompanyRoleInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  label: string;
 }
 

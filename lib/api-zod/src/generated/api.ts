@@ -503,15 +503,59 @@ export const AdminRemoveProjectAssignmentParams = zod.object({
 
 
 /**
+ * @summary List built-in and custom project-company roles
+ */
+export const AdminListProjectCompanyRolesResponseItem = zod.object({
+  "id": zod.number(),
+  "key": zod.string(),
+  "label": zod.string(),
+  "isBuiltIn": zod.boolean(),
+  "referenceCount": zod.number()
+})
+export const AdminListProjectCompanyRolesResponse = zod.array(AdminListProjectCompanyRolesResponseItem)
+
+
+/**
+ * @summary Create a new custom project-company role
+ */
+export const adminCreateProjectCompanyRoleBodyLabelMax = 80;
+
+
+
+export const AdminCreateProjectCompanyRoleBody = zod.object({
+  "label": zod.string().min(1).max(adminCreateProjectCompanyRoleBodyLabelMax)
+})
+
+export const AdminCreateProjectCompanyRoleResponse = zod.object({
+  "id": zod.number(),
+  "key": zod.string(),
+  "label": zod.string(),
+  "isBuiltIn": zod.boolean(),
+  "referenceCount": zod.number()
+})
+
+
+/**
+ * @summary Delete a custom project-company role (not allowed for built-in or in-use roles)
+ */
+export const AdminDeleteProjectCompanyRoleParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
  * @summary Add a contractor company to a project
  */
 export const AdminAddContractorCompanyParams = zod.object({
   "projectId": zod.coerce.number()
 })
 
+
+
+
 export const AdminAddContractorCompanyBody = zod.object({
   "companyId": zod.number(),
-  "roleOnProject": zod.enum(['Client', 'MainContractor', 'ArchConsultant', 'MEPConsultant', 'InteriorContractor'])
+  "roleOnProject": zod.string().min(1)
 })
 
 export const AdminAddContractorCompanyResponse = zod.object({

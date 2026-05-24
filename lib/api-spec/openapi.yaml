@@ -448,6 +448,94 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /admin/project-company-roles:
+    get:
+      operationId: adminListProjectCompanyRoles
+      tags: [admin]
+      summary: List built-in and custom project-company roles
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProjectCompanyRole" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    post:
+      operationId: adminCreateProjectCompanyRole
+      tags: [admin]
+      summary: Create a new custom project-company role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminCreateProjectCompanyRoleInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCompanyRole" }
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/project-company-roles/{id}:
+    delete:
+      operationId: adminDeleteProjectCompanyRole
+      tags: [admin]
+      summary: Delete a custom project-company role (not allowed for built-in or in-use roles)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Removed
+        "400":
+          description: Cannot delete (built-in or in use)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /admin/projects/{projectId}/contractors:
     post:
       operationId: adminAddContractorCompany
@@ -1215,6 +1303,20 @@ components:
       required: [companyId, roleOnProject]
       properties:
         companyId: { type: integer }
-        roleOnProject:
-          type: string
-          enum: [Client, MainContractor, ArchConsultant, MEPConsultant, InteriorContractor]
+        roleOnProject: { type: string, minLength: 1 }
+
+    ProjectCompanyRole:
+      type: object
+      required: [id, key, label, isBuiltIn, referenceCount]
+      properties:
+        id: { type: integer }
+        key: { type: string }
+        label: { type: string }
+        isBuiltIn: { type: boolean }
+        referenceCount: { type: integer }
+
+    AdminCreateProjectCompanyRoleInput:
+      type: object
+      required: [label]
+      properties:
+        label: { type: string, minLength: 1, maxLength: 80 }

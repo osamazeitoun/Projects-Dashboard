@@ -110,6 +110,27 @@ export const projectCompanies = pgTable("project_companies", {
   roleOnProject: text("role_on_project").notNull(),
 });
 
+export const projectCompanyRoles = pgTable(
+  "project_company_roles",
+  {
+    id: serial("id").primaryKey(),
+    key: text("key").notNull(),
+    label: text("label").notNull(),
+    isBuiltIn: boolean("is_built_in").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    projectCompanyRolesKeyUnique: uniqueIndex(
+      "project_company_roles_key_unique",
+    ).on(t.key),
+    projectCompanyRolesLabelUnique: uniqueIndex(
+      "project_company_roles_label_unique",
+    ).on(t.label),
+  }),
+);
+
 export const milestones = pgTable("milestones", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id")

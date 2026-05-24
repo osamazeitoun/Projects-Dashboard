@@ -21,6 +21,7 @@ import type {
 
 import type {
   AdminAddContractorInput,
+  AdminCreateProjectCompanyRoleInput,
   AdminProjectAssignment,
   AdminProjectContractorCompany,
   AdminProjectDetail,
@@ -39,6 +40,7 @@ import type {
   PmMilestone,
   PmProjectSummary,
   ProjectCompanyDetail,
+  ProjectCompanyRole,
   ProjectListItem,
   ProjectSummary,
   SetActiveWorkspaceInput,
@@ -1421,6 +1423,224 @@ export const useAdminRemoveProjectAssignment = <TError = ErrorType<ErrorResponse
         TContext
       > => {
       return useMutation(getAdminRemoveProjectAssignmentMutationOptions(options));
+    }
+
+export const getAdminListProjectCompanyRolesUrl = () => {
+
+
+
+
+  return `/api/admin/project-company-roles`
+}
+
+/**
+ * @summary List built-in and custom project-company roles
+ */
+export const adminListProjectCompanyRoles = async ( options?: RequestInit): Promise<ProjectCompanyRole[]> => {
+
+  return customFetch<ProjectCompanyRole[]>(getAdminListProjectCompanyRolesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListProjectCompanyRolesQueryKey = () => {
+    return [
+    `/api/admin/project-company-roles`
+    ] as const;
+    }
+
+
+export const getAdminListProjectCompanyRolesQueryOptions = <TData = Awaited<ReturnType<typeof adminListProjectCompanyRoles>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListProjectCompanyRoles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListProjectCompanyRolesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListProjectCompanyRoles>>> = ({ signal }) => adminListProjectCompanyRoles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListProjectCompanyRoles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListProjectCompanyRolesQueryResult = NonNullable<Awaited<ReturnType<typeof adminListProjectCompanyRoles>>>
+export type AdminListProjectCompanyRolesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List built-in and custom project-company roles
+ */
+
+export function useAdminListProjectCompanyRoles<TData = Awaited<ReturnType<typeof adminListProjectCompanyRoles>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListProjectCompanyRoles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListProjectCompanyRolesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminCreateProjectCompanyRoleUrl = () => {
+
+
+
+
+  return `/api/admin/project-company-roles`
+}
+
+/**
+ * @summary Create a new custom project-company role
+ */
+export const adminCreateProjectCompanyRole = async (adminCreateProjectCompanyRoleInput: AdminCreateProjectCompanyRoleInput, options?: RequestInit): Promise<ProjectCompanyRole> => {
+
+  return customFetch<ProjectCompanyRole>(getAdminCreateProjectCompanyRoleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminCreateProjectCompanyRoleInput,)
+  }
+);}
+
+
+
+
+export const getAdminCreateProjectCompanyRoleMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateProjectCompanyRole>>, TError,{data: BodyType<AdminCreateProjectCompanyRoleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminCreateProjectCompanyRole>>, TError,{data: BodyType<AdminCreateProjectCompanyRoleInput>}, TContext> => {
+
+const mutationKey = ['adminCreateProjectCompanyRole'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminCreateProjectCompanyRole>>, {data: BodyType<AdminCreateProjectCompanyRoleInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminCreateProjectCompanyRole(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminCreateProjectCompanyRoleMutationResult = NonNullable<Awaited<ReturnType<typeof adminCreateProjectCompanyRole>>>
+    export type AdminCreateProjectCompanyRoleMutationBody = BodyType<AdminCreateProjectCompanyRoleInput>
+    export type AdminCreateProjectCompanyRoleMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a new custom project-company role
+ */
+export const useAdminCreateProjectCompanyRole = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateProjectCompanyRole>>, TError,{data: BodyType<AdminCreateProjectCompanyRoleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminCreateProjectCompanyRole>>,
+        TError,
+        {data: BodyType<AdminCreateProjectCompanyRoleInput>},
+        TContext
+      > => {
+      return useMutation(getAdminCreateProjectCompanyRoleMutationOptions(options));
+    }
+
+export const getAdminDeleteProjectCompanyRoleUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/project-company-roles/${id}`
+}
+
+/**
+ * @summary Delete a custom project-company role (not allowed for built-in or in-use roles)
+ */
+export const adminDeleteProjectCompanyRole = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getAdminDeleteProjectCompanyRoleUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getAdminDeleteProjectCompanyRoleMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteProjectCompanyRole>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminDeleteProjectCompanyRole>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['adminDeleteProjectCompanyRole'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminDeleteProjectCompanyRole>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  adminDeleteProjectCompanyRole(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminDeleteProjectCompanyRoleMutationResult = NonNullable<Awaited<ReturnType<typeof adminDeleteProjectCompanyRole>>>
+
+    export type AdminDeleteProjectCompanyRoleMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a custom project-company role (not allowed for built-in or in-use roles)
+ */
+export const useAdminDeleteProjectCompanyRole = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteProjectCompanyRole>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminDeleteProjectCompanyRole>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getAdminDeleteProjectCompanyRoleMutationOptions(options));
     }
 
 export const getAdminAddContractorCompanyUrl = (projectId: number,) => {

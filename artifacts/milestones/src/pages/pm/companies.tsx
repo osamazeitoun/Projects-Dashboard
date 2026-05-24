@@ -1,4 +1,7 @@
-import { useGetProjectCompanies } from "@workspace/api-client-react";
+import {
+  useGetProjectCompanies,
+  useAdminListProjectCompanyRoles,
+} from "@workspace/api-client-react";
 import { usePmProjectId } from "@/components/pm-layout";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +25,8 @@ function responsivenessBadge(r: string) {
 export default function PmCompanies() {
   const [projectId] = usePmProjectId();
   const { data, isLoading, isError } = useGetProjectCompanies(projectId);
+  const { data: roles = [] } = useAdminListProjectCompanyRoles();
+  const roleLabelByKey = new Map(roles.map((r) => [r.key, r.label]));
 
   if (isLoading) {
     return (
@@ -63,7 +68,7 @@ export default function PmCompanies() {
                   <div className="font-medium">{c.name}</div>
                   <div className="text-xs text-muted-foreground">{c.type}</div>
                 </TableCell>
-                <TableCell className="text-sm">{c.roleOnProject}</TableCell>
+                <TableCell className="text-sm">{roleLabelByKey.get(c.roleOnProject) ?? c.roleOnProject}</TableCell>
                 <TableCell>
                   <div className="text-sm flex items-center gap-1.5"><User className="w-3 h-3 text-muted-foreground" />{c.primaryContactName}</div>
                   <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5"><Mail className="w-3 h-3" />{c.primaryContactEmail}</div>

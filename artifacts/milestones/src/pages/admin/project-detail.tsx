@@ -7,11 +7,22 @@ import {
   useAdminRemoveProjectAssignment,
   useAdminAddContractorCompany,
   useAdminRemoveContractorCompany,
+  useAdminListProjectCompanyRoles,
+  useAdminCreateProjectCompanyRole,
+  useAdminDeleteProjectCompanyRole,
   getAdminGetProjectDetailQueryKey,
   getAdminListProjectsQueryKey,
+  getAdminListProjectCompanyRolesQueryKey,
   type AdminProjectAssignmentRole,
-  type AdminAddContractorInputRoleOnProject,
 } from "@workspace/api-client-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -133,6 +144,50 @@ export default function AdminProjectDetail() {
   const [contractorCompanyId, setContractorCompanyId] = useState<string>("");
   const [contractorRole, setContractorRole] = useState("MainContractor");
 
+  // Custom-role dialog state
+  const [createRoleOpen, setCreateRoleOpen] = useState(false);
+  const [newRoleLabel, setNewRoleLabel] = useState("");
+
+  const { data: roles = [] } = useAdminListProjectCompanyRoles();
+  const createRole = useAdminCreateProjectCompanyRole({
+    mutation: {
+      onSuccess: (created) => {
+        qc.invalidateQueries({
+          queryKey: getAdminListProjectCompanyRolesQueryKey(),
+        });
+        setContractorRole(created.key);
+        setCreateRoleOpen(false);
+        setNewRoleLabel("");
+        toast({ title: "Role created" });
+      },
+      onError: (e: unknown) => {
+        toast({
+          title: "Failed to create role",
+          description: (e as { data?: { error?: string } } | null)?.data?.error,
+          variant: "destructive",
+        });
+      },
+    },
+  });
+  const deleteRole = useAdminDeleteProjectCompanyRole({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({
+          queryKey: getAdminListProjectCompanyRolesQueryKey(),
+        });
+        toast({ title: "Role deleted" });
+      },
+      onError: (e: unknown) => {
+        toast({
+          title: "Failed to delete role",
+          description: (e as { data?: { error?: string } } | null)?.data?.error,
+          variant: "destructive",
+        });
+      },
+    },
+  });
+  const roleLabelByKey = new Map(roles.map((r) => [r.key, r.label]));
+
   if (isLoading) {
     return (
       <div className="p-6 max-w-6xl mx-auto space-y-4">
@@ -221,10 +276,16 @@ export default function AdminProjectDetail() {
       projectId,
       data: {
         companyId: Number(contractorCompanyId),
-        roleOnProject: contractorRole as AdminAddContractorInputRoleOnProject,
+        roleOnProject: contractorRole,
       },
     });
     setContractorCompanyId("");
+  };
+
+  const onSubmitNewRole = () => {
+    const label = newRoleLabel.trim();
+    if (!label) return;
+    createRole.mutate({ data: { label } });
   };
 
   const onContractorsCompanyIds = new Set(
@@ -352,7 +413,7 @@ export default function AdminProjectDetail() {
               data.contractorCompanies.map((c) => (
                 <TableRow key={c.projectCompanyId}>
                   <TableCell className="font-medium">{c.companyName}</TableCell>
-                  <TableCell>{c.roleOnProject}</TableCell>
+                  <TableCell>{roleLabelByKey.get(c.roleOnProject) ?? c.roleOnProject}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="ghost"
@@ -396,18 +457,53 @@ export default function AdminProjectDetail() {
               </SelectContent>
             </Select>
           </div>
-          <div className="w-full sm:w-56 space-y-1">
+          <div className="w-full sm:w-64 space-y-1">
             <Label className="text-xs">Role on project</Label>
-            <Select value={contractorRole} onValueChange={setContractorRole}>
+            <Select
+              value={contractorRole}
+              onValueChange={(v) => {
+                if (v === "__create__") {
+                  setCreateRoleOpen(true);
+                  return;
+                }
+                setContractorRole(v);
+              }}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Client">Client</SelectItem>
-                <SelectItem value="MainContractor">Main Contractor</SelectItem>
-                <SelectItem value="ArchConsultant">Architecture Consultant</SelectItem>
-                <SelectItem value="MEPConsultant">MEP Consultant</SelectItem>
-                <SelectItem value="InteriorContractor">Interior Contractor</SelectItem>
+                {roles.map((r) => (
+                  <SelectItem key={r.id} value={r.key}>
+                    <span className="flex items-center justify-between gap-2 w-full">
+                      <span>{r.label}</span>
+                      <span className="flex items-center gap-1">
+                        {!r.isBuiltIn && (
+                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                            custom
+                          </span>
+                        )}
+                        {!r.isBuiltIn && r.referenceCount === 0 && (
+                          <button
+                            type="button"
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              deleteRole.mutate({ id: r.id });
+                            }}
+                            aria-label={`Delete ${r.label}`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
+                      </span>
+                    </span>
+                  </SelectItem>
+                ))}
+                <SelectItem value="__create__" className="text-primary">
+                  + Create new role…
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -545,6 +641,55 @@ export default function AdminProjectDetail() {
           </Button>
         </div>
       </Card>
+
+      <Dialog
+        open={createRoleOpen}
+        onOpenChange={(v) => {
+          setCreateRoleOpen(v);
+          if (!v) setNewRoleLabel("");
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create custom role</DialogTitle>
+            <DialogDescription>
+              The new role will be available on every project in your workspace.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1">
+            <Label className="text-xs">Role label</Label>
+            <Input
+              autoFocus
+              value={newRoleLabel}
+              onChange={(e) => setNewRoleLabel(e.target.value)}
+              placeholder="e.g. Shoring Contractor"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onSubmitNewRole();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCreateRoleOpen(false);
+                setNewRoleLabel("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={onSubmitNewRole}
+              disabled={!newRoleLabel.trim() || createRole.isPending}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

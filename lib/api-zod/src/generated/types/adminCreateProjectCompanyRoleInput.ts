@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface AdminAddContractorInput {
-  companyId: number;
-  /** @minLength 1 */
-  roleOnProject: string;
+export interface AdminCreateProjectCompanyRoleInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  label: string;
 }

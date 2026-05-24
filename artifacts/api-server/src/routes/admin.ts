@@ -4,6 +4,7 @@ import {
   companies,
   projects,
   projectCompanies,
+  projectCompanyRoles,
   projectAssignments,
   userCompanies,
   users,
@@ -19,6 +20,46 @@ import {
 } from "../middlewares/permissions";
 
 const router: IRouter = Router();
+
+// Public-to-authed users: listing roles is allowed for any authenticated
+// user so that PM and contractor views can resolve role labels. Mutations
+// below still require company admin via per-route middleware.
+router.get(
+  "/admin/project-company-roles",
+  requireAuth,
+  async (_req: Request, res: Response) => {
+    const rows = await db
+      .select({
+        id: projectCompanyRoles.id,
+        key: projectCompanyRoles.key,
+        label: projectCompanyRoles.label,
+        isBuiltIn: projectCompanyRoles.isBuiltIn,
+      })
+      .from(projectCompanyRoles)
+      .orderBy(asc(projectCompanyRoles.isBuiltIn), asc(projectCompanyRoles.label));
+
+    const refCounts = await db
+      .select({
+        roleKey: projectCompanies.roleOnProject,
+        count: sql<number>`COUNT(*)`,
+      })
+      .from(projectCompanies)
+      .groupBy(projectCompanies.roleOnProject);
+    const countByKey = new Map(
+      refCounts.map((r) => [r.roleKey, Number(r.count)]),
+    );
+
+    return res.json(
+      rows.map((r) => ({
+        id: r.id,
+        key: r.key,
+        label: r.label,
+        isBuiltIn: r.isBuiltIn,
+        referenceCount: countByKey.get(r.key) ?? 0,
+      })),
+    );
+  },
+);
 
 router.use(requireAuth, requireCompanyAdmin);
 
@@ -376,18 +417,111 @@ router.delete(
   },
 );
 
-export const PROJECT_COMPANY_ROLES = [
-  "Client",
-  "MainContractor",
-  "ArchConsultant",
-  "MEPConsultant",
-  "InteriorContractor",
-] as const;
-
 const addContractorSchema = z.object({
   companyId: z.number().int().positive(),
-  roleOnProject: z.enum(PROJECT_COMPANY_ROLES),
+  roleOnProject: z.string().min(1),
 });
+
+function slugifyRoleLabel(label: string): string {
+  const cleaned = label
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim();
+  if (!cleaned) return "";
+  return cleaned
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join("");
+}
+
+const createRoleSchema = z.object({
+  label: z.string().trim().min(1).max(80),
+});
+
+router.post(
+  "/admin/project-company-roles",
+  async (req: Request, res: Response) => {
+    const parsed = createRoleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: "Invalid body: " + parsed.error.message });
+    }
+    const label = parsed.data.label.trim();
+    const key = slugifyRoleLabel(label);
+    if (!key) {
+      return res
+        .status(400)
+        .json({ error: "Label must contain letters or numbers" });
+    }
+
+    const [existingLabel] = await db
+      .select({ id: projectCompanyRoles.id })
+      .from(projectCompanyRoles)
+      .where(eq(projectCompanyRoles.label, label))
+      .limit(1);
+    if (existingLabel) {
+      return res.status(400).json({ error: "A role with this label already exists" });
+    }
+    const [existingKey] = await db
+      .select({ id: projectCompanyRoles.id })
+      .from(projectCompanyRoles)
+      .where(eq(projectCompanyRoles.key, key))
+      .limit(1);
+    if (existingKey) {
+      return res
+        .status(400)
+        .json({ error: "A role with a conflicting key already exists" });
+    }
+
+    const [inserted] = await db
+      .insert(projectCompanyRoles)
+      .values({ key, label, isBuiltIn: false })
+      .returning();
+
+    return res.json({
+      id: inserted.id,
+      key: inserted.key,
+      label: inserted.label,
+      isBuiltIn: inserted.isBuiltIn,
+      referenceCount: 0,
+    });
+  },
+);
+
+router.delete(
+  "/admin/project-company-roles/:id",
+  async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ error: "Invalid id" });
+    }
+    const [role] = await db
+      .select()
+      .from(projectCompanyRoles)
+      .where(eq(projectCompanyRoles.id, id))
+      .limit(1);
+    if (!role) return res.status(404).json({ error: "Role not found" });
+    if (role.isBuiltIn) {
+      return res.status(400).json({ error: "Built-in roles cannot be deleted" });
+    }
+    const [ref] = await db
+      .select({ id: projectCompanies.id })
+      .from(projectCompanies)
+      .where(eq(projectCompanies.roleOnProject, role.key))
+      .limit(1);
+    if (ref) {
+      return res
+        .status(400)
+        .json({ error: "Role is in use and cannot be deleted" });
+    }
+    await db
+      .delete(projectCompanyRoles)
+      .where(eq(projectCompanyRoles.id, id));
+    return res.status(204).send();
+  },
+);
 
 router.post(
   "/admin/projects/:projectId/contractors",
@@ -405,6 +539,15 @@ router.post(
     const ctx = await loadProjectIfAdmin(req, res, projectId);
     if (!ctx) return;
     const { companyId, roleOnProject } = parsed.data;
+
+    const [roleRow] = await db
+      .select({ key: projectCompanyRoles.key })
+      .from(projectCompanyRoles)
+      .where(eq(projectCompanyRoles.key, roleOnProject))
+      .limit(1);
+    if (!roleRow) {
+      return res.status(400).json({ error: "Unknown role on project" });
+    }
 
     const [co] = await db
       .select({ id: companies.id, name: companies.name })

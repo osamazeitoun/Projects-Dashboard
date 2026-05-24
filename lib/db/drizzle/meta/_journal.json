@@ -15,6 +15,13 @@
       "when": 1779562500509,
       "tag": "0001_rare_switch",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779610966968,
+      "tag": "0002_burly_silvermane",
+      "breakpoints": true
     }
   ]
 }

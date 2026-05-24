@@ -4,6 +4,7 @@ import {
   projects,
   companies,
   projectCompanies,
+  projectCompanyRoles,
   milestones,
   milestoneEntryCompanies,
   changeEvents,
@@ -20,6 +21,7 @@ async function main() {
   await db.delete(projectCompanies);
   await db.delete(companies);
   await db.delete(projects);
+  await db.delete(projectCompanyRoles);
 
   await db.execute(`ALTER SEQUENCE projects_id_seq RESTART WITH 1`);
   await db.execute(`ALTER SEQUENCE companies_id_seq RESTART WITH 1`);
@@ -30,6 +32,25 @@ async function main() {
   );
   await db.execute(`ALTER SEQUENCE change_events_id_seq RESTART WITH 1`);
   await db.execute(`ALTER SEQUENCE milestone_impacts_id_seq RESTART WITH 1`);
+  await db.execute(
+    `ALTER SEQUENCE project_company_roles_id_seq RESTART WITH 1`,
+  );
+
+  await db.insert(projectCompanyRoles).values([
+    { key: "Client", label: "Client", isBuiltIn: true },
+    { key: "MainContractor", label: "Main Contractor", isBuiltIn: true },
+    {
+      key: "ArchConsultant",
+      label: "Architecture Consultant",
+      isBuiltIn: true,
+    },
+    { key: "MEPConsultant", label: "MEP Consultant", isBuiltIn: true },
+    {
+      key: "InteriorContractor",
+      label: "Interior Contractor",
+      isBuiltIn: true,
+    },
+  ]);
 
   const [project] = await db
     .insert(projects)
