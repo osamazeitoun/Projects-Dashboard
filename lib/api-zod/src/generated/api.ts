@@ -536,6 +536,30 @@ export const AdminCreateProjectCompanyRoleResponse = zod.object({
 
 
 /**
+ * @summary Rename a custom project-company role (built-in roles cannot be renamed)
+ */
+export const AdminRenameProjectCompanyRoleParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const adminRenameProjectCompanyRoleBodyLabelMax = 80;
+
+
+
+export const AdminRenameProjectCompanyRoleBody = zod.object({
+  "label": zod.string().min(1).max(adminRenameProjectCompanyRoleBodyLabelMax)
+})
+
+export const AdminRenameProjectCompanyRoleResponse = zod.object({
+  "id": zod.number(),
+  "key": zod.string(),
+  "label": zod.string(),
+  "isBuiltIn": zod.boolean(),
+  "referenceCount": zod.number()
+})
+
+
+/**
  * @summary Delete a custom project-company role (not allowed for built-in or in-use roles)
  */
 export const AdminDeleteProjectCompanyRoleParams = zod.object({

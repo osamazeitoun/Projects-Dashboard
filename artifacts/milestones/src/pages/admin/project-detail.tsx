@@ -9,6 +9,7 @@ import {
   useAdminRemoveContractorCompany,
   useAdminListProjectCompanyRoles,
   useAdminCreateProjectCompanyRole,
+  useAdminRenameProjectCompanyRole,
   useAdminDeleteProjectCompanyRole,
   getAdminGetProjectDetailQueryKey,
   getAdminListProjectsQueryKey,
@@ -48,10 +49,13 @@ import {
   ArrowLeft,
   Briefcase,
   Building2,
+  Check,
+  Pencil,
   ShieldCheck,
   Trash2,
   UserPlus,
   Users,
+  X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -148,6 +152,10 @@ export default function AdminProjectDetail() {
   const [createRoleOpen, setCreateRoleOpen] = useState(false);
   const [newRoleLabel, setNewRoleLabel] = useState("");
 
+  // Inline rename state
+  const [editingRoleId, setEditingRoleId] = useState<number | null>(null);
+  const [editingRoleLabel, setEditingRoleLabel] = useState("");
+
   const { data: roles = [] } = useAdminListProjectCompanyRoles();
   const createRole = useAdminCreateProjectCompanyRole({
     mutation: {
@@ -163,6 +171,26 @@ export default function AdminProjectDetail() {
       onError: (e: unknown) => {
         toast({
           title: "Failed to create role",
+          description: (e as { data?: { error?: string } } | null)?.data?.error,
+          variant: "destructive",
+        });
+      },
+    },
+  });
+  const renameRole = useAdminRenameProjectCompanyRole({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({
+          queryKey: getAdminListProjectCompanyRolesQueryKey(),
+        });
+        invalidate();
+        setEditingRoleId(null);
+        setEditingRoleLabel("");
+        toast({ title: "Role renamed" });
+      },
+      onError: (e: unknown) => {
+        toast({
+          title: "Failed to rename role",
           description: (e as { data?: { error?: string } } | null)?.data?.error,
           variant: "destructive",
         });
@@ -473,34 +501,113 @@ export default function AdminProjectDetail() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {roles.map((r) => (
-                  <SelectItem key={r.id} value={r.key}>
-                    <span className="flex items-center justify-between gap-2 w-full">
-                      <span>{r.label}</span>
-                      <span className="flex items-center gap-1">
-                        {!r.isBuiltIn && (
-                          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                            custom
-                          </span>
-                        )}
-                        {!r.isBuiltIn && r.referenceCount === 0 && (
-                          <button
-                            type="button"
-                            className="text-muted-foreground hover:text-destructive"
-                            onClick={(e) => {
+                {roles.map((r) => {
+                  const isEditing = editingRoleId === r.id;
+                  if (isEditing) {
+                    const submit = () => {
+                      const label = editingRoleLabel.trim();
+                      if (!label || label === r.label) {
+                        setEditingRoleId(null);
+                        setEditingRoleLabel("");
+                        return;
+                      }
+                      renameRole.mutate({ id: r.id, data: { label } });
+                    };
+                    return (
+                      <div
+                        key={r.id}
+                        className="flex items-center gap-1 px-2 py-1"
+                        onPointerDown={(e) => e.stopPropagation()}
+                      >
+                        <Input
+                          autoFocus
+                          value={editingRoleLabel}
+                          onChange={(e) => setEditingRoleLabel(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
                               e.preventDefault();
-                              e.stopPropagation();
-                              deleteRole.mutate({ id: r.id });
-                            }}
-                            aria-label={`Delete ${r.label}`}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        )}
+                              submit();
+                            } else if (e.key === "Escape") {
+                              e.preventDefault();
+                              setEditingRoleId(null);
+                              setEditingRoleLabel("");
+                            }
+                          }}
+                          className="h-7 text-sm"
+                        />
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-primary p-1"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            submit();
+                          }}
+                          aria-label="Save rename"
+                          disabled={renameRole.isPending}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground p-1"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setEditingRoleId(null);
+                            setEditingRoleLabel("");
+                          }}
+                          aria-label="Cancel rename"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  }
+                  return (
+                    <SelectItem key={r.id} value={r.key}>
+                      <span className="flex items-center justify-between gap-2 w-full">
+                        <span>{r.label}</span>
+                        <span className="flex items-center gap-1">
+                          {!r.isBuiltIn && (
+                            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                              custom
+                            </span>
+                          )}
+                          {!r.isBuiltIn && (
+                            <button
+                              type="button"
+                              className="text-muted-foreground hover:text-foreground"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setEditingRoleId(r.id);
+                                setEditingRoleLabel(r.label);
+                              }}
+                              aria-label={`Rename ${r.label}`}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          )}
+                          {!r.isBuiltIn && r.referenceCount === 0 && (
+                            <button
+                              type="button"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                deleteRole.mutate({ id: r.id });
+                              }}
+                              aria-label={`Delete ${r.label}`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
+                        </span>
                       </span>
-                    </span>
-                  </SelectItem>
-                ))}
+                    </SelectItem>
+                  );
+                })}
                 <SelectItem value="__create__" className="text-primary">
                   + Create new role…
                 </SelectItem>

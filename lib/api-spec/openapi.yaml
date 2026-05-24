@@ -503,6 +503,46 @@ paths:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
   /admin/project-company-roles/{id}:
+    patch:
+      operationId: adminRenameProjectCompanyRole
+      tags: [admin]
+      summary: Rename a custom project-company role (built-in roles cannot be renamed)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminRenameProjectCompanyRoleInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectCompanyRole" }
+        "400":
+          description: Invalid input (built-in, duplicate label, empty)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
     delete:
       operationId: adminDeleteProjectCompanyRole
       tags: [admin]
@@ -1316,6 +1356,12 @@ components:
         referenceCount: { type: integer }
 
     AdminCreateProjectCompanyRoleInput:
+      type: object
+      required: [label]
+      properties:
+        label: { type: string, minLength: 1, maxLength: 80 }
+
+    AdminRenameProjectCompanyRoleInput:
       type: object
       required: [label]
       properties:

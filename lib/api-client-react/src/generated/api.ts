@@ -26,6 +26,7 @@ import type {
   AdminProjectContractorCompany,
   AdminProjectDetail,
   AdminProjectListItem,
+  AdminRenameProjectCompanyRoleInput,
   AdminUpsertAssignmentInput,
   ChangeEventDetail,
   ChangeEventSummary,
@@ -1571,6 +1572,78 @@ export const useAdminCreateProjectCompanyRole = <TError = ErrorType<ErrorRespons
         TContext
       > => {
       return useMutation(getAdminCreateProjectCompanyRoleMutationOptions(options));
+    }
+
+export const getAdminRenameProjectCompanyRoleUrl = (id: number,) => {
+
+
+
+
+  return `/api/admin/project-company-roles/${id}`
+}
+
+/**
+ * @summary Rename a custom project-company role (built-in roles cannot be renamed)
+ */
+export const adminRenameProjectCompanyRole = async (id: number,
+    adminRenameProjectCompanyRoleInput: AdminRenameProjectCompanyRoleInput, options?: RequestInit): Promise<ProjectCompanyRole> => {
+
+  return customFetch<ProjectCompanyRole>(getAdminRenameProjectCompanyRoleUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminRenameProjectCompanyRoleInput,)
+  }
+);}
+
+
+
+
+export const getAdminRenameProjectCompanyRoleMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRenameProjectCompanyRole>>, TError,{id: number;data: BodyType<AdminRenameProjectCompanyRoleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminRenameProjectCompanyRole>>, TError,{id: number;data: BodyType<AdminRenameProjectCompanyRoleInput>}, TContext> => {
+
+const mutationKey = ['adminRenameProjectCompanyRole'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminRenameProjectCompanyRole>>, {id: number;data: BodyType<AdminRenameProjectCompanyRoleInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  adminRenameProjectCompanyRole(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminRenameProjectCompanyRoleMutationResult = NonNullable<Awaited<ReturnType<typeof adminRenameProjectCompanyRole>>>
+    export type AdminRenameProjectCompanyRoleMutationBody = BodyType<AdminRenameProjectCompanyRoleInput>
+    export type AdminRenameProjectCompanyRoleMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Rename a custom project-company role (built-in roles cannot be renamed)
+ */
+export const useAdminRenameProjectCompanyRole = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRenameProjectCompanyRole>>, TError,{id: number;data: BodyType<AdminRenameProjectCompanyRoleInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminRenameProjectCompanyRole>>,
+        TError,
+        {id: number;data: BodyType<AdminRenameProjectCompanyRoleInput>},
+        TContext
+      > => {
+      return useMutation(getAdminRenameProjectCompanyRoleMutationOptions(options));
     }
 
 export const getAdminDeleteProjectCompanyRoleUrl = (id: number,) => {

@@ -490,6 +490,71 @@ router.post(
   },
 );
 
+const renameRoleSchema = z.object({
+  label: z.string().trim().min(1).max(80),
+});
+
+router.patch(
+  "/admin/project-company-roles/:id",
+  async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ error: "Invalid id" });
+    }
+    const parsed = renameRoleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: "Invalid body: " + parsed.error.message });
+    }
+    const label = parsed.data.label.trim();
+
+    const [role] = await db
+      .select()
+      .from(projectCompanyRoles)
+      .where(eq(projectCompanyRoles.id, id))
+      .limit(1);
+    if (!role) return res.status(404).json({ error: "Role not found" });
+    if (role.isBuiltIn) {
+      return res
+        .status(400)
+        .json({ error: "Built-in roles cannot be renamed" });
+    }
+
+    if (label !== role.label) {
+      const [existingLabel] = await db
+        .select({ id: projectCompanyRoles.id })
+        .from(projectCompanyRoles)
+        .where(eq(projectCompanyRoles.label, label))
+        .limit(1);
+      if (existingLabel && existingLabel.id !== id) {
+        return res
+          .status(400)
+          .json({ error: "A role with this label already exists" });
+      }
+    }
+
+    const [updated] = await db
+      .update(projectCompanyRoles)
+      .set({ label })
+      .where(eq(projectCompanyRoles.id, id))
+      .returning();
+
+    const [{ count } = { count: 0 }] = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(projectCompanies)
+      .where(eq(projectCompanies.roleOnProject, updated.key));
+
+    return res.json({
+      id: updated.id,
+      key: updated.key,
+      label: updated.label,
+      isBuiltIn: updated.isBuiltIn,
+      referenceCount: Number(count),
+    });
+  },
+);
+
 router.delete(
   "/admin/project-company-roles/:id",
   async (req: Request, res: Response) => {

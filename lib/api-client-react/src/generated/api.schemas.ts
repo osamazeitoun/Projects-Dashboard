@@ -541,3 +541,11 @@ export interface AdminCreateProjectCompanyRoleInput {
   label: string;
 }
 
+export interface AdminRenameProjectCompanyRoleInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  label: string;
+}
+
