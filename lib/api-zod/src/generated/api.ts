@@ -452,6 +452,14 @@ export const GetChangeEventDetailResponse = zod.object({
   "lastDeliveryError": zod.string().nullish(),
   "deliveryAttemptCount": zod.number().optional(),
   "recipientEmail": zod.string().nullish()
+})),
+  "timeline": zod.array(zod.object({
+  "id": zod.string(),
+  "eventType": zod.enum(['Opened', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled']),
+  "occurredAt": zod.coerce.date(),
+  "actorUserId": zod.number().nullish(),
+  "actorEmail": zod.string().nullish(),
+  "comment": zod.string().nullish()
 }))
 })
 
@@ -553,6 +561,14 @@ export const TransitionChangeEventResponse = zod.object({
   "lastDeliveryError": zod.string().nullish(),
   "deliveryAttemptCount": zod.number().optional(),
   "recipientEmail": zod.string().nullish()
+})),
+  "timeline": zod.array(zod.object({
+  "id": zod.string(),
+  "eventType": zod.enum(['Opened', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled']),
+  "occurredAt": zod.coerce.date(),
+  "actorUserId": zod.number().nullish(),
+  "actorEmail": zod.string().nullish(),
+  "comment": zod.string().nullish()
 }))
 })
 

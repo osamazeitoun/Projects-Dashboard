@@ -66,6 +66,15 @@ export const impactRiskTypeEnum = pgEnum("impact_risk_type", [
   "Other",
 ]);
 
+export const changeEventEventTypeEnum = pgEnum("change_event_event_type", [
+  "Opened",
+  "SentForClientReview",
+  "ClientApproved",
+  "ClientRejected",
+  "PMApproved",
+  "Cancelled",
+]);
+
 export const impactResponseStatusEnum = pgEnum("impact_response_status", [
   "Pending",
   "Submitted",
@@ -179,6 +188,19 @@ export const changeEvents = pgTable("change_events", {
   clientUserId: integer("client_user_id"),
   clientDecisionAt: timestamp("client_decision_at", { withTimezone: true }),
   clientComment: text("client_comment"),
+});
+
+export const changeEventEvents = pgTable("change_event_events", {
+  id: serial("id").primaryKey(),
+  changeEventId: integer("change_event_id")
+    .notNull()
+    .references(() => changeEvents.id, { onDelete: "cascade" }),
+  eventType: changeEventEventTypeEnum("event_type").notNull(),
+  actorUserId: integer("actor_user_id"),
+  comment: text("comment"),
+  occurredAt: timestamp("occurred_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const milestoneImpacts = pgTable("milestone_impacts", {
@@ -298,4 +320,5 @@ export type Project = typeof projects.$inferSelect;
 export type Company = typeof companies.$inferSelect;
 export type Milestone = typeof milestones.$inferSelect;
 export type ChangeEvent = typeof changeEvents.$inferSelect;
+export type ChangeEventEvent = typeof changeEventEvents.$inferSelect;
 export type MilestoneImpact = typeof milestoneImpacts.$inferSelect;

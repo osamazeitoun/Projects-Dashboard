@@ -1248,6 +1248,7 @@ components:
         - changeReason
         - status
         - impacts
+        - timeline
       properties:
         id: { type: integer }
         milestoneId: { type: integer }
@@ -1265,6 +1266,27 @@ components:
         impacts:
           type: array
           items: { $ref: "#/components/schemas/MilestoneImpactDetail" }
+        timeline:
+          type: array
+          items: { $ref: "#/components/schemas/ChangeEventTimelineEntry" }
+
+    ChangeEventTimelineEntryType:
+      type: string
+      enum: [Opened, SentForClientReview, ClientApproved, ClientRejected, PMApproved, Cancelled]
+
+    ChangeEventTimelineEntry:
+      type: object
+      required:
+        - id
+        - eventType
+        - occurredAt
+      properties:
+        id: { type: string }
+        eventType: { $ref: "#/components/schemas/ChangeEventTimelineEntryType" }
+        occurredAt: { type: string, format: date-time }
+        actorUserId: { type: ["integer", "null"] }
+        actorEmail: { type: ["string", "null"] }
+        comment: { type: ["string", "null"] }
 
     TransitionChangeEventAction:
       type: string

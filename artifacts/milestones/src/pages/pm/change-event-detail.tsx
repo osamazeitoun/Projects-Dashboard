@@ -12,6 +12,7 @@ import {
   getGetPmProjectSummaryQueryKey,
   getGetMyPendingImpactsQueryKey,
   type ChangeEventDetail,
+  type ChangeEventTimelineEntry,
   type TransitionChangeEventAction,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -41,6 +42,7 @@ import {
   Ban,
   CheckCircle2,
   Clock,
+  FilePlus,
   Mail,
   Pencil,
   RefreshCw,
@@ -48,6 +50,7 @@ import {
   Stamp,
   ThumbsDown,
   ThumbsUp,
+  XCircle,
 } from "lucide-react";
 
 function riskBadge(level: string | null | undefined) {
@@ -576,6 +579,86 @@ function EditChangeEventDialog({
   );
 }
 
+function timelineLabel(eventType: ChangeEventTimelineEntry["eventType"]): string {
+  switch (eventType) {
+    case "Opened":
+      return "Change event opened";
+    case "SentForClientReview":
+      return "Sent to client for review";
+    case "ClientApproved":
+      return "Client approved";
+    case "ClientRejected":
+      return "Client rejected";
+    case "PMApproved":
+      return "PM approved and applied to milestone";
+    case "Cancelled":
+      return "Cancelled";
+  }
+}
+
+function timelineIcon(eventType: ChangeEventTimelineEntry["eventType"]) {
+  switch (eventType) {
+    case "Opened":
+      return { Icon: FilePlus, tone: "bg-muted text-muted-foreground" };
+    case "SentForClientReview":
+      return { Icon: Send, tone: "bg-amber-50 text-amber-700" };
+    case "ClientApproved":
+      return { Icon: ThumbsUp, tone: "bg-blue-50 text-blue-700" };
+    case "ClientRejected":
+      return { Icon: ThumbsDown, tone: "bg-destructive/10 text-destructive" };
+    case "PMApproved":
+      return { Icon: Stamp, tone: "bg-emerald-50 text-emerald-700" };
+    case "Cancelled":
+      return { Icon: XCircle, tone: "bg-destructive/10 text-destructive" };
+  }
+}
+
+function Timeline({ entries }: { entries: ChangeEventTimelineEntry[] }) {
+  if (entries.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">No activity recorded yet.</p>
+    );
+  }
+  return (
+    <ol className="relative space-y-4">
+      {entries.map((entry, idx) => {
+        const { Icon, tone } = timelineIcon(entry.eventType);
+        const at = new Date(entry.occurredAt);
+        const isLast = idx === entries.length - 1;
+        return (
+          <li key={entry.id} className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center border ${tone}`}
+              >
+                <Icon className="w-4 h-4" />
+              </div>
+              {!isLast && <div className="flex-1 w-px bg-border mt-1" />}
+            </div>
+            <div className="pb-2 flex-1 min-w-0">
+              <div className="text-sm font-medium">{timelineLabel(entry.eventType)}</div>
+              <div className="text-xs text-muted-foreground">
+                {format(at, "MMM d, yyyy 'at' h:mm a")}
+                {" · "}
+                {formatDistanceToNow(at, { addSuffix: true })}
+              </div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                by {entry.actorEmail ?? "Unknown user"}
+              </div>
+              {entry.comment && (
+                <p className="text-sm italic text-muted-foreground mt-1">
+                  "{entry.comment}"
+                </p>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+  );
+}
+
 export default function PmChangeEventDetail() {
   const [, params] = useRoute("/pm/change-event/:id");
   const id = Number(params?.id);
@@ -783,6 +866,15 @@ export default function PmChangeEventDetail() {
               </div>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Timeline</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Timeline entries={data.timeline} />
         </CardContent>
       </Card>
 

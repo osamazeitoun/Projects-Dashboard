@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ChangeEventStatus } from './changeEventStatus';
+import type { ChangeEventTimelineEntry } from './changeEventTimelineEntry';
 import type { MilestoneImpactDetail } from './milestoneImpactDetail';
 import type { StageCode } from './stageCode';
 
@@ -26,4 +27,5 @@ export interface ChangeEventDetail {
   /** @nullable */
   clientDecisionAt?: Date | null;
   impacts: MilestoneImpactDetail[];
+  timeline: ChangeEventTimelineEntry[];
 }

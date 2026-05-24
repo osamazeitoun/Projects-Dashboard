@@ -6,9 +6,11 @@ import {
   milestoneImpacts,
   projectCompanies,
   changeEvents,
+  changeEventEvents,
   projects,
   companies,
   notificationDeliveries,
+  users,
 } from "@workspace/db";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import {
@@ -722,87 +724,9 @@ router.get("/change-events/:changeEventId/detail", async (req, res) => {
   if (!projectId) return res.status(404).json({ error: "Change event not found" });
   if (!(await requirePmAccess(req, res, projectId))) return;
 
-  const [ev] = await db
-    .select({
-      id: changeEvents.id,
-      milestoneId: changeEvents.milestoneId,
-      milestoneCode: milestones.code,
-      milestoneName: milestones.name,
-      stageCode: milestones.stageCode,
-      initiatedAt: changeEvents.initiatedAt,
-      oldDate: changeEvents.oldDate,
-      proposedNewDate: changeEvents.proposedNewDate,
-      changeReason: changeEvents.changeReason,
-      status: changeEvents.status,
-      clientComment: changeEvents.clientComment,
-      clientDecisionAt: changeEvents.clientDecisionAt,
-    })
-    .from(changeEvents)
-    .innerJoin(milestones, eq(milestones.id, changeEvents.milestoneId))
-    .where(eq(changeEvents.id, id))
-    .limit(1);
-  if (!ev) return res.status(404).json({ error: "Change event not found" });
-
-  const impacts = await db
-    .select({
-      id: milestoneImpacts.id,
-      projectCompanyId: milestoneImpacts.projectCompanyId,
-      companyName: companies.name,
-      companyRole: projectCompanies.roleOnProject,
-      responseStatus: milestoneImpacts.responseStatus,
-      notifiedAt: milestoneImpacts.notifiedAt,
-      respondedAt: milestoneImpacts.respondedAt,
-      impactRiskLevel: milestoneImpacts.impactRiskLevel,
-      impactRiskType: milestoneImpacts.impactRiskType,
-      mainRiskIssue: milestoneImpacts.mainRiskIssue,
-      detailedComment: milestoneImpacts.detailedComment,
-    })
-    .from(milestoneImpacts)
-    .innerJoin(projectCompanies, eq(projectCompanies.id, milestoneImpacts.projectCompanyId))
-    .innerJoin(companies, eq(companies.id, projectCompanies.companyId))
-    .where(eq(milestoneImpacts.changeEventId, id))
-    .orderBy(asc(companies.name));
-
-  const { latest: latestByImpactCE, counts: countsByImpactCE } =
-    await getLatestDeliveriesByImpactId(impacts.map((i) => i.id));
-
-  return res.json({
-    id: ev.id,
-    milestoneId: ev.milestoneId,
-    milestoneCode: ev.milestoneCode,
-    milestoneName: ev.milestoneName,
-    stageCode: ev.stageCode,
-    stageName: stageNameByCode.get(ev.stageCode) ?? ev.stageCode,
-    initiatedAt: ev.initiatedAt.toISOString(),
-    oldDate: ev.oldDate.toISOString(),
-    proposedNewDate: ev.proposedNewDate.toISOString(),
-    changeReason: ev.changeReason,
-    status: ev.status,
-    clientComment: ev.clientComment,
-    clientDecisionAt: isoOrNull(ev.clientDecisionAt),
-    impacts: impacts.map((i) => {
-      const d = latestByImpactCE.get(i.id) ?? null;
-      return {
-        id: i.id,
-        projectCompanyId: i.projectCompanyId,
-        companyName: i.companyName,
-        companyRole: i.companyRole,
-        responseStatus: i.responseStatus,
-        notifiedAt: i.notifiedAt.toISOString(),
-        respondedAt: isoOrNull(i.respondedAt),
-        impactRiskLevel: i.impactRiskLevel,
-        impactRiskType: i.impactRiskType,
-        mainRiskIssue: i.mainRiskIssue,
-        detailedComment: i.detailedComment,
-        lastDeliveryStatus: d?.status ?? null,
-        lastDeliveryChannel: d?.channel ?? null,
-        lastDeliveryAt: d ? d.attemptedAt.toISOString() : null,
-        lastDeliveryError: d?.errorMessage ?? null,
-        deliveryAttemptCount: countsByImpactCE.get(i.id) ?? 0,
-        recipientEmail: d?.recipientEmail ?? null,
-      };
-    }),
-  });
+  const detail = await loadChangeEventDetailResponse(id);
+  if (!detail) return res.status(404).json({ error: "Change event not found" });
+  return res.json(detail);
 });
 
 router.post("/change-events/:changeEventId/resend-notifications", async (req, res) => {
@@ -991,6 +915,15 @@ router.post("/milestones/:milestoneId/change-events", async (req, res) => {
   const { latest: latestByImpactNew, counts: countsByImpactNew } =
     await getLatestDeliveriesByImpactId(impacts.map((i) => i.id));
 
+  const timeline = await loadChangeEventTimeline(
+    created.id,
+    created.initiatedAt,
+    created.initiatedByUserId,
+    created.clientDecisionAt,
+    created.clientUserId,
+    created.status,
+  );
+
   return res.status(201).json({
     id: created.id,
     milestoneId: m.id,
@@ -1027,8 +960,124 @@ router.post("/milestones/:milestoneId/change-events", async (req, res) => {
         recipientEmail: d?.recipientEmail ?? null,
       };
     }),
+    timeline,
   });
 });
+
+async function loadChangeEventTimeline(
+  changeEventId: number,
+  initiatedAt: Date,
+  initiatedByUserId: number | null,
+  clientDecisionAt: Date | null,
+  clientUserId: number | null,
+  status: typeof changeEvents.$inferSelect.status,
+) {
+  const rows = await db
+    .select({
+      id: changeEventEvents.id,
+      eventType: changeEventEvents.eventType,
+      occurredAt: changeEventEvents.occurredAt,
+      actorUserId: changeEventEvents.actorUserId,
+      actorEmail: users.email,
+      comment: changeEventEvents.comment,
+    })
+    .from(changeEventEvents)
+    .leftJoin(users, eq(users.id, changeEventEvents.actorUserId))
+    .where(eq(changeEventEvents.changeEventId, changeEventId))
+    .orderBy(asc(changeEventEvents.occurredAt), asc(changeEventEvents.id));
+
+  const initiatorEmail = initiatedByUserId
+    ? (
+        await db
+          .select({ email: users.email })
+          .from(users)
+          .where(eq(users.id, initiatedByUserId))
+          .limit(1)
+      )[0]?.email ?? null
+    : null;
+
+  type Entry = {
+    id: string;
+    eventType:
+      | "Opened"
+      | "SentForClientReview"
+      | "ClientApproved"
+      | "ClientRejected"
+      | "PMApproved"
+      | "Cancelled";
+    occurredAt: Date;
+    actorUserId: number | null;
+    actorEmail: string | null;
+    comment: string | null;
+  };
+
+  const entries: Entry[] = [
+    {
+      id: `init-${changeEventId}`,
+      eventType: "Opened",
+      occurredAt: initiatedAt,
+      actorUserId: initiatedByUserId,
+      actorEmail: initiatorEmail,
+      comment: null,
+    },
+    ...rows.map(
+      (r): Entry => ({
+        id: `evt-${r.id}`,
+        eventType: r.eventType,
+        occurredAt: r.occurredAt,
+        actorUserId: r.actorUserId,
+        actorEmail: r.actorEmail ?? null,
+        comment: r.comment,
+      }),
+    ),
+  ];
+
+  // Backfill client decision for change events that pre-date the events table.
+  if (
+    clientDecisionAt &&
+    (status === "ClientApproved" ||
+      status === "ClientRejected" ||
+      status === "PMApproved")
+  ) {
+    const decisionType =
+      status === "ClientRejected" ? "ClientRejected" : "ClientApproved";
+    const alreadyHas = entries.some(
+      (e) =>
+        (e.eventType === "ClientApproved" || e.eventType === "ClientRejected") &&
+        Math.abs(e.occurredAt.getTime() - clientDecisionAt.getTime()) < 1000,
+    );
+    if (!alreadyHas) {
+      const clientEmail = clientUserId
+        ? (
+            await db
+              .select({ email: users.email })
+              .from(users)
+              .where(eq(users.id, clientUserId))
+              .limit(1)
+          )[0]?.email ?? null
+        : null;
+      entries.push({
+        id: `cdec-${changeEventId}`,
+        eventType: decisionType,
+        occurredAt: clientDecisionAt,
+        actorUserId: clientUserId,
+        actorEmail: clientEmail,
+        comment: null,
+      });
+    }
+  }
+
+  entries.sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
+
+  return entries.map((e) => ({
+    id: e.id,
+    eventType: e.eventType,
+    occurredAt: e.occurredAt.toISOString(),
+    actorUserId: e.actorUserId,
+    actorEmail: e.actorEmail,
+    comment: e.comment,
+  }));
+}
 
 async function loadChangeEventDetailResponse(id: number) {
   const [ev] = await db
@@ -1039,11 +1088,13 @@ async function loadChangeEventDetailResponse(id: number) {
       milestoneName: milestones.name,
       stageCode: milestones.stageCode,
       initiatedAt: changeEvents.initiatedAt,
+      initiatedByUserId: changeEvents.initiatedByUserId,
       oldDate: changeEvents.oldDate,
       proposedNewDate: changeEvents.proposedNewDate,
       changeReason: changeEvents.changeReason,
       status: changeEvents.status,
       clientComment: changeEvents.clientComment,
+      clientUserId: changeEvents.clientUserId,
       clientDecisionAt: changeEvents.clientDecisionAt,
     })
     .from(changeEvents)
@@ -1051,6 +1102,15 @@ async function loadChangeEventDetailResponse(id: number) {
     .where(eq(changeEvents.id, id))
     .limit(1);
   if (!ev) return null;
+
+  const timeline = await loadChangeEventTimeline(
+    ev.id,
+    ev.initiatedAt,
+    ev.initiatedByUserId,
+    ev.clientDecisionAt,
+    ev.clientUserId,
+    ev.status,
+  );
 
   const impacts = await db
     .select({
@@ -1072,6 +1132,9 @@ async function loadChangeEventDetailResponse(id: number) {
     .where(eq(milestoneImpacts.changeEventId, id))
     .orderBy(asc(companies.name));
 
+  const { latest: latestByImpact, counts: countsByImpact } =
+    await getLatestDeliveriesByImpactId(impacts.map((i) => i.id));
+
   return {
     id: ev.id,
     milestoneId: ev.milestoneId,
@@ -1086,19 +1149,29 @@ async function loadChangeEventDetailResponse(id: number) {
     status: ev.status,
     clientComment: ev.clientComment,
     clientDecisionAt: isoOrNull(ev.clientDecisionAt),
-    impacts: impacts.map((i) => ({
-      id: i.id,
-      projectCompanyId: i.projectCompanyId,
-      companyName: i.companyName,
-      companyRole: i.companyRole,
-      responseStatus: i.responseStatus,
-      notifiedAt: i.notifiedAt.toISOString(),
-      respondedAt: isoOrNull(i.respondedAt),
-      impactRiskLevel: i.impactRiskLevel,
-      impactRiskType: i.impactRiskType,
-      mainRiskIssue: i.mainRiskIssue,
-      detailedComment: i.detailedComment,
-    })),
+    impacts: impacts.map((i) => {
+      const d = latestByImpact.get(i.id) ?? null;
+      return {
+        id: i.id,
+        projectCompanyId: i.projectCompanyId,
+        companyName: i.companyName,
+        companyRole: i.companyRole,
+        responseStatus: i.responseStatus,
+        notifiedAt: i.notifiedAt.toISOString(),
+        respondedAt: isoOrNull(i.respondedAt),
+        impactRiskLevel: i.impactRiskLevel,
+        impactRiskType: i.impactRiskType,
+        mainRiskIssue: i.mainRiskIssue,
+        detailedComment: i.detailedComment,
+        lastDeliveryStatus: d?.status ?? null,
+        lastDeliveryChannel: d?.channel ?? null,
+        lastDeliveryAt: d ? d.attemptedAt.toISOString() : null,
+        lastDeliveryError: d?.errorMessage ?? null,
+        deliveryAttemptCount: countsByImpact.get(i.id) ?? 0,
+        recipientEmail: d?.recipientEmail ?? null,
+      };
+    }),
+    timeline,
   };
 }
 
@@ -1194,6 +1267,17 @@ router.post("/change-events/:changeEventId/transition", async (req, res) => {
     }
 
     await tx.update(changeEvents).set(updates).where(eq(changeEvents.id, changeEventId));
+
+    await tx.insert(changeEventEvents).values({
+      changeEventId,
+      eventType: nextStatus,
+      actorUserId: req.auth_ctx!.userId,
+      comment:
+        trimmedComment !== undefined && trimmedComment.length > 0
+          ? trimmedComment
+          : null,
+      occurredAt: now,
+    });
 
     if (nextStatus === "PMApproved") {
       await tx

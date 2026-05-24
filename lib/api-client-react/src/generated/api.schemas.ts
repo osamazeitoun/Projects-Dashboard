@@ -339,6 +339,30 @@ export interface ChangeEventSummary {
   rollupStatus: ChangeEventSummaryRollupStatus;
 }
 
+export type ChangeEventTimelineEntryType = typeof ChangeEventTimelineEntryType[keyof typeof ChangeEventTimelineEntryType];
+
+
+export const ChangeEventTimelineEntryType = {
+  Opened: 'Opened',
+  SentForClientReview: 'SentForClientReview',
+  ClientApproved: 'ClientApproved',
+  ClientRejected: 'ClientRejected',
+  PMApproved: 'PMApproved',
+  Cancelled: 'Cancelled',
+} as const;
+
+export interface ChangeEventTimelineEntry {
+  id: string;
+  eventType: ChangeEventTimelineEntryType;
+  occurredAt: string;
+  /** @nullable */
+  actorUserId?: number | null;
+  /** @nullable */
+  actorEmail?: string | null;
+  /** @nullable */
+  comment?: string | null;
+}
+
 export interface ChangeEventDetail {
   id: number;
   milestoneId: number;
@@ -356,6 +380,7 @@ export interface ChangeEventDetail {
   /** @nullable */
   clientDecisionAt?: string | null;
   impacts: MilestoneImpactDetail[];
+  timeline: ChangeEventTimelineEntry[];
 }
 
 export type TransitionChangeEventAction = typeof TransitionChangeEventAction[keyof typeof TransitionChangeEventAction];
