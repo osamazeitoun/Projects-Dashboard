@@ -13,6 +13,11 @@ import Responses from "@/pages/responses";
 import Landing from "@/pages/landing";
 import Layout from "@/components/layout";
 import PmLayout from "@/components/pm-layout";
+import AdminLayout from "@/components/admin-layout";
+import NoAccessGate from "@/components/no-access-notice";
+import { useGetMe } from "@workspace/api-client-react";
+import AdminProjects from "@/pages/admin/projects";
+import AdminProjectDetail from "@/pages/admin/project-detail";
 import PmDashboard from "@/pages/pm/dashboard";
 import PmSchedule from "@/pages/pm/schedule";
 import PmMilestoneDetail from "@/pages/pm/milestone-detail";
@@ -92,11 +97,21 @@ function SignUpPage() {
   );
 }
 
+function SmartHomeRedirect() {
+  const { data: me, isLoading } = useGetMe();
+  if (isLoading || !me) return null;
+  if (me.isCompanyAdmin) return <Redirect to="/admin" />;
+  if ((me.pmProjectIds?.length ?? 0) > 0) return <Redirect to="/pm" />;
+  if ((me.contractorProjectIds?.length ?? 0) > 0)
+    return <Redirect to="/dashboard" />;
+  return <NoAccessGate perspective="contractor"><div /></NoAccessGate>;
+}
+
 function HomeRedirect() {
   return (
     <>
       <Show when="signed-in">
-        <Redirect to="/dashboard" />
+        <SmartHomeRedirect />
       </Show>
       <Show when="signed-out">
         <Landing />
@@ -109,7 +124,9 @@ function ProtectedContractorPage({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Show when="signed-in">
-        <Layout>{children}</Layout>
+        <NoAccessGate perspective="contractor">
+          <Layout>{children}</Layout>
+        </NoAccessGate>
       </Show>
       <Show when="signed-out">
         <Redirect to="/" />
@@ -122,7 +139,29 @@ function ProtectedPmPage({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Show when="signed-in">
-        <PmLayout>{children}</PmLayout>
+        <NoAccessGate perspective="pm">
+          <PmLayout>{children}</PmLayout>
+        </NoAccessGate>
+      </Show>
+      <Show when="signed-out">
+        <Redirect to="/" />
+      </Show>
+    </>
+  );
+}
+
+function AdminGate({ children }: { children: React.ReactNode }) {
+  const { data: me, isLoading } = useGetMe();
+  if (isLoading || !me) return null;
+  if (!me.isCompanyAdmin) return <Redirect to="/" />;
+  return <AdminLayout>{children}</AdminLayout>;
+}
+
+function ProtectedAdminPage({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <Show when="signed-in">
+        <AdminGate>{children}</AdminGate>
       </Show>
       <Show when="signed-out">
         <Redirect to="/" />
@@ -196,6 +235,12 @@ function AppRoutes() {
             </Route>
             <Route path="/pm/change-event/:id">
               <ProtectedPmPage><PmChangeEventDetail /></ProtectedPmPage>
+            </Route>
+            <Route path="/admin">
+              <ProtectedAdminPage><AdminProjects /></ProtectedAdminPage>
+            </Route>
+            <Route path="/admin/projects/:id">
+              <ProtectedAdminPage><AdminProjectDetail /></ProtectedAdminPage>
             </Route>
             <Route component={NotFound} />
           </Switch>

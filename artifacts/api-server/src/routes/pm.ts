@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import {
   milestones,
@@ -9,9 +9,36 @@ import {
   projects,
   companies,
 } from "@workspace/db";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { requireAuth } from "../middlewares/auth";
+import {
+  getEffectiveProjectAccess,
+  getProjectIdForMilestone,
+  getProjectIdForChangeEvent,
+  listPmProjectIds,
+} from "../middlewares/permissions";
 
 const router: IRouter = Router();
+
+router.use(requireAuth);
+
+async function requirePmAccess(
+  req: Request,
+  res: Response,
+  projectId: number,
+): Promise<boolean> {
+  const access = await getEffectiveProjectAccess(req.auth_ctx!.userId, projectId);
+  if (!access) {
+    res.status(403).json({ error: "No access to this project" });
+    return false;
+  }
+  if (!(access.isAdmin || access.isPm)) {
+    res.status(403).json({ error: "PM access required" });
+    return false;
+  }
+  return true;
+}
+
 
 const STAGE_INFO = [
   { code: "ST1_PRE_DESIGN_CONCEPT", name: "Pre-design and Concept", order: 1 },
@@ -46,8 +73,15 @@ function deriveContact(companyName: string): { name: string; email: string } {
   };
 }
 
-router.get("/projects", async (_req, res) => {
-  const projectRows = await db.select().from(projects).orderBy(asc(projects.id));
+router.get("/projects", async (req, res) => {
+  const accessibleIds = await listPmProjectIds(req.auth_ctx!.userId);
+  if (accessibleIds.length === 0) return res.json([]);
+
+  const projectRows = await db
+    .select()
+    .from(projects)
+    .where(inArray(projects.id, accessibleIds))
+    .orderBy(asc(projects.id));
 
   const counts = await db
     .select({
@@ -58,6 +92,7 @@ router.get("/projects", async (_req, res) => {
     .from(projects)
     .leftJoin(projectCompanies, eq(projectCompanies.projectId, projects.id))
     .leftJoin(milestones, eq(milestones.projectId, projects.id))
+    .where(inArray(projects.id, accessibleIds))
     .groupBy(projects.id);
 
   const countMap = new Map(counts.map((c) => [c.projectId, c]));
@@ -79,6 +114,7 @@ router.get("/projects", async (_req, res) => {
 router.get("/projects/:projectId/pm-summary", async (req, res) => {
   const projectId = Number(req.params.projectId);
   if (!Number.isFinite(projectId)) return res.status(400).json({ error: "Invalid projectId" });
+  if (!(await requirePmAccess(req, res, projectId))) return;
 
   const [project] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
   if (!project) return res.status(404).json({ error: "Project not found" });
@@ -238,6 +274,7 @@ async function getMilestoneCompanies(milestoneIds: number[]) {
 router.get("/projects/:projectId/milestones", async (req, res) => {
   const projectId = Number(req.params.projectId);
   if (!Number.isFinite(projectId)) return res.status(400).json({ error: "Invalid projectId" });
+  if (!(await requirePmAccess(req, res, projectId))) return;
 
   const ms = await db
     .select()
@@ -320,6 +357,10 @@ router.get("/projects/:projectId/milestones", async (req, res) => {
 router.get("/milestones/:milestoneId/detail", async (req, res) => {
   const milestoneId = Number(req.params.milestoneId);
   if (!Number.isFinite(milestoneId)) return res.status(400).json({ error: "Invalid milestoneId" });
+
+  const projectId = await getProjectIdForMilestone(milestoneId);
+  if (!projectId) return res.status(404).json({ error: "Milestone not found" });
+  if (!(await requirePmAccess(req, res, projectId))) return;
 
   const [m] = await db.select().from(milestones).where(eq(milestones.id, milestoneId)).limit(1);
   if (!m) return res.status(404).json({ error: "Milestone not found" });
@@ -442,6 +483,7 @@ router.get("/milestones/:milestoneId/detail", async (req, res) => {
 router.get("/projects/:projectId/companies", async (req, res) => {
   const projectId = Number(req.params.projectId);
   if (!Number.isFinite(projectId)) return res.status(400).json({ error: "Invalid projectId" });
+  if (!(await requirePmAccess(req, res, projectId))) return;
 
   const pcs = await db
     .select({
@@ -538,6 +580,7 @@ router.get("/projects/:projectId/companies", async (req, res) => {
 router.get("/projects/:projectId/change-events", async (req, res) => {
   const projectId = Number(req.params.projectId);
   if (!Number.isFinite(projectId)) return res.status(400).json({ error: "Invalid projectId" });
+  if (!(await requirePmAccess(req, res, projectId))) return;
 
   const events = await db
     .select({
@@ -606,6 +649,10 @@ router.get("/projects/:projectId/change-events", async (req, res) => {
 router.get("/change-events/:changeEventId/detail", async (req, res) => {
   const id = Number(req.params.changeEventId);
   if (!Number.isFinite(id)) return res.status(400).json({ error: "Invalid changeEventId" });
+
+  const projectId = await getProjectIdForChangeEvent(id);
+  if (!projectId) return res.status(404).json({ error: "Change event not found" });
+  if (!(await requirePmAccess(req, res, projectId))) return;
 
   const [ev] = await db
     .select({

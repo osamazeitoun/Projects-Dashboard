@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "project_assignments_user_project_unique" ON "project_assignments" USING btree ("user_id","project_id");

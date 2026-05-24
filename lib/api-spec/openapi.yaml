@@ -18,6 +18,8 @@ tags:
     description: Project metadata
   - name: me
     description: Current user
+  - name: admin
+    description: Company admin operations
 paths:
   /healthz:
     get:
@@ -276,6 +278,202 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ChangeEventDetail" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/projects:
+    get:
+      operationId: adminListProjects
+      tags: [admin]
+      summary: List projects accessible to the admin's company
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AdminProjectListItem" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/projects/{projectId}:
+    get:
+      operationId: adminGetProjectDetail
+      tags: [admin]
+      summary: Full admin view of a project (assignments + contractors + available users)
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminProjectDetail" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/projects/{projectId}/assignments:
+    post:
+      operationId: adminUpsertProjectAssignment
+      tags: [admin]
+      summary: Create or update a user's role on a project
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminUpsertAssignmentInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminProjectAssignment" }
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/projects/{projectId}/assignments/{assignmentId}:
+    delete:
+      operationId: adminRemoveProjectAssignment
+      tags: [admin]
+      summary: Remove a project assignment
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: assignmentId
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Removed
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/projects/{projectId}/contractors:
+    post:
+      operationId: adminAddContractorCompany
+      tags: [admin]
+      summary: Add a contractor company to a project
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminAddContractorInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminProjectContractorCompany" }
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/projects/{projectId}/contractors/{projectCompanyId}:
+    delete:
+      operationId: adminRemoveContractorCompany
+      tags: [admin]
+      summary: Remove a contractor company from a project
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: projectCompanyId
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Removed
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
         "404":
           description: Not found
           content:
@@ -838,7 +1036,16 @@ components:
 
     Me:
       type: object
-      required: [userId, clerkUserId, companies, workspaces]
+      required:
+        - userId
+        - clerkUserId
+        - companies
+        - workspaces
+        - isCompanyAdmin
+        - hasAnyAccess
+        - pmProjectIds
+        - contractorProjectIds
+        - adminProjectIds
       properties:
         userId: { type: integer }
         clerkUserId: { type: string }
@@ -854,3 +1061,111 @@ components:
         activeProjectCode: { type: ["string", "null"] }
         activeCompanyId: { type: ["integer", "null"] }
         activeCompanyName: { type: ["string", "null"] }
+        isCompanyAdmin: { type: boolean }
+        hasAnyAccess: { type: boolean }
+        pmProjectIds:
+          type: array
+          items: { type: integer }
+        contractorProjectIds:
+          type: array
+          items: { type: integer }
+        adminProjectIds:
+          type: array
+          items: { type: integer }
+
+    AdminProjectListItem:
+      type: object
+      required: [projectId, projectName, projectCode, pmCount, contractorCompanyCount, memberCount]
+      properties:
+        projectId: { type: integer }
+        projectName: { type: string }
+        projectCode: { type: string }
+        pmCount: { type: integer }
+        contractorCompanyCount: { type: integer }
+        memberCount: { type: integer }
+
+    AdminCompanyUser:
+      type: object
+      required: [userId, email, companyRole, companyId, companyName]
+      properties:
+        userId: { type: integer }
+        email: { type: ["string", "null"] }
+        companyRole: { type: string, enum: [admin, member] }
+        companyId: { type: integer }
+        companyName: { type: string }
+
+    AdminProjectAssignment:
+      type: object
+      required: [assignmentId, userId, email, role, companyId, companyName]
+      properties:
+        assignmentId: { type: integer }
+        userId: { type: integer }
+        email: { type: ["string", "null"] }
+        role:
+          type: string
+          enum: [admin, pm, contractor_lead, contractor_member, viewer]
+        companyId: { type: ["integer", "null"] }
+        companyName: { type: ["string", "null"] }
+
+    AdminProjectContractorCompany:
+      type: object
+      required: [projectCompanyId, companyId, companyName, roleOnProject]
+      properties:
+        projectCompanyId: { type: integer }
+        companyId: { type: integer }
+        companyName: { type: string }
+        roleOnProject: { type: string }
+
+    AdminCompanyOption:
+      type: object
+      required: [companyId, companyName, type]
+      properties:
+        companyId: { type: integer }
+        companyName: { type: string }
+        type: { type: string }
+
+    AdminProjectDetail:
+      type: object
+      required:
+        - projectId
+        - projectName
+        - projectCode
+        - assignments
+        - contractorCompanies
+        - availableCompanies
+        - availableUsers
+      properties:
+        projectId: { type: integer }
+        projectName: { type: string }
+        projectCode: { type: string }
+        assignments:
+          type: array
+          items: { $ref: "#/components/schemas/AdminProjectAssignment" }
+        contractorCompanies:
+          type: array
+          items: { $ref: "#/components/schemas/AdminProjectContractorCompany" }
+        availableCompanies:
+          type: array
+          items: { $ref: "#/components/schemas/AdminCompanyOption" }
+        availableUsers:
+          type: array
+          items: { $ref: "#/components/schemas/AdminCompanyUser" }
+
+    AdminUpsertAssignmentInput:
+      type: object
+      required: [userId, role]
+      properties:
+        userId: { type: integer }
+        role:
+          type: string
+          enum: [admin, pm, contractor_lead, contractor_member, viewer]
+        companyId: { type: ["integer", "null"] }
+
+    AdminAddContractorInput:
+      type: object
+      required: [companyId, roleOnProject]
+      properties:
+        companyId: { type: integer }
+        roleOnProject:
+          type: string
+          enum: [Client, MainContractor, ArchConsultant, MEPConsultant, InteriorContractor]

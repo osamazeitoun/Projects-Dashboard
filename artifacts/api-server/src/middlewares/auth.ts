@@ -7,6 +7,7 @@ import {
   companies,
   projectCompanies,
   projects,
+  projectAssignments,
 } from "@workspace/db";
 import { and, asc, eq, inArray } from "drizzle-orm";
 
@@ -39,15 +40,22 @@ declare global {
 
 export const ACTIVE_WORKSPACE_COOKIE = "active_workspace";
 
-// Companies that any signed-in user is auto-linked to.
-// This keeps the prototype demo data working while real per-company
-// permissions are now enforced. Configurable via env.
+// Companies the bootstrap admin (INITIAL_ADMIN_EMAIL) is auto-linked to so
+// they have somewhere to assign people from on first login. Regular users
+// start with NO company memberships and NO project access — an admin must
+// invite them via the Admin Console.
 const DEFAULT_COMPANY_IDS = (process.env.DEFAULT_COMPANY_IDS ?? "2,3,4")
   .split(",")
   .map((s) => Number(s.trim()))
   .filter((n) => Number.isFinite(n) && n > 0);
 
-async function ensureDefaultCompanyMemberships(userId: number): Promise<void> {
+async function ensureBootstrapAdminMemberships(
+  userId: number,
+  email: string | null,
+): Promise<void> {
+  const initialAdminEmail = process.env.INITIAL_ADMIN_EMAIL?.toLowerCase();
+  if (!initialAdminEmail || !email) return;
+  if (email.toLowerCase() !== initialAdminEmail) return;
   if (DEFAULT_COMPANY_IDS.length === 0) return;
   const existingCompanies = await db
     .select({ id: companies.id })
@@ -74,21 +82,21 @@ async function ensureDefaultCompanyMemberships(userId: number): Promise<void> {
     toLink.map((c) => ({
       userId,
       companyId: c.id,
-      role: "member",
+      role: "member" as const,
     })),
   );
 }
 
 async function jitProvisionUser(
   clerkUserId: string,
-): Promise<{ id: number; email: string | null }> {
+): Promise<{ id: number; email: string | null; isNew: boolean }> {
   const existing = await db
     .select()
     .from(users)
     .where(eq(users.clerkUserId, clerkUserId))
     .limit(1);
   if (existing.length > 0) {
-    return { id: existing[0].id, email: existing[0].email };
+    return { id: existing[0].id, email: existing[0].email, isNew: false };
   }
 
   let email: string | null = null;
@@ -107,18 +115,96 @@ async function jitProvisionUser(
     .values({ clerkUserId, email })
     .returning();
 
-  return { id: inserted.id, email };
+  return { id: inserted.id, email, isNew: true };
 }
 
+/**
+ * Bootstrap: if the signed-in user's email matches INITIAL_ADMIN_EMAIL,
+ * promote them to company admin on every company they are linked to (which
+ * includes the default companies we just linked via
+ * `ensureBootstrapAdminMemberships`). No promotion happens for any other
+ * user — regular users start with no access until an admin assigns them.
+ */
+async function bootstrapInitialAdmin(
+  userId: number,
+  email: string | null,
+): Promise<void> {
+  const initialAdminEmail = process.env.INITIAL_ADMIN_EMAIL?.toLowerCase();
+  if (!initialAdminEmail || !email) return;
+  if (email.toLowerCase() !== initialAdminEmail) return;
+
+  const myMemberships = await db
+    .select({ id: userCompanies.id, role: userCompanies.role })
+    .from(userCompanies)
+    .where(eq(userCompanies.userId, userId));
+  const promoteIds = myMemberships
+    .filter((m) => m.role !== "admin")
+    .map((m) => m.id);
+  if (promoteIds.length === 0) return;
+  await db
+    .update(userCompanies)
+    .set({ role: "admin" })
+    .where(inArray(userCompanies.id, promoteIds));
+}
+
+/**
+ * A workspace is a (company, project) pair the user can act on behalf of.
+ * Derived from `project_assignments` rows that pin a companyId (contractor
+ * roles), plus an admin's company on every project that company participates
+ * in. PM / viewer roles do not create a contractor-style workspace because
+ * they don't act on behalf of a specific contractor company.
+ */
 export async function listWorkspacesForUser(
   userId: number,
 ): Promise<WorkspaceOption[]> {
-  const memberships = await db
-    .select({ companyId: userCompanies.companyId })
-    .from(userCompanies)
-    .where(eq(userCompanies.userId, userId));
-  const companyIds = memberships.map((m) => m.companyId);
-  if (companyIds.length === 0) return [];
+  const [assignedRows, adminMemberships] = await Promise.all([
+    db
+      .select({
+        companyId: projectAssignments.companyId,
+        projectId: projectAssignments.projectId,
+      })
+      .from(projectAssignments)
+      .where(eq(projectAssignments.userId, userId)),
+    db
+      .select({ companyId: userCompanies.companyId })
+      .from(userCompanies)
+      .where(
+        and(eq(userCompanies.userId, userId), eq(userCompanies.role, "admin")),
+      ),
+  ]);
+
+  const pairs = new Set<string>();
+  const candidatePcFilter: Array<{ companyId: number; projectId: number }> = [];
+
+  for (const a of assignedRows) {
+    if (a.companyId == null) continue;
+    const key = `${a.companyId}:${a.projectId}`;
+    if (pairs.has(key)) continue;
+    pairs.add(key);
+    candidatePcFilter.push({ companyId: a.companyId, projectId: a.projectId });
+  }
+
+  const adminCompanyIds = adminMemberships.map((m) => m.companyId);
+  if (adminCompanyIds.length > 0) {
+    const adminPcs = await db
+      .select({
+        companyId: projectCompanies.companyId,
+        projectId: projectCompanies.projectId,
+      })
+      .from(projectCompanies)
+      .where(inArray(projectCompanies.companyId, adminCompanyIds));
+    for (const pc of adminPcs) {
+      const key = `${pc.companyId}:${pc.projectId}`;
+      if (pairs.has(key)) continue;
+      pairs.add(key);
+      candidatePcFilter.push({ companyId: pc.companyId, projectId: pc.projectId });
+    }
+  }
+
+  if (candidatePcFilter.length === 0) return [];
+
+  const allCompanyIds = Array.from(new Set(candidatePcFilter.map((p) => p.companyId)));
+  const allProjectIds = Array.from(new Set(candidatePcFilter.map((p) => p.projectId)));
 
   const rows = await db
     .select({
@@ -131,10 +217,15 @@ export async function listWorkspacesForUser(
     .from(projectCompanies)
     .innerJoin(companies, eq(projectCompanies.companyId, companies.id))
     .innerJoin(projects, eq(projectCompanies.projectId, projects.id))
-    .where(inArray(projectCompanies.companyId, companyIds))
+    .where(
+      and(
+        inArray(projectCompanies.companyId, allCompanyIds),
+        inArray(projectCompanies.projectId, allProjectIds),
+      ),
+    )
     .orderBy(asc(companies.name), asc(projects.name));
 
-  return rows;
+  return rows.filter((r) => pairs.has(`${r.companyId}:${r.projectId}`));
 }
 
 function parseWorkspaceCookie(
@@ -163,7 +254,8 @@ export async function requireAuth(
 
   try {
     const { id: userId, email } = await jitProvisionUser(clerkUserId);
-    await ensureDefaultCompanyMemberships(userId);
+    await ensureBootstrapAdminMemberships(userId, email);
+    await bootstrapInitialAdmin(userId, email);
 
     const memberships = await db
       .select({ companyId: userCompanies.companyId })
@@ -214,26 +306,49 @@ export async function requireAuth(
 }
 
 /**
- * Returns the project_company ids the active workspace has on the given
- * project. With the workspace switcher we scope to the active company
- * only, not every company the user belongs to.
+ * Returns the project_company ids the user can act on behalf of for the
+ * given project. Source of truth is `project_assignments` (contractor
+ * roles whose companyId pins them to a project_company) plus an admin's
+ * company membership when their company participates in the project.
+ *
+ * Plain `user_companies.role='member'` does NOT grant project_company
+ * scope on its own — an explicit assignment is required.
  */
 export async function getProjectCompanyIdsForUser(
   userId: number,
   projectId: number,
   activeCompanyId?: number | null,
 ): Promise<number[]> {
-  const memberships = await db
-    .select({ companyId: userCompanies.companyId })
-    .from(userCompanies)
-    .where(eq(userCompanies.userId, userId));
-  const userCompanyIds = memberships.map((m) => m.companyId);
-  if (userCompanyIds.length === 0) return [];
+  const [assignedCompanies, adminMemberships] = await Promise.all([
+    db
+      .select({ companyId: projectAssignments.companyId })
+      .from(projectAssignments)
+      .where(
+        and(
+          eq(projectAssignments.userId, userId),
+          eq(projectAssignments.projectId, projectId),
+        ),
+      ),
+    db
+      .select({ companyId: userCompanies.companyId })
+      .from(userCompanies)
+      .where(
+        and(eq(userCompanies.userId, userId), eq(userCompanies.role, "admin")),
+      ),
+  ]);
+
+  const allowedCompanyIds = new Set<number>();
+  for (const a of assignedCompanies) {
+    if (a.companyId != null) allowedCompanyIds.add(a.companyId);
+  }
+  for (const m of adminMemberships) allowedCompanyIds.add(m.companyId);
+
+  if (allowedCompanyIds.size === 0) return [];
 
   const companyFilter =
-    activeCompanyId != null && userCompanyIds.includes(activeCompanyId)
+    activeCompanyId != null && allowedCompanyIds.has(activeCompanyId)
       ? [activeCompanyId]
-      : userCompanyIds;
+      : Array.from(allowedCompanyIds);
 
   const rows = await db
     .select({ id: projectCompanies.id })

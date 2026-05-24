@@ -20,6 +20,12 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminAddContractorInput,
+  AdminProjectAssignment,
+  AdminProjectContractorCompany,
+  AdminProjectDetail,
+  AdminProjectListItem,
+  AdminUpsertAssignmentInput,
   ChangeEventDetail,
   ChangeEventSummary,
   ErrorResponse,
@@ -1045,6 +1051,448 @@ export function useGetChangeEventDetail<TData = Awaited<ReturnType<typeof getCha
 
 
 
+
+export const getAdminListProjectsUrl = () => {
+
+
+
+
+  return `/api/admin/projects`
+}
+
+/**
+ * @summary List projects accessible to the admin's company
+ */
+export const adminListProjects = async ( options?: RequestInit): Promise<AdminProjectListItem[]> => {
+
+  return customFetch<AdminProjectListItem[]>(getAdminListProjectsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListProjectsQueryKey = () => {
+    return [
+    `/api/admin/projects`
+    ] as const;
+    }
+
+
+export const getAdminListProjectsQueryOptions = <TData = Awaited<ReturnType<typeof adminListProjects>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListProjectsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListProjects>>> = ({ signal }) => adminListProjects({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListProjects>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListProjectsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListProjects>>>
+export type AdminListProjectsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List projects accessible to the admin's company
+ */
+
+export function useAdminListProjects<TData = Awaited<ReturnType<typeof adminListProjects>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListProjectsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminGetProjectDetailUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/admin/projects/${projectId}`
+}
+
+/**
+ * @summary Full admin view of a project (assignments + contractors + available users)
+ */
+export const adminGetProjectDetail = async (projectId: number, options?: RequestInit): Promise<AdminProjectDetail> => {
+
+  return customFetch<AdminProjectDetail>(getAdminGetProjectDetailUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetProjectDetailQueryKey = (projectId: number,) => {
+    return [
+    `/api/admin/projects/${projectId}`
+    ] as const;
+    }
+
+
+export const getAdminGetProjectDetailQueryOptions = <TData = Awaited<ReturnType<typeof adminGetProjectDetail>>, TError = ErrorType<ErrorResponse>>(projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetProjectDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetProjectDetailQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetProjectDetail>>> = ({ signal }) => adminGetProjectDetail(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(projectId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetProjectDetail>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetProjectDetailQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetProjectDetail>>>
+export type AdminGetProjectDetailQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Full admin view of a project (assignments + contractors + available users)
+ */
+
+export function useAdminGetProjectDetail<TData = Awaited<ReturnType<typeof adminGetProjectDetail>>, TError = ErrorType<ErrorResponse>>(
+ projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetProjectDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetProjectDetailQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminUpsertProjectAssignmentUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/admin/projects/${projectId}/assignments`
+}
+
+/**
+ * @summary Create or update a user's role on a project
+ */
+export const adminUpsertProjectAssignment = async (projectId: number,
+    adminUpsertAssignmentInput: AdminUpsertAssignmentInput, options?: RequestInit): Promise<AdminProjectAssignment> => {
+
+  return customFetch<AdminProjectAssignment>(getAdminUpsertProjectAssignmentUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminUpsertAssignmentInput,)
+  }
+);}
+
+
+
+
+export const getAdminUpsertProjectAssignmentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpsertProjectAssignment>>, TError,{projectId: number;data: BodyType<AdminUpsertAssignmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpsertProjectAssignment>>, TError,{projectId: number;data: BodyType<AdminUpsertAssignmentInput>}, TContext> => {
+
+const mutationKey = ['adminUpsertProjectAssignment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpsertProjectAssignment>>, {projectId: number;data: BodyType<AdminUpsertAssignmentInput>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  adminUpsertProjectAssignment(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpsertProjectAssignmentMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpsertProjectAssignment>>>
+    export type AdminUpsertProjectAssignmentMutationBody = BodyType<AdminUpsertAssignmentInput>
+    export type AdminUpsertProjectAssignmentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create or update a user's role on a project
+ */
+export const useAdminUpsertProjectAssignment = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpsertProjectAssignment>>, TError,{projectId: number;data: BodyType<AdminUpsertAssignmentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpsertProjectAssignment>>,
+        TError,
+        {projectId: number;data: BodyType<AdminUpsertAssignmentInput>},
+        TContext
+      > => {
+      return useMutation(getAdminUpsertProjectAssignmentMutationOptions(options));
+    }
+
+export const getAdminRemoveProjectAssignmentUrl = (projectId: number,
+    assignmentId: number,) => {
+
+
+
+
+  return `/api/admin/projects/${projectId}/assignments/${assignmentId}`
+}
+
+/**
+ * @summary Remove a project assignment
+ */
+export const adminRemoveProjectAssignment = async (projectId: number,
+    assignmentId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getAdminRemoveProjectAssignmentUrl(projectId,assignmentId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getAdminRemoveProjectAssignmentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRemoveProjectAssignment>>, TError,{projectId: number;assignmentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminRemoveProjectAssignment>>, TError,{projectId: number;assignmentId: number}, TContext> => {
+
+const mutationKey = ['adminRemoveProjectAssignment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminRemoveProjectAssignment>>, {projectId: number;assignmentId: number}> = (props) => {
+          const {projectId,assignmentId} = props ?? {};
+
+          return  adminRemoveProjectAssignment(projectId,assignmentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminRemoveProjectAssignmentMutationResult = NonNullable<Awaited<ReturnType<typeof adminRemoveProjectAssignment>>>
+
+    export type AdminRemoveProjectAssignmentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Remove a project assignment
+ */
+export const useAdminRemoveProjectAssignment = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRemoveProjectAssignment>>, TError,{projectId: number;assignmentId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminRemoveProjectAssignment>>,
+        TError,
+        {projectId: number;assignmentId: number},
+        TContext
+      > => {
+      return useMutation(getAdminRemoveProjectAssignmentMutationOptions(options));
+    }
+
+export const getAdminAddContractorCompanyUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/admin/projects/${projectId}/contractors`
+}
+
+/**
+ * @summary Add a contractor company to a project
+ */
+export const adminAddContractorCompany = async (projectId: number,
+    adminAddContractorInput: AdminAddContractorInput, options?: RequestInit): Promise<AdminProjectContractorCompany> => {
+
+  return customFetch<AdminProjectContractorCompany>(getAdminAddContractorCompanyUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminAddContractorInput,)
+  }
+);}
+
+
+
+
+export const getAdminAddContractorCompanyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminAddContractorCompany>>, TError,{projectId: number;data: BodyType<AdminAddContractorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminAddContractorCompany>>, TError,{projectId: number;data: BodyType<AdminAddContractorInput>}, TContext> => {
+
+const mutationKey = ['adminAddContractorCompany'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminAddContractorCompany>>, {projectId: number;data: BodyType<AdminAddContractorInput>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  adminAddContractorCompany(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminAddContractorCompanyMutationResult = NonNullable<Awaited<ReturnType<typeof adminAddContractorCompany>>>
+    export type AdminAddContractorCompanyMutationBody = BodyType<AdminAddContractorInput>
+    export type AdminAddContractorCompanyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Add a contractor company to a project
+ */
+export const useAdminAddContractorCompany = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminAddContractorCompany>>, TError,{projectId: number;data: BodyType<AdminAddContractorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminAddContractorCompany>>,
+        TError,
+        {projectId: number;data: BodyType<AdminAddContractorInput>},
+        TContext
+      > => {
+      return useMutation(getAdminAddContractorCompanyMutationOptions(options));
+    }
+
+export const getAdminRemoveContractorCompanyUrl = (projectId: number,
+    projectCompanyId: number,) => {
+
+
+
+
+  return `/api/admin/projects/${projectId}/contractors/${projectCompanyId}`
+}
+
+/**
+ * @summary Remove a contractor company from a project
+ */
+export const adminRemoveContractorCompany = async (projectId: number,
+    projectCompanyId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getAdminRemoveContractorCompanyUrl(projectId,projectCompanyId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getAdminRemoveContractorCompanyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRemoveContractorCompany>>, TError,{projectId: number;projectCompanyId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminRemoveContractorCompany>>, TError,{projectId: number;projectCompanyId: number}, TContext> => {
+
+const mutationKey = ['adminRemoveContractorCompany'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminRemoveContractorCompany>>, {projectId: number;projectCompanyId: number}> = (props) => {
+          const {projectId,projectCompanyId} = props ?? {};
+
+          return  adminRemoveContractorCompany(projectId,projectCompanyId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminRemoveContractorCompanyMutationResult = NonNullable<Awaited<ReturnType<typeof adminRemoveContractorCompany>>>
+
+    export type AdminRemoveContractorCompanyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Remove a contractor company from a project
+ */
+export const useAdminRemoveContractorCompany = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRemoveContractorCompany>>, TError,{projectId: number;projectCompanyId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminRemoveContractorCompany>>,
+        TError,
+        {projectId: number;projectCompanyId: number},
+        TContext
+      > => {
+      return useMutation(getAdminRemoveContractorCompanyMutationOptions(options));
+    }
 
 export const getRespondToImpactUrl = (impactId: number,) => {
 

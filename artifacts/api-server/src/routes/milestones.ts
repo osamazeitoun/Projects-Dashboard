@@ -22,6 +22,12 @@ import {
   listWorkspacesForUser,
   ACTIVE_WORKSPACE_COOKIE,
 } from "../middlewares/auth";
+import {
+  isCompanyAdmin,
+  listAccessibleProjectIds,
+  getEffectiveProjectAccess,
+} from "../middlewares/permissions";
+import { projectAssignments } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -73,24 +79,51 @@ const STAGE_INFO = [
 const stageNameByCode = new Map(STAGE_INFO.map((s) => [s.code, s.name]));
 
 async function buildMeResponse(ctx: NonNullable<Request["auth_ctx"]>) {
-  const memberships =
-    ctx.companyIds.length === 0
-      ? []
-      : await db
-          .select({
-            companyId: companies.id,
-            companyName: companies.name,
-            role: userCompanies.role,
-          })
-          .from(userCompanies)
-          .innerJoin(companies, eq(userCompanies.companyId, companies.id))
-          .where(eq(userCompanies.userId, ctx.userId));
+  const [memberships, accessibleProjectIds, admin, assignments] =
+    await Promise.all([
+      db
+        .select({
+          companyId: companies.id,
+          companyName: companies.name,
+          role: userCompanies.role,
+        })
+        .from(userCompanies)
+        .innerJoin(companies, eq(userCompanies.companyId, companies.id))
+        .where(eq(userCompanies.userId, ctx.userId)),
+      listAccessibleProjectIds(ctx.userId),
+      isCompanyAdmin(ctx.userId),
+      db
+        .select({
+          projectId: projectAssignments.projectId,
+          role: projectAssignments.role,
+        })
+        .from(projectAssignments)
+        .where(eq(projectAssignments.userId, ctx.userId)),
+    ]);
 
   const activeWorkspace = ctx.workspaces.find(
     (w) =>
       w.companyId === ctx.activeCompanyId &&
       w.projectId === ctx.activeProjectId,
   );
+
+  const pmSet = new Set<number>();
+  const contractorSet = new Set<number>();
+  const adminSet = new Set<number>();
+  for (const a of assignments) {
+    if (a.role === "pm") pmSet.add(a.projectId);
+    if (a.role === "admin") adminSet.add(a.projectId);
+    if (a.role === "contractor_lead" || a.role === "contractor_member")
+      contractorSet.add(a.projectId);
+  }
+  // Company-admin implicitly gets admin + pm capabilities on every accessible
+  // project so the admin UI bootstrap user actually sees something.
+  if (admin) {
+    for (const id of accessibleProjectIds) {
+      adminSet.add(id);
+      pmSet.add(id);
+    }
+  }
 
   return {
     userId: ctx.userId,
@@ -103,6 +136,11 @@ async function buildMeResponse(ctx: NonNullable<Request["auth_ctx"]>) {
     activeProjectCode: activeWorkspace?.projectCode ?? null,
     activeCompanyId: ctx.activeCompanyId,
     activeCompanyName: activeWorkspace?.companyName ?? null,
+    isCompanyAdmin: admin,
+    hasAnyAccess: accessibleProjectIds.length > 0,
+    pmProjectIds: Array.from(pmSet),
+    contractorProjectIds: Array.from(contractorSet),
+    adminProjectIds: Array.from(adminSet),
   };
 }
 
@@ -185,6 +223,10 @@ router.get("/me/summary", requireAuth, async (req, res) => {
     return res.status(404).json({ error: "Project not found" });
   }
 
+  const access = await getEffectiveProjectAccess(ctx.userId, projectId);
+  if (!access) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
   const allMilestones = await db
     .select()
     .from(milestones)
@@ -195,6 +237,9 @@ router.get("/me/summary", requireAuth, async (req, res) => {
     projectId,
     ctx.activeCompanyId,
   );
+  // Admins and PMs see project-wide stage counts; contractor-scoped users
+  // only see counts derived from their own project_company membership.
+  const seesProjectWide = access.isAdmin || access.isPm;
 
   const entries =
     pcIds.length === 0
@@ -220,12 +265,15 @@ router.get("/me/summary", requireAuth, async (req, res) => {
 
   const stages = STAGE_INFO.map((s) => {
     const stageMilestones = allMilestones.filter((m) => m.stageCode === s.code);
+    const scoped = seesProjectWide
+      ? stageMilestones
+      : stageMilestones.filter((m) => companyMilestoneIds.has(m.id));
     return {
       stageCode: s.code,
       name: s.name,
       order: s.order,
-      milestoneCount: stageMilestones.length,
-      keyOutputCount: stageMilestones.filter((m) => m.isKeyOutput).length,
+      milestoneCount: scoped.length,
+      keyOutputCount: scoped.filter((m) => m.isKeyOutput).length,
       companyMilestoneCount: stageMilestones.filter((m) =>
         companyMilestoneIds.has(m.id),
       ).length,
@@ -381,9 +429,10 @@ router.post("/impacts/:impactId/respond", requireAuth, async (req, res) => {
     return res.status(404).json({ error: "Impact not found" });
   }
 
-  // Authorization: the impact's project_company must belong to one of the
-  // user's companies on its project. We look up the project_company row and
-  // confirm the user is a member of that company.
+  // Authorization: the user must have a project-scoped assignment (or be a
+  // company admin on a company that participates in the project) covering
+  // the project_company this impact belongs to. Plain company membership is
+  // NOT sufficient — an explicit assignment is required.
   const [pcRow] = await db
     .select()
     .from(projectCompanies)
@@ -392,10 +441,19 @@ router.post("/impacts/:impactId/respond", requireAuth, async (req, res) => {
   if (!pcRow) {
     return res.status(404).json({ error: "Impact not found" });
   }
-  if (!ctx.companyIds.includes(pcRow.companyId)) {
+
+  const access = await getEffectiveProjectAccess(ctx.userId, pcRow.projectId);
+  if (!access) {
+    return res.status(403).json({ error: "No access to this project" });
+  }
+  const canRespond =
+    access.isAdmin ||
+    (access.isContractor &&
+      access.projectCompanyIds.includes(impact.projectCompanyId));
+  if (!canRespond) {
     return res
       .status(403)
-      .json({ error: "Impact does not belong to your company" });
+      .json({ error: "Impact is outside your assigned scope" });
   }
 
   const [updated] = await db

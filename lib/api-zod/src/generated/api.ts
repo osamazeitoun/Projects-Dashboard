@@ -40,7 +40,12 @@ export const GetMeResponse = zod.object({
   "activeProjectName": zod.string().nullish(),
   "activeProjectCode": zod.string().nullish(),
   "activeCompanyId": zod.number().nullish(),
-  "activeCompanyName": zod.string().nullish()
+  "activeCompanyName": zod.string().nullish(),
+  "isCompanyAdmin": zod.boolean(),
+  "hasAnyAccess": zod.boolean(),
+  "pmProjectIds": zod.array(zod.number()),
+  "contractorProjectIds": zod.array(zod.number()),
+  "adminProjectIds": zod.array(zod.number())
 })
 
 
@@ -72,7 +77,12 @@ export const SetActiveWorkspaceResponse = zod.object({
   "activeProjectName": zod.string().nullish(),
   "activeProjectCode": zod.string().nullish(),
   "activeCompanyId": zod.number().nullish(),
-  "activeCompanyName": zod.string().nullish()
+  "activeCompanyName": zod.string().nullish(),
+  "isCompanyAdmin": zod.boolean(),
+  "hasAnyAccess": zod.boolean(),
+  "pmProjectIds": zod.array(zod.number()),
+  "contractorProjectIds": zod.array(zod.number()),
+  "adminProjectIds": zod.array(zod.number())
 })
 
 
@@ -385,6 +395,121 @@ export const GetChangeEventDetailResponse = zod.object({
   "mainRiskIssue": zod.string().nullish(),
   "detailedComment": zod.string().nullish()
 }))
+})
+
+
+/**
+ * @summary List projects accessible to the admin's company
+ */
+export const AdminListProjectsResponseItem = zod.object({
+  "projectId": zod.number(),
+  "projectName": zod.string(),
+  "projectCode": zod.string(),
+  "pmCount": zod.number(),
+  "contractorCompanyCount": zod.number(),
+  "memberCount": zod.number()
+})
+export const AdminListProjectsResponse = zod.array(AdminListProjectsResponseItem)
+
+
+/**
+ * @summary Full admin view of a project (assignments + contractors + available users)
+ */
+export const AdminGetProjectDetailParams = zod.object({
+  "projectId": zod.coerce.number()
+})
+
+export const AdminGetProjectDetailResponse = zod.object({
+  "projectId": zod.number(),
+  "projectName": zod.string(),
+  "projectCode": zod.string(),
+  "assignments": zod.array(zod.object({
+  "assignmentId": zod.number(),
+  "userId": zod.number(),
+  "email": zod.string().nullable(),
+  "role": zod.enum(['admin', 'pm', 'contractor_lead', 'contractor_member', 'viewer']),
+  "companyId": zod.number().nullable(),
+  "companyName": zod.string().nullable()
+})),
+  "contractorCompanies": zod.array(zod.object({
+  "projectCompanyId": zod.number(),
+  "companyId": zod.number(),
+  "companyName": zod.string(),
+  "roleOnProject": zod.string()
+})),
+  "availableCompanies": zod.array(zod.object({
+  "companyId": zod.number(),
+  "companyName": zod.string(),
+  "type": zod.string()
+})),
+  "availableUsers": zod.array(zod.object({
+  "userId": zod.number(),
+  "email": zod.string().nullable(),
+  "companyRole": zod.enum(['admin', 'member']),
+  "companyId": zod.number(),
+  "companyName": zod.string()
+}))
+})
+
+
+/**
+ * @summary Create or update a user's role on a project
+ */
+export const AdminUpsertProjectAssignmentParams = zod.object({
+  "projectId": zod.coerce.number()
+})
+
+export const AdminUpsertProjectAssignmentBody = zod.object({
+  "userId": zod.number(),
+  "role": zod.enum(['admin', 'pm', 'contractor_lead', 'contractor_member', 'viewer']),
+  "companyId": zod.number().nullish()
+})
+
+export const AdminUpsertProjectAssignmentResponse = zod.object({
+  "assignmentId": zod.number(),
+  "userId": zod.number(),
+  "email": zod.string().nullable(),
+  "role": zod.enum(['admin', 'pm', 'contractor_lead', 'contractor_member', 'viewer']),
+  "companyId": zod.number().nullable(),
+  "companyName": zod.string().nullable()
+})
+
+
+/**
+ * @summary Remove a project assignment
+ */
+export const AdminRemoveProjectAssignmentParams = zod.object({
+  "projectId": zod.coerce.number(),
+  "assignmentId": zod.coerce.number()
+})
+
+
+/**
+ * @summary Add a contractor company to a project
+ */
+export const AdminAddContractorCompanyParams = zod.object({
+  "projectId": zod.coerce.number()
+})
+
+export const AdminAddContractorCompanyBody = zod.object({
+  "companyId": zod.number(),
+  "roleOnProject": zod.enum(['Client', 'MainContractor', 'ArchConsultant', 'MEPConsultant', 'InteriorContractor'])
+})
+
+export const AdminAddContractorCompanyResponse = zod.object({
+  "projectCompanyId": zod.number(),
+  "companyId": zod.number(),
+  "companyName": zod.string(),
+  "roleOnProject": zod.string()
+})
+
+
+/**
+ * @summary Remove a contractor company from a project
+ */
+export const AdminRemoveContractorCompanyParams = zod.object({
+  "projectId": zod.coerce.number(),
+  "projectCompanyId": zod.coerce.number()
 })
 
 

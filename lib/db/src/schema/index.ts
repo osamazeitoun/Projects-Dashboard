@@ -7,6 +7,7 @@ import {
   timestamp,
   jsonb,
   pgEnum,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const stageCodeEnum = pgEnum("stage_code", [
@@ -70,6 +71,19 @@ export const impactResponseStatusEnum = pgEnum("impact_response_status", [
   "Submitted",
   "Reviewed",
   "Closed",
+]);
+
+export const userCompanyRoleEnum = pgEnum("user_company_role", [
+  "admin",
+  "member",
+]);
+
+export const projectAssignmentRoleEnum = pgEnum("project_assignment_role", [
+  "admin",
+  "pm",
+  "contractor_lead",
+  "contractor_member",
+  "viewer",
 ]);
 
 export const projects = pgTable("projects", {
@@ -190,11 +204,41 @@ export const userCompanies = pgTable("user_companies", {
   companyId: integer("company_id")
     .notNull()
     .references(() => companies.id, { onDelete: "cascade" }),
-  role: text("role").notNull().default("member"),
+  role: userCompanyRoleEnum("role").notNull().default("member"),
 });
+
+export const projectAssignments = pgTable(
+  "project_assignments",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    companyId: integer("company_id").references(() => companies.id, {
+      onDelete: "set null",
+    }),
+    role: projectAssignmentRoleEnum("role").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdByUserId: integer("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+  },
+  (t) => ({
+    userProjectUnique: uniqueIndex("project_assignments_user_project_unique").on(
+      t.userId,
+      t.projectId,
+    ),
+  }),
+);
 
 export type User = typeof users.$inferSelect;
 export type UserCompany = typeof userCompanies.$inferSelect;
+export type ProjectAssignment = typeof projectAssignments.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type Company = typeof companies.$inferSelect;
 export type Milestone = typeof milestones.$inferSelect;

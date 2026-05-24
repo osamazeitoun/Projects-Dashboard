@@ -414,5 +414,116 @@ export interface Me {
   activeCompanyId?: number | null;
   /** @nullable */
   activeCompanyName?: string | null;
+  isCompanyAdmin: boolean;
+  hasAnyAccess: boolean;
+  pmProjectIds: number[];
+  contractorProjectIds: number[];
+  adminProjectIds: number[];
+}
+
+export interface AdminProjectListItem {
+  projectId: number;
+  projectName: string;
+  projectCode: string;
+  pmCount: number;
+  contractorCompanyCount: number;
+  memberCount: number;
+}
+
+export type AdminCompanyUserCompanyRole = typeof AdminCompanyUserCompanyRole[keyof typeof AdminCompanyUserCompanyRole];
+
+
+export const AdminCompanyUserCompanyRole = {
+  admin: 'admin',
+  member: 'member',
+} as const;
+
+export interface AdminCompanyUser {
+  userId: number;
+  /** @nullable */
+  email: string | null;
+  companyRole: AdminCompanyUserCompanyRole;
+  companyId: number;
+  companyName: string;
+}
+
+export type AdminProjectAssignmentRole = typeof AdminProjectAssignmentRole[keyof typeof AdminProjectAssignmentRole];
+
+
+export const AdminProjectAssignmentRole = {
+  admin: 'admin',
+  pm: 'pm',
+  contractor_lead: 'contractor_lead',
+  contractor_member: 'contractor_member',
+  viewer: 'viewer',
+} as const;
+
+export interface AdminProjectAssignment {
+  assignmentId: number;
+  userId: number;
+  /** @nullable */
+  email: string | null;
+  role: AdminProjectAssignmentRole;
+  /** @nullable */
+  companyId: number | null;
+  /** @nullable */
+  companyName: string | null;
+}
+
+export interface AdminProjectContractorCompany {
+  projectCompanyId: number;
+  companyId: number;
+  companyName: string;
+  roleOnProject: string;
+}
+
+export interface AdminCompanyOption {
+  companyId: number;
+  companyName: string;
+  type: string;
+}
+
+export interface AdminProjectDetail {
+  projectId: number;
+  projectName: string;
+  projectCode: string;
+  assignments: AdminProjectAssignment[];
+  contractorCompanies: AdminProjectContractorCompany[];
+  availableCompanies: AdminCompanyOption[];
+  availableUsers: AdminCompanyUser[];
+}
+
+export type AdminUpsertAssignmentInputRole = typeof AdminUpsertAssignmentInputRole[keyof typeof AdminUpsertAssignmentInputRole];
+
+
+export const AdminUpsertAssignmentInputRole = {
+  admin: 'admin',
+  pm: 'pm',
+  contractor_lead: 'contractor_lead',
+  contractor_member: 'contractor_member',
+  viewer: 'viewer',
+} as const;
+
+export interface AdminUpsertAssignmentInput {
+  userId: number;
+  role: AdminUpsertAssignmentInputRole;
+  /** @nullable */
+  companyId?: number | null;
+}
+
+export type AdminAddContractorInputRoleOnProject = typeof AdminAddContractorInputRoleOnProject[keyof typeof AdminAddContractorInputRoleOnProject];
+
+
+export const AdminAddContractorInputRoleOnProject = {
+  Client: 'Client',
+  MainContractor: 'MainContractor',
+  ArchConsultant: 'ArchConsultant',
+  MEPConsultant: 'MEPConsultant',
+  InteriorContractor: 'InteriorContractor',
+} as const;
+
+export interface AdminAddContractorInput {
+  companyId: number;
+  roleOnProject: AdminAddContractorInputRoleOnProject;
 }
 

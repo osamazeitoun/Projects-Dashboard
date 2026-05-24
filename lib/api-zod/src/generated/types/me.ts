@@ -25,4 +25,9 @@ export interface Me {
   activeCompanyId?: number | null;
   /** @nullable */
   activeCompanyName?: string | null;
+  isCompanyAdmin: boolean;
+  hasAnyAccess: boolean;
+  pmProjectIds: number[];
+  contractorProjectIds: number[];
+  adminProjectIds: number[];
 }
