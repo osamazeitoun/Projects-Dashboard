@@ -656,7 +656,6 @@ function Timeline({ entries }: { entries: ChangeEventTimelineEntry[] }) {
       })}
     </ol>
   );
-  );
 }
 
 export default function PmChangeEventDetail() {
