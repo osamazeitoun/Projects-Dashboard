@@ -349,6 +349,14 @@ export interface ChangeEventDetail {
   impacts: MilestoneImpactDetail[];
 }
 
+export interface CreateChangeEventInput {
+  proposedNewDate: string;
+  /** @minLength 1 */
+  changeReason: string;
+  /** @minItems 1 */
+  impactedProjectCompanyIds: number[];
+}
+
 export interface ImpactResponseInput {
   impactRiskLevel: ImpactRiskLevel;
   impactRiskType: ImpactRiskType;

@@ -362,6 +362,24 @@ export const GetProjectChangeEventsResponse = zod.array(GetProjectChangeEventsRe
 
 
 /**
+ * @summary PM creates a new change event proposing a new date for a milestone
+ */
+export const CreateChangeEventParams = zod.object({
+  "milestoneId": zod.coerce.number()
+})
+
+
+
+
+
+export const CreateChangeEventBody = zod.object({
+  "proposedNewDate": zod.coerce.date(),
+  "changeReason": zod.string().min(1),
+  "impactedProjectCompanyIds": zod.array(zod.number()).min(1)
+})
+
+
+/**
  * @summary Drill-in detail for a change event including all per-company responses
  */
 export const GetChangeEventDetailParams = zod.object({

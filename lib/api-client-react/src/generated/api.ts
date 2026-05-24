@@ -28,6 +28,7 @@ import type {
   AdminUpsertAssignmentInput,
   ChangeEventDetail,
   ChangeEventSummary,
+  CreateChangeEventInput,
   ErrorResponse,
   HealthStatus,
   ImpactResponseInput,
@@ -974,6 +975,78 @@ export function useGetProjectChangeEvents<TData = Awaited<ReturnType<typeof getP
 
 
 
+
+export const getCreateChangeEventUrl = (milestoneId: number,) => {
+
+
+
+
+  return `/api/milestones/${milestoneId}/change-events`
+}
+
+/**
+ * @summary PM creates a new change event proposing a new date for a milestone
+ */
+export const createChangeEvent = async (milestoneId: number,
+    createChangeEventInput: CreateChangeEventInput, options?: RequestInit): Promise<ChangeEventDetail> => {
+
+  return customFetch<ChangeEventDetail>(getCreateChangeEventUrl(milestoneId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createChangeEventInput,)
+  }
+);}
+
+
+
+
+export const getCreateChangeEventMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createChangeEvent>>, TError,{milestoneId: number;data: BodyType<CreateChangeEventInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createChangeEvent>>, TError,{milestoneId: number;data: BodyType<CreateChangeEventInput>}, TContext> => {
+
+const mutationKey = ['createChangeEvent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createChangeEvent>>, {milestoneId: number;data: BodyType<CreateChangeEventInput>}> = (props) => {
+          const {milestoneId,data} = props ?? {};
+
+          return  createChangeEvent(milestoneId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateChangeEventMutationResult = NonNullable<Awaited<ReturnType<typeof createChangeEvent>>>
+    export type CreateChangeEventMutationBody = BodyType<CreateChangeEventInput>
+    export type CreateChangeEventMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary PM creates a new change event proposing a new date for a milestone
+ */
+export const useCreateChangeEvent = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createChangeEvent>>, TError,{milestoneId: number;data: BodyType<CreateChangeEventInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createChangeEvent>>,
+        TError,
+        {milestoneId: number;data: BodyType<CreateChangeEventInput>},
+        TContext
+      > => {
+      return useMutation(getCreateChangeEventMutationOptions(options));
+    }
 
 export const getGetChangeEventDetailUrl = (changeEventId: number,) => {
 

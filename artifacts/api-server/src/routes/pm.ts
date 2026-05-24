@@ -10,6 +10,7 @@ import {
   companies,
 } from "@workspace/db";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { CreateChangeEventBody, CreateChangeEventParams } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import {
   getEffectiveProjectAccess,
@@ -709,6 +710,142 @@ router.get("/change-events/:changeEventId/detail", async (req, res) => {
     status: ev.status,
     clientComment: ev.clientComment,
     clientDecisionAt: isoOrNull(ev.clientDecisionAt),
+    impacts: impacts.map((i) => ({
+      id: i.id,
+      projectCompanyId: i.projectCompanyId,
+      companyName: i.companyName,
+      companyRole: i.companyRole,
+      responseStatus: i.responseStatus,
+      notifiedAt: i.notifiedAt.toISOString(),
+      respondedAt: isoOrNull(i.respondedAt),
+      impactRiskLevel: i.impactRiskLevel,
+      impactRiskType: i.impactRiskType,
+      mainRiskIssue: i.mainRiskIssue,
+      detailedComment: i.detailedComment,
+    })),
+  });
+});
+
+router.post("/milestones/:milestoneId/change-events", async (req, res) => {
+  const paramsParsed = CreateChangeEventParams.safeParse(req.params);
+  if (!paramsParsed.success) {
+    return res.status(400).json({ error: "Invalid milestoneId" });
+  }
+  const bodyParsed = CreateChangeEventBody.safeParse(req.body);
+  if (!bodyParsed.success) {
+    return res
+      .status(400)
+      .json({ error: "Invalid request body: " + bodyParsed.error.message });
+  }
+  const { milestoneId } = paramsParsed.data;
+  const body = bodyParsed.data;
+
+  const projectId = await getProjectIdForMilestone(milestoneId);
+  if (!projectId) return res.status(404).json({ error: "Milestone not found" });
+  if (!(await requirePmAccess(req, res, projectId))) return;
+
+  const [m] = await db
+    .select()
+    .from(milestones)
+    .where(eq(milestones.id, milestoneId))
+    .limit(1);
+  if (!m) return res.status(404).json({ error: "Milestone not found" });
+
+  const proposedNewDate = new Date(body.proposedNewDate);
+  if (Number.isNaN(proposedNewDate.getTime())) {
+    return res.status(400).json({ error: "Invalid proposedNewDate" });
+  }
+  if (proposedNewDate.getTime() === m.currentDate.getTime()) {
+    return res
+      .status(400)
+      .json({ error: "Proposed date must differ from current date" });
+  }
+
+  // Validate that the supplied project_company ids actually belong to this project
+  const projectPcs = await db
+    .select({ id: projectCompanies.id })
+    .from(projectCompanies)
+    .where(
+      and(
+        eq(projectCompanies.projectId, projectId),
+        inArray(projectCompanies.id, body.impactedProjectCompanyIds),
+      ),
+    );
+  const validPcIds = new Set(projectPcs.map((p) => p.id));
+  if (validPcIds.size !== body.impactedProjectCompanyIds.length) {
+    return res
+      .status(400)
+      .json({ error: "One or more companies are not on this project" });
+  }
+
+  const userId = req.auth_ctx!.userId;
+  const oldDate = m.currentDate;
+  const now = new Date();
+
+  const created = await db.transaction(async (tx) => {
+    const [ev] = await tx
+      .insert(changeEvents)
+      .values({
+        milestoneId,
+        initiatedByUserId: userId,
+        oldDate,
+        proposedNewDate,
+        changeReason: body.changeReason,
+        status: "Draft",
+      })
+      .returning();
+
+    if (body.impactedProjectCompanyIds.length > 0) {
+      await tx.insert(milestoneImpacts).values(
+        body.impactedProjectCompanyIds.map((pcId) => ({
+          changeEventId: ev.id,
+          milestoneId,
+          projectCompanyId: pcId,
+          oldDate,
+          newDate: proposedNewDate,
+          notifiedAt: now,
+          responseStatus: "Pending" as const,
+        })),
+      );
+    }
+
+    return ev;
+  });
+
+  const impacts = await db
+    .select({
+      id: milestoneImpacts.id,
+      projectCompanyId: milestoneImpacts.projectCompanyId,
+      companyName: companies.name,
+      companyRole: projectCompanies.roleOnProject,
+      responseStatus: milestoneImpacts.responseStatus,
+      notifiedAt: milestoneImpacts.notifiedAt,
+      respondedAt: milestoneImpacts.respondedAt,
+      impactRiskLevel: milestoneImpacts.impactRiskLevel,
+      impactRiskType: milestoneImpacts.impactRiskType,
+      mainRiskIssue: milestoneImpacts.mainRiskIssue,
+      detailedComment: milestoneImpacts.detailedComment,
+    })
+    .from(milestoneImpacts)
+    .innerJoin(projectCompanies, eq(projectCompanies.id, milestoneImpacts.projectCompanyId))
+    .innerJoin(companies, eq(companies.id, projectCompanies.companyId))
+    .where(eq(milestoneImpacts.changeEventId, created.id))
+    .orderBy(asc(companies.name));
+
+  return res.status(201).json({
+    id: created.id,
+    milestoneId: m.id,
+    milestoneCode: m.code,
+    milestoneName: m.name,
+    stageCode: m.stageCode,
+    stageName: stageNameByCode.get(m.stageCode) ?? m.stageCode,
+    initiatedAt: created.initiatedAt.toISOString(),
+    oldDate: created.oldDate.toISOString(),
+    proposedNewDate: created.proposedNewDate.toISOString(),
+    changeReason: created.changeReason,
+    status: created.status,
+    clientComment: created.clientComment,
+    clientDecisionAt: isoOrNull(created.clientDecisionAt),
     impacts: impacts.map((i) => ({
       id: i.id,
       projectCompanyId: i.projectCompanyId,

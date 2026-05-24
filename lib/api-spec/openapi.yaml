@@ -262,6 +262,44 @@ paths:
                 type: array
                 items: { $ref: "#/components/schemas/ChangeEventSummary" }
 
+  /milestones/{milestoneId}/change-events:
+    post:
+      operationId: createChangeEvent
+      tags: [impacts]
+      summary: PM creates a new change event proposing a new date for a milestone
+      parameters:
+        - in: path
+          name: milestoneId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChangeEventInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChangeEventDetail" }
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Milestone not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /change-events/{changeEventId}/detail:
     get:
       operationId: getChangeEventDetail
@@ -972,6 +1010,17 @@ components:
         impacts:
           type: array
           items: { $ref: "#/components/schemas/MilestoneImpactDetail" }
+
+    CreateChangeEventInput:
+      type: object
+      required: [proposedNewDate, changeReason, impactedProjectCompanyIds]
+      properties:
+        proposedNewDate: { type: string, format: date-time }
+        changeReason: { type: string, minLength: 1 }
+        impactedProjectCompanyIds:
+          type: array
+          minItems: 1
+          items: { type: integer }
 
     ImpactResponseInput:
       type: object
