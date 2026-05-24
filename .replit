@@ -30,3 +30,9 @@ externalPort = 80
 [[ports]]
 localPort = 25028
 externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+DEV_AUTH_ENABLED = "1"
+VITE_DEV_AUTH = "1"

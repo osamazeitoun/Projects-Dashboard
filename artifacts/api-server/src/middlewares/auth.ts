@@ -240,6 +240,47 @@ function parseWorkspaceCookie(
   return { companyId, projectId };
 }
 
+const DEV_AUTH_ENABLED = process.env.DEV_AUTH_ENABLED === "1";
+const DEV_AUTH_CLERK_ID = "dev-bypass-user";
+const DEV_AUTH_EMAIL = "dev@local.test";
+
+/**
+ * Dev mode only: link the bypass user to every demo company and promote
+ * them to admin so they can see every perspective (Contractor / PM / Admin)
+ * without going through Clerk sign-up.
+ */
+async function ensureDevBypassMemberships(userId: number): Promise<void> {
+  const allCompanies = await db.select({ id: companies.id }).from(companies);
+  if (allCompanies.length === 0) return;
+
+  const alreadyLinked = await db
+    .select({ id: userCompanies.id, companyId: userCompanies.companyId })
+    .from(userCompanies)
+    .where(eq(userCompanies.userId, userId));
+  const linkedIds = new Set(alreadyLinked.map((r) => r.companyId));
+  const toLink = allCompanies.filter((c) => !linkedIds.has(c.id));
+  if (toLink.length > 0) {
+    await db.insert(userCompanies).values(
+      toLink.map((c) => ({
+        userId,
+        companyId: c.id,
+        role: "admin" as const,
+      })),
+    );
+  }
+  if (alreadyLinked.length > 0) {
+    await db
+      .update(userCompanies)
+      .set({ role: "admin" })
+      .where(
+        inArray(
+          userCompanies.id,
+          alreadyLinked.map((r) => r.id),
+        ),
+      );
+  }
+}
+
 export async function requireAuth(
   req: Request,
   res: Response,
@@ -254,15 +295,44 @@ export async function requireAuth(
     const auth = getAuth(req);
     clerkUserId = auth?.userId;
   }
+  if (!clerkUserId && DEV_AUTH_ENABLED) {
+    clerkUserId = DEV_AUTH_CLERK_ID;
+  }
   if (!clerkUserId) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
 
   try {
-    const { id: userId, email } = await jitProvisionUser(clerkUserId);
-    await ensureBootstrapAdminMemberships(userId, email);
-    await bootstrapInitialAdmin(userId, email);
+    const isDevBypass =
+      DEV_AUTH_ENABLED && clerkUserId === DEV_AUTH_CLERK_ID;
+    let userId: number;
+    let email: string | null;
+    if (isDevBypass) {
+      const existing = await db
+        .select()
+        .from(users)
+        .where(eq(users.clerkUserId, DEV_AUTH_CLERK_ID))
+        .limit(1);
+      if (existing.length > 0) {
+        userId = existing[0].id;
+        email = existing[0].email;
+      } else {
+        const [inserted] = await db
+          .insert(users)
+          .values({ clerkUserId: DEV_AUTH_CLERK_ID, email: DEV_AUTH_EMAIL })
+          .returning();
+        userId = inserted.id;
+        email = inserted.email;
+      }
+      await ensureDevBypassMemberships(userId);
+    } else {
+      const provisioned = await jitProvisionUser(clerkUserId);
+      userId = provisioned.id;
+      email = provisioned.email;
+      await ensureBootstrapAdminMemberships(userId, email);
+      await bootstrapInitialAdmin(userId, email);
+    }
 
     const memberships = await db
       .select({ companyId: userCompanies.companyId })

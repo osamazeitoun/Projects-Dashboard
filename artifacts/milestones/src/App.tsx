@@ -107,7 +107,19 @@ function SmartHomeRedirect() {
   return <NoAccessGate perspective="contractor"><div /></NoAccessGate>;
 }
 
+const DEV_AUTH = import.meta.env.VITE_DEV_AUTH === "1";
+
+function DevBanner() {
+  if (!DEV_AUTH) return null;
+  return (
+    <div className="bg-amber-500 text-amber-950 text-xs font-medium text-center py-1 px-3">
+      Developer view: sign-in is bypassed. Turn off <code>VITE_DEV_AUTH</code> &amp; <code>DEV_AUTH_ENABLED</code> before publishing.
+    </div>
+  );
+}
+
 function HomeRedirect() {
+  if (DEV_AUTH) return <SmartHomeRedirect />;
   return (
     <>
       <Show when="signed-in">
@@ -121,6 +133,13 @@ function HomeRedirect() {
 }
 
 function ProtectedContractorPage({ children }: { children: React.ReactNode }) {
+  if (DEV_AUTH) {
+    return (
+      <NoAccessGate perspective="contractor">
+        <Layout>{children}</Layout>
+      </NoAccessGate>
+    );
+  }
   return (
     <>
       <Show when="signed-in">
@@ -136,6 +155,13 @@ function ProtectedContractorPage({ children }: { children: React.ReactNode }) {
 }
 
 function ProtectedPmPage({ children }: { children: React.ReactNode }) {
+  if (DEV_AUTH) {
+    return (
+      <NoAccessGate perspective="pm">
+        <PmLayout>{children}</PmLayout>
+      </NoAccessGate>
+    );
+  }
   return (
     <>
       <Show when="signed-in">
@@ -158,6 +184,7 @@ function AdminGate({ children }: { children: React.ReactNode }) {
 }
 
 function ProtectedAdminPage({ children }: { children: React.ReactNode }) {
+  if (DEV_AUTH) return <AdminGate>{children}</AdminGate>;
   return (
     <>
       <Show when="signed-in">
@@ -205,6 +232,7 @@ function AppRoutes() {
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
         <TooltipProvider>
+          <DevBanner />
           <Switch>
             <Route path="/" component={HomeRedirect} />
             <Route path="/sign-in/*?" component={SignInPage} />
