@@ -457,6 +457,59 @@ export const GetChangeEventDetailResponse = zod.object({
 
 
 /**
+ * @summary PM edits a change event (only allowed while no responses have come in)
+ */
+export const EditChangeEventParams = zod.object({
+  "changeEventId": zod.coerce.number()
+})
+
+
+
+
+
+export const EditChangeEventBody = zod.object({
+  "proposedNewDate": zod.coerce.date(),
+  "changeReason": zod.string().min(1),
+  "impactedProjectCompanyIds": zod.array(zod.number()).min(1)
+})
+
+export const EditChangeEventResponse = zod.object({
+  "id": zod.number(),
+  "milestoneId": zod.number(),
+  "milestoneCode": zod.string(),
+  "milestoneName": zod.string(),
+  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageName": zod.string(),
+  "initiatedAt": zod.coerce.date(),
+  "oldDate": zod.coerce.date(),
+  "proposedNewDate": zod.coerce.date(),
+  "changeReason": zod.string(),
+  "status": zod.enum(['Draft', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled']),
+  "clientComment": zod.string().nullish(),
+  "clientDecisionAt": zod.coerce.date().nullish(),
+  "impacts": zod.array(zod.object({
+  "id": zod.number(),
+  "projectCompanyId": zod.number(),
+  "companyName": zod.string(),
+  "companyRole": zod.string(),
+  "responseStatus": zod.enum(['Pending', 'Submitted', 'Reviewed', 'Closed']),
+  "notifiedAt": zod.coerce.date(),
+  "respondedAt": zod.coerce.date().nullish(),
+  "impactRiskLevel": zod.union([zod.enum(['None', 'Low', 'Medium', 'High']),zod.null()]).optional(),
+  "impactRiskType": zod.union([zod.enum(['Time', 'Cost', 'Quality', 'Scope', 'Resources', 'Authority', 'Other']),zod.null()]).optional(),
+  "mainRiskIssue": zod.string().nullish(),
+  "detailedComment": zod.string().nullish(),
+  "lastDeliveryStatus": zod.union([zod.enum(['Sent', 'Failed']),zod.null()]).optional(),
+  "lastDeliveryChannel": zod.union([zod.enum(['email', 'log']),zod.null()]).optional(),
+  "lastDeliveryAt": zod.coerce.date().nullish(),
+  "lastDeliveryError": zod.string().nullish(),
+  "deliveryAttemptCount": zod.number().optional(),
+  "recipientEmail": zod.string().nullish()
+}))
+})
+
+
+/**
  * @summary Move a change event through its lifecycle (send / approve / reject / cancel)
  */
 export const TransitionChangeEventParams = zod.object({

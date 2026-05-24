@@ -16,6 +16,8 @@ import {
   CreateChangeEventParams,
   TransitionChangeEventBody,
   TransitionChangeEventParams,
+  EditChangeEventBody,
+  EditChangeEventParams,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import {
@@ -1202,6 +1204,140 @@ router.post("/change-events/:changeEventId/transition", async (req, res) => {
           changeReasonLatest: ev.changeReason,
         })
         .where(eq(milestones.id, ev.milestoneId));
+    }
+  });
+
+  const detail = await loadChangeEventDetailResponse(changeEventId);
+  if (!detail) return res.status(404).json({ error: "Change event not found" });
+  return res.json(detail);
+});
+
+router.patch("/change-events/:changeEventId", async (req, res) => {
+  const paramsParsed = EditChangeEventParams.safeParse(req.params);
+  if (!paramsParsed.success) {
+    return res.status(400).json({ error: "Invalid changeEventId" });
+  }
+  const bodyParsed = EditChangeEventBody.safeParse(req.body);
+  if (!bodyParsed.success) {
+    return res
+      .status(400)
+      .json({ error: "Invalid request body: " + bodyParsed.error.message });
+  }
+  const { changeEventId } = paramsParsed.data;
+  const body = bodyParsed.data;
+
+  const projectId = await getProjectIdForChangeEvent(changeEventId);
+  if (!projectId) return res.status(404).json({ error: "Change event not found" });
+  if (!(await requirePmAccess(req, res, projectId))) return;
+
+  const [ev] = await db
+    .select()
+    .from(changeEvents)
+    .where(eq(changeEvents.id, changeEventId))
+    .limit(1);
+  if (!ev) return res.status(404).json({ error: "Change event not found" });
+
+  if (
+    ev.status === "Cancelled" ||
+    ev.status === "PMApproved" ||
+    ev.status === "ClientApproved" ||
+    ev.status === "ClientRejected"
+  ) {
+    return res
+      .status(400)
+      .json({ error: "This change event is closed and can no longer be edited." });
+  }
+
+  const existingImpacts = await db
+    .select()
+    .from(milestoneImpacts)
+    .where(eq(milestoneImpacts.changeEventId, changeEventId));
+
+  const anyResponses = existingImpacts.some(
+    (i) => i.responseStatus !== "Pending" || i.respondedAt !== null,
+  );
+  if (anyResponses) {
+    return res.status(400).json({
+      error: "Responses have already come in. The change event can no longer be edited.",
+    });
+  }
+
+  const [m] = await db
+    .select()
+    .from(milestones)
+    .where(eq(milestones.id, ev.milestoneId))
+    .limit(1);
+  if (!m) return res.status(404).json({ error: "Milestone not found" });
+
+  const proposedNewDate = new Date(body.proposedNewDate);
+  if (Number.isNaN(proposedNewDate.getTime())) {
+    return res.status(400).json({ error: "Invalid proposedNewDate" });
+  }
+  if (proposedNewDate.getTime() === m.currentDate.getTime()) {
+    return res
+      .status(400)
+      .json({ error: "Proposed date must differ from current date" });
+  }
+
+  const projectPcs = await db
+    .select({ id: projectCompanies.id })
+    .from(projectCompanies)
+    .where(
+      and(
+        eq(projectCompanies.projectId, projectId),
+        inArray(projectCompanies.id, body.impactedProjectCompanyIds),
+      ),
+    );
+  const validPcIds = new Set(projectPcs.map((p) => p.id));
+  if (validPcIds.size !== body.impactedProjectCompanyIds.length) {
+    return res
+      .status(400)
+      .json({ error: "One or more companies are not on this project" });
+  }
+
+  const requestedPcIds = new Set(body.impactedProjectCompanyIds);
+  const existingByPc = new Map(existingImpacts.map((i) => [i.projectCompanyId, i]));
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(changeEvents)
+      .set({
+        proposedNewDate,
+        changeReason: body.changeReason,
+      })
+      .where(eq(changeEvents.id, changeEventId));
+
+    const toRemove = existingImpacts
+      .filter((i) => !requestedPcIds.has(i.projectCompanyId))
+      .map((i) => i.id);
+    if (toRemove.length > 0) {
+      await tx.delete(milestoneImpacts).where(inArray(milestoneImpacts.id, toRemove));
+    }
+
+    const toAdd = body.impactedProjectCompanyIds.filter((pcId) => !existingByPc.has(pcId));
+    if (toAdd.length > 0) {
+      await tx.insert(milestoneImpacts).values(
+        toAdd.map((pcId) => ({
+          changeEventId,
+          milestoneId: ev.milestoneId,
+          projectCompanyId: pcId,
+          oldDate: ev.oldDate,
+          newDate: proposedNewDate,
+          notifiedAt: now,
+          responseStatus: "Pending" as const,
+        })),
+      );
+    }
+
+    const toKeep = existingImpacts
+      .filter((i) => requestedPcIds.has(i.projectCompanyId))
+      .map((i) => i.id);
+    if (toKeep.length > 0) {
+      await tx
+        .update(milestoneImpacts)
+        .set({ newDate: proposedNewDate })
+        .where(inArray(milestoneImpacts.id, toKeep));
     }
   });
 

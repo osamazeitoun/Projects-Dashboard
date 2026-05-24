@@ -414,6 +414,14 @@ export interface ResendNotificationsResult {
   results: NotificationDeliveryResult[];
 }
 
+export interface EditChangeEventInput {
+  proposedNewDate: string;
+  /** @minLength 1 */
+  changeReason: string;
+  /** @minItems 1 */
+  impactedProjectCompanyIds: number[];
+}
+
 export interface CreateChangeEventInput {
   proposedNewDate: string;
   /** @minLength 1 */

@@ -31,6 +31,7 @@ import type {
   ChangeEventDetail,
   ChangeEventSummary,
   CreateChangeEventInput,
+  EditChangeEventInput,
   ErrorResponse,
   HealthStatus,
   ImpactResponseInput,
@@ -1202,6 +1203,78 @@ export function useGetChangeEventDetail<TData = Awaited<ReturnType<typeof getCha
 
 
 
+
+export const getEditChangeEventUrl = (changeEventId: number,) => {
+
+
+
+
+  return `/api/change-events/${changeEventId}`
+}
+
+/**
+ * @summary PM edits a change event (only allowed while no responses have come in)
+ */
+export const editChangeEvent = async (changeEventId: number,
+    editChangeEventInput: EditChangeEventInput, options?: RequestInit): Promise<ChangeEventDetail> => {
+
+  return customFetch<ChangeEventDetail>(getEditChangeEventUrl(changeEventId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      editChangeEventInput,)
+  }
+);}
+
+
+
+
+export const getEditChangeEventMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof editChangeEvent>>, TError,{changeEventId: number;data: BodyType<EditChangeEventInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof editChangeEvent>>, TError,{changeEventId: number;data: BodyType<EditChangeEventInput>}, TContext> => {
+
+const mutationKey = ['editChangeEvent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof editChangeEvent>>, {changeEventId: number;data: BodyType<EditChangeEventInput>}> = (props) => {
+          const {changeEventId,data} = props ?? {};
+
+          return  editChangeEvent(changeEventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EditChangeEventMutationResult = NonNullable<Awaited<ReturnType<typeof editChangeEvent>>>
+    export type EditChangeEventMutationBody = BodyType<EditChangeEventInput>
+    export type EditChangeEventMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary PM edits a change event (only allowed while no responses have come in)
+ */
+export const useEditChangeEvent = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof editChangeEvent>>, TError,{changeEventId: number;data: BodyType<EditChangeEventInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof editChangeEvent>>,
+        TError,
+        {changeEventId: number;data: BodyType<EditChangeEventInput>},
+        TContext
+      > => {
+      return useMutation(getEditChangeEventMutationOptions(options));
+    }
 
 export const getTransitionChangeEventUrl = (changeEventId: number,) => {
 

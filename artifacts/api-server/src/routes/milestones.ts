@@ -390,6 +390,7 @@ router.get("/me/impacts/pending", requireAuth, async (req, res) => {
         eq(milestones.projectId, projectId),
         eq(milestoneImpacts.responseStatus, "Pending"),
         inArray(milestoneImpacts.projectCompanyId, pcIds),
+        sql`${changeEvents.status} <> 'Cancelled'`,
       ),
     )
     .orderBy(desc(milestoneImpacts.notifiedAt));

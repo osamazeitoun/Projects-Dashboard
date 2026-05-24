@@ -361,6 +361,44 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /change-events/{changeEventId}:
+    patch:
+      operationId: editChangeEvent
+      tags: [impacts]
+      summary: PM edits a change event (only allowed while no responses have come in)
+      parameters:
+        - in: path
+          name: changeEventId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EditChangeEventInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChangeEventDetail" }
+        "400":
+          description: Invalid request or event is no longer editable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Change event not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /change-events/{changeEventId}/transition:
     post:
       operationId: transitionChangeEvent
@@ -1274,6 +1312,17 @@ components:
         results:
           type: array
           items: { $ref: "#/components/schemas/NotificationDeliveryResult" }
+
+    EditChangeEventInput:
+      type: object
+      required: [proposedNewDate, changeReason, impactedProjectCompanyIds]
+      properties:
+        proposedNewDate: { type: string, format: date-time }
+        changeReason: { type: string, minLength: 1 }
+        impactedProjectCompanyIds:
+          type: array
+          minItems: 1
+          items: { type: integer }
 
     CreateChangeEventInput:
       type: object
