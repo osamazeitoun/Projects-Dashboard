@@ -245,8 +245,15 @@ export async function requireAuth(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const auth = getAuth(req);
-  const clerkUserId = auth?.userId;
+  let clerkUserId: string | null | undefined;
+  if (process.env.API_TEST_AUTH === "1") {
+    const header = req.headers["x-test-clerk-id"];
+    clerkUserId = Array.isArray(header) ? header[0] : header;
+  }
+  if (!clerkUserId) {
+    const auth = getAuth(req);
+    clerkUserId = auth?.userId;
+  }
   if (!clerkUserId) {
     res.status(401).json({ error: "Unauthorized" });
     return;
