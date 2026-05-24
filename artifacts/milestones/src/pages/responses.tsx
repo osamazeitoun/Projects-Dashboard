@@ -41,7 +41,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { ImpactRiskLevel, ImpactRiskType } from "@workspace/api-client-react";
-import { AlertTriangle, Clock, ArrowRight } from "lucide-react";
+import { AlertTriangle, Clock, ArrowRight, XCircle } from "lucide-react";
 
 const responseSchema = z.object({
   impactRiskLevel: z.nativeEnum(ImpactRiskLevel),
@@ -137,48 +137,75 @@ export default function Responses() {
           {impacts.map((impact) => {
             const daysShift = differenceInDays(new Date(impact.newDate), new Date(impact.oldDate));
             const isDelay = daysShift > 0;
-            
+            const isWithdrawn = impact.changeEventStatus === "Cancelled";
+
             return (
-              <Card key={impact.id} className="p-5 flex flex-col md:flex-row gap-6 items-start md:items-center border-border hover:border-primary/30 transition-colors shadow-sm">
+              <Card
+                key={impact.id}
+                className={
+                  "p-5 flex flex-col md:flex-row gap-6 items-start md:items-center border-border transition-colors shadow-sm " +
+                  (isWithdrawn
+                    ? "bg-muted/30 border-dashed opacity-90"
+                    : "hover:border-primary/30")
+                }
+              >
                 <div className="flex-1 space-y-3">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                     <Badge variant="outline" className="font-normal">{impact.stageName}</Badge>
+                    {isWithdrawn && (
+                      <Badge className="bg-muted text-foreground border border-border hover:bg-muted gap-1">
+                        <XCircle className="w-3 h-3" />
+                        Withdrawn
+                      </Badge>
+                    )}
                     <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Notified {format(new Date(impact.notifiedAt), "MMM d")}</span>
                   </div>
-                  
+
                   <div>
                     <div className="font-mono text-xs text-muted-foreground mb-1">{impact.milestoneCode}</div>
-                    <h3 className="text-lg font-bold leading-tight">{impact.milestoneName}</h3>
+                    <h3 className={"text-lg font-bold leading-tight " + (isWithdrawn ? "text-muted-foreground" : "")}>{impact.milestoneName}</h3>
                   </div>
-                  
+
                   <div className="bg-muted/50 p-3 rounded-md text-sm border flex flex-col md:flex-row md:items-center gap-2 md:gap-6">
                     <div className="flex items-center gap-3">
                       <div className="line-through text-muted-foreground">{format(new Date(impact.oldDate), "MMM d, yyyy")}</div>
                       <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                      <div className="font-bold">{format(new Date(impact.newDate), "MMM d, yyyy")}</div>
+                      <div className={"font-bold " + (isWithdrawn ? "line-through text-muted-foreground" : "")}>{format(new Date(impact.newDate), "MMM d, yyyy")}</div>
                     </div>
-                    
-                    <Badge variant="outline" className={isDelay ? "bg-destructive/10 text-destructive-foreground border-destructive/20" : "bg-primary/10 text-primary border-primary/20"}>
-                      {isDelay ? `+${daysShift} Days Delay` : `${daysShift} Days Early`}
-                    </Badge>
-                    
+
+                    {!isWithdrawn && (
+                      <Badge variant="outline" className={isDelay ? "bg-destructive/10 text-destructive-foreground border-destructive/20" : "bg-primary/10 text-primary border-primary/20"}>
+                        {isDelay ? `+${daysShift} Days Delay` : `${daysShift} Days Early`}
+                      </Badge>
+                    )}
+
                     <div className="text-muted-foreground md:ml-auto italic">
                       "{impact.changeReason}"
                     </div>
                   </div>
+
+                  {isWithdrawn && (
+                    <p className="text-sm text-muted-foreground">
+                      The PM withdrew this change event. No response is needed — the milestone date stays as it was.
+                    </p>
+                  )}
                 </div>
-                
+
                 <div className="w-full md:w-auto flex-shrink-0">
-                  <Button 
-                    size="lg" 
-                    className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
-                    onClick={() => {
-                      setSelectedImpact(impact.id);
-                      form.reset();
-                    }}
-                  >
-                    Assess Risk
-                  </Button>
+                  {isWithdrawn ? (
+                    <Badge variant="outline" className="text-muted-foreground">No action required</Badge>
+                  ) : (
+                    <Button
+                      size="lg"
+                      className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+                      onClick={() => {
+                        setSelectedImpact(impact.id);
+                        form.reset();
+                      }}
+                    >
+                      Assess Risk
+                    </Button>
+                  )}
                 </div>
               </Card>
             );

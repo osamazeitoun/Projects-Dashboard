@@ -14,6 +14,7 @@ import {
   projects,
   companies,
   userCompanies,
+  notificationDeliveries,
 } from "@workspace/db";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import {
@@ -393,7 +394,15 @@ router.get("/me/impacts/pending", requireAuth, async (req, res) => {
         eq(milestones.projectId, projectId),
         eq(milestoneImpacts.responseStatus, "Pending"),
         inArray(milestoneImpacts.projectCompanyId, pcIds),
-        sql`${changeEvents.status} <> 'Cancelled'`,
+        // Include non-cancelled events as normal pending items. Also include
+        // impacts on cancelled events when the contractor was previously
+        // notified, so they see an explicit "withdrawn" entry instead of the
+        // item silently disappearing from their queue.
+        sql`(${changeEvents.status} <> 'Cancelled' OR EXISTS (
+          SELECT 1 FROM ${notificationDeliveries} nd
+          WHERE nd.milestone_impact_id = ${milestoneImpacts.id}
+            AND nd.status = 'Sent'
+        ))`,
       ),
     )
     .orderBy(desc(milestoneImpacts.notifiedAt));
@@ -458,6 +467,32 @@ router.post("/impacts/:impactId/respond", requireAuth, async (req, res) => {
     return res
       .status(403)
       .json({ error: "Impact is outside your assigned scope" });
+  }
+
+  // Block responses on change events that are no longer collecting input.
+  // Cancelled events appear in the contractor queue as "withdrawn" history
+  // entries — stale/open UI must not be able to record a response against
+  // them. Approved/rejected events are also closed.
+  const [parentEvent] = await db
+    .select({ status: changeEvents.status })
+    .from(changeEvents)
+    .where(eq(changeEvents.id, impact.changeEventId))
+    .limit(1);
+  if (!parentEvent) {
+    return res.status(404).json({ error: "Change event not found" });
+  }
+  if (parentEvent.status === "Cancelled") {
+    return res.status(409).json({
+      error: "This change event has been withdrawn — no response is required.",
+    });
+  }
+  if (
+    parentEvent.status === "PMApproved" ||
+    parentEvent.status === "ClientRejected"
+  ) {
+    return res.status(409).json({
+      error: "This change event is closed and no longer accepts responses.",
+    });
   }
 
   const [updated] = await db

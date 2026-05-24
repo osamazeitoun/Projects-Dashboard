@@ -28,7 +28,10 @@ import {
   getProjectIdForChangeEvent,
   listPmProjectIds,
 } from "../middlewares/permissions";
-import { sendChangeEventNotifications } from "../services/notifications";
+import {
+  sendChangeEventNotifications,
+  sendChangeEventCancellationNotices,
+} from "../services/notifications";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -1290,6 +1293,20 @@ router.post("/change-events/:changeEventId/transition", async (req, res) => {
         .where(eq(milestones.id, ev.milestoneId));
     }
   });
+
+  if (nextStatus === "Cancelled") {
+    try {
+      await sendChangeEventCancellationNotices({
+        changeEventId,
+        triggeredByUserId: req.auth_ctx!.userId,
+      });
+    } catch (err) {
+      logger.error(
+        { changeEventId, err: err instanceof Error ? err.message : String(err) },
+        "Failed to send change-event withdrawal notices",
+      );
+    }
+  }
 
   const detail = await loadChangeEventDetailResponse(changeEventId);
   if (!detail) return res.status(404).json({ error: "Change event not found" });
