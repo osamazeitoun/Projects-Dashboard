@@ -183,6 +183,15 @@ test.describe("Schedule baseline lifecycle (UI)", () => {
       page.getByText(/Awaiting client baseline approval/i),
     ).toBeVisible();
 
+    // Lock indicator: the "Add Milestone" CTA and the Draft submit CTA are
+    // both gone once the schedule is locked for client review.
+    await expect(
+      page.getByRole("button", { name: /Add Milestone/i }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /Submit for Baseline/i }),
+    ).toHaveCount(0);
+
     // DB confirms a Pending baseline + project status flipped
     const baselines = await db
       .select()
@@ -199,9 +208,7 @@ test.describe("Schedule baseline lifecycle (UI)", () => {
     expect(proj[0].scheduleStatus).toBe("PendingBaseline");
   });
 
-  test("Client approves a pending baseline", async ({ page }) => {
-    // Seed straight to PendingBaseline by inserting a baseline row, mirroring
-    // what the submit endpoint does (snapshot the one seeded milestone).
+  async function seedPendingBaseline(): Promise<number> {
     const future = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
     const snapshot = [
       {
@@ -233,8 +240,23 @@ test.describe("Schedule baseline lifecycle (UI)", () => {
       .update(projects)
       .set({ scheduleStatus: "PendingBaseline" })
       .where(eq(projects.id, seed.projectId));
+    return baseline.id;
+  }
 
-    await page.goto(`/client/baseline-review/${baseline.id}`);
+  test("Client approves a pending baseline from the inbox", async ({ page }) => {
+    const baselineId = await seedPendingBaseline();
+
+    // Land on the inbox first and click through to the review page, exercising
+    // the navigation the user actually takes.
+    await page.goto(`/client`);
+    const inboxCard = page
+      .getByRole("link", { name: new RegExp(`${seed.tag}-P`) })
+      .first();
+    await expect(inboxCard).toBeVisible();
+    await inboxCard.click();
+    await page.waitForURL(
+      new RegExp(`/client/baseline-review/${baselineId}(\\?|#|$)`),
+    );
 
     const approveButton = page.getByRole("button", {
       name: /Approve baseline/i,
@@ -257,7 +279,7 @@ test.describe("Schedule baseline lifecycle (UI)", () => {
     const rows = await db
       .select()
       .from(scheduleBaselines)
-      .where(eq(scheduleBaselines.id, baseline.id))
+      .where(eq(scheduleBaselines.id, baselineId))
       .limit(1);
     expect(rows[0].status).toBe("Approved");
 
@@ -268,5 +290,58 @@ test.describe("Schedule baseline lifecycle (UI)", () => {
       .limit(1);
     expect(proj[0].scheduleStatus).toBe("Baselined");
     expect(proj[0].baselinedAt).not.toBeNull();
+  });
+
+  test("Client rejects a baseline and the reject dialog requires a comment", async ({
+    page,
+  }) => {
+    const baselineId = await seedPendingBaseline();
+
+    await page.goto(`/client/baseline-review/${baselineId}`);
+
+    const rejectButton = page.getByRole("button", {
+      name: /Reject baseline/i,
+    });
+    await expect(rejectButton).toBeVisible();
+    await rejectButton.click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+
+    // The reject confirm button is disabled until a non-empty comment is
+    // entered — the UI enforces the comment requirement.
+    const confirmReject = dialog.getByRole("button", { name: /^Reject$/ });
+    await expect(confirmReject).toBeDisabled();
+
+    // Whitespace-only comments do not count as a real comment either.
+    await dialog.getByLabel(/Comment/i).fill("   ");
+    await expect(confirmReject).toBeDisabled();
+
+    await dialog.getByLabel(/Comment/i).fill("Dates are too aggressive.");
+    await expect(confirmReject).toBeEnabled();
+    await confirmReject.click();
+
+    await expect(
+      page.getByText("Baseline rejected", { exact: true }),
+    ).toBeVisible();
+    await page.waitForURL(/\/client(\/|$)/);
+
+    // DB confirms rejection: baseline status flipped, project back to Draft,
+    // and the decision comment was persisted.
+    const rows = await db
+      .select()
+      .from(scheduleBaselines)
+      .where(eq(scheduleBaselines.id, baselineId))
+      .limit(1);
+    expect(rows[0].status).toBe("Rejected");
+    expect(rows[0].decisionComment).toBe("Dates are too aggressive.");
+
+    const proj = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, seed.projectId))
+      .limit(1);
+    expect(proj[0].scheduleStatus).toBe("Draft");
+    expect(proj[0].baselinedAt).toBeNull();
   });
 });
