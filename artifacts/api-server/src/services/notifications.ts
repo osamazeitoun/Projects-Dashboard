@@ -1,5 +1,6 @@
 import { db } from "@workspace/db";
 import {
+  baselineNotificationDeliveries,
   changeEvents,
   companies,
   milestoneImpacts,
@@ -327,6 +328,7 @@ export type BaselineDecisionDeliveryResult = {
   status: "Sent" | "Skipped" | "Failed";
   channel: "email" | "log";
   errorMessage: string | null;
+  deliveryId: number;
 };
 
 function buildBaselineDecisionEmail(args: {
@@ -470,6 +472,12 @@ export async function sendBaselineDecisionNotifications(opts: {
 
   const results: BaselineDecisionDeliveryResult[] = [];
 
+  // Subject is identical across recipients; build a representative one for
+  // skipped rows so the persisted history still records what would have gone out.
+  const placeholderSubject = `[${b.projectCode}] Schedule baseline ${
+    decision === "Approved" ? "approved" : "rejected"
+  } by client`;
+
   for (const userId of recipientUserIds) {
     const email = emailById.get(userId) ?? null;
     if (!email) {
@@ -477,12 +485,26 @@ export async function sendBaselineDecisionNotifications(opts: {
         { baselineId, userId },
         "notifications: skipping baseline decision recipient — no email on file",
       );
+      const [skipDelivery] = await db
+        .insert(baselineNotificationDeliveries)
+        .values({
+          baselineId,
+          recipientUserId: userId,
+          recipientEmail: "",
+          channel,
+          status: "Skipped",
+          subject: placeholderSubject,
+          errorMessage: "no email on file",
+          triggeredByUserId: deciderUserId,
+        })
+        .returning({ id: baselineNotificationDeliveries.id });
       results.push({
         userId,
         recipientEmail: "",
         status: "Skipped",
         channel,
         errorMessage: "no email on file",
+        deliveryId: skipDelivery.id,
       });
       continue;
     }
@@ -524,12 +546,27 @@ export async function sendBaselineDecisionNotifications(opts: {
       );
     }
 
+    const [delivery] = await db
+      .insert(baselineNotificationDeliveries)
+      .values({
+        baselineId,
+        recipientUserId: userId,
+        recipientEmail: email,
+        channel,
+        status,
+        subject: envelope.subject,
+        errorMessage,
+        triggeredByUserId: deciderUserId,
+      })
+      .returning({ id: baselineNotificationDeliveries.id });
+
     results.push({
       userId,
       recipientEmail: email,
       status,
       channel,
       errorMessage,
+      deliveryId: delivery.id,
     });
   }
 

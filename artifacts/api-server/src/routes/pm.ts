@@ -10,6 +10,7 @@ import {
   projects,
   companies,
   notificationDeliveries,
+  baselineNotificationDeliveries,
   scheduleBaselines,
   users,
 } from "@workspace/db";
@@ -1836,6 +1837,7 @@ async function loadBaselineById(baselineId: number) {
   }
 
   const ms = (b.snapshot as Array<Record<string, unknown>>) ?? [];
+  const decisionDeliveries = await loadBaselineDecisionDeliveries(baselineId);
   return {
     id: b.id,
     projectId: b.projectId,
@@ -1852,7 +1854,60 @@ async function loadBaselineById(baselineId: number) {
     decisionComment: b.decisionComment,
     milestoneCount: ms.length,
     milestones: ms,
+    decisionDeliveries,
   };
+}
+
+async function loadBaselineDecisionDeliveries(baselineId: number) {
+  const rows = await db
+    .select({
+      id: baselineNotificationDeliveries.id,
+      recipientUserId: baselineNotificationDeliveries.recipientUserId,
+      recipientEmail: baselineNotificationDeliveries.recipientEmail,
+      channel: baselineNotificationDeliveries.channel,
+      status: baselineNotificationDeliveries.status,
+      subject: baselineNotificationDeliveries.subject,
+      errorMessage: baselineNotificationDeliveries.errorMessage,
+      attemptedAt: baselineNotificationDeliveries.attemptedAt,
+      triggeredByUserId: baselineNotificationDeliveries.triggeredByUserId,
+    })
+    .from(baselineNotificationDeliveries)
+    .where(eq(baselineNotificationDeliveries.baselineId, baselineId))
+    .orderBy(asc(baselineNotificationDeliveries.attemptedAt));
+
+  const userIds = Array.from(
+    new Set(
+      rows
+        .flatMap((r) => [r.recipientUserId, r.triggeredByUserId])
+        .filter((x): x is number => x !== null),
+    ),
+  );
+  let emailById = new Map<number, string | null>();
+  if (userIds.length > 0) {
+    const userRows = await db
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(inArray(users.id, userIds));
+    emailById = new Map(userRows.map((u) => [u.id, u.email]));
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    recipientUserId: r.recipientUserId,
+    recipientEmail: r.recipientEmail,
+    recipientUserEmail: r.recipientUserId
+      ? emailById.get(r.recipientUserId) ?? null
+      : null,
+    channel: r.channel,
+    status: r.status,
+    subject: r.subject,
+    errorMessage: r.errorMessage,
+    attemptedAt: r.attemptedAt.toISOString(),
+    triggeredByUserId: r.triggeredByUserId,
+    triggeredByEmail: r.triggeredByUserId
+      ? emailById.get(r.triggeredByUserId) ?? null
+      : null,
+  }));
 }
 
 router.post("/projects/:projectId/schedule/submit-baseline", async (req, res) => {

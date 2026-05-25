@@ -355,6 +355,39 @@ export const notificationDeliveries = pgTable("notification_deliveries", {
 
 export type NotificationDelivery = typeof notificationDeliveries.$inferSelect;
 
+export const baselineNotificationStatusEnum = pgEnum(
+  "baseline_notification_status",
+  ["Sent", "Skipped", "Failed"],
+);
+
+export const baselineNotificationDeliveries = pgTable(
+  "baseline_notification_deliveries",
+  {
+    id: serial("id").primaryKey(),
+    baselineId: integer("baseline_id")
+      .notNull()
+      .references(() => scheduleBaselines.id, { onDelete: "cascade" }),
+    recipientUserId: integer("recipient_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    recipientEmail: text("recipient_email").notNull(),
+    channel: notificationChannelEnum("channel").notNull(),
+    status: baselineNotificationStatusEnum("status").notNull(),
+    subject: text("subject").notNull(),
+    errorMessage: text("error_message"),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    triggeredByUserId: integer("triggered_by_user_id").references(
+      () => users.id,
+      { onDelete: "set null" },
+    ),
+  },
+);
+
+export type BaselineNotificationDelivery =
+  typeof baselineNotificationDeliveries.$inferSelect;
+
 export type User = typeof users.$inferSelect;
 export type UserCompany = typeof userCompanies.$inferSelect;
 export type ProjectAssignment = typeof projectAssignments.$inferSelect;
