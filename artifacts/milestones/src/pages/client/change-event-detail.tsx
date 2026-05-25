@@ -9,7 +9,7 @@ import {
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -35,18 +35,18 @@ import {
 } from "lucide-react";
 
 function statusBadge(status: ChangeEventDetail["status"]) {
-  const tone =
+  const tone: BadgeVariant =
     status === "PMApproved"
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      ? "success"
       : status === "ClientApproved"
-        ? "bg-blue-50 text-blue-700 border-blue-200"
+        ? "info"
         : status === "ClientRejected" || status === "Cancelled"
-          ? "bg-destructive/10 text-destructive border-destructive/30"
+          ? "danger"
           : status === "SentForClientReview"
-            ? "bg-amber-50 text-amber-700 border-amber-200"
-            : "bg-muted text-muted-foreground";
+            ? "warn"
+            : "neutral";
   return (
-    <Badge variant="outline" className={tone}>
+    <Badge variant={tone} withDot>
       {status}
     </Badge>
   );
@@ -54,19 +54,15 @@ function statusBadge(status: ChangeEventDetail["status"]) {
 
 function riskBadge(level: string | null | undefined) {
   if (!level) return null;
-  const tone =
+  const tone: BadgeVariant =
     level === "High"
-      ? "bg-destructive/10 text-destructive border-destructive/30"
+      ? "danger"
       : level === "Medium"
-        ? "bg-secondary/10 text-secondary-foreground border-secondary/30"
+        ? "warn"
         : level === "Low"
-          ? "bg-blue-50 text-blue-700 border-blue-200"
-          : "bg-muted text-muted-foreground";
-  return (
-    <Badge variant="outline" className={tone}>
-      {level} risk
-    </Badge>
-  );
+          ? "info"
+          : "neutral";
+  return <Badge variant={tone} withDot>{level} risk</Badge>;
 }
 
 type DialogConfig = {
@@ -270,7 +266,7 @@ export default function ClientChangeEventDetail() {
             </span>
           )}
         </div>
-        <h1 className="text-3xl font-bold tracking-tight">{data.milestoneName}</h1>
+        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">{data.milestoneName}</h1>
         <p className="text-muted-foreground italic">"{data.changeReason}"</p>
       </header>
 
@@ -292,8 +288,8 @@ export default function ClientChangeEventDetail() {
                 variant="outline"
                 className={
                   shift > 0
-                    ? "bg-destructive/10 text-destructive border-destructive/20"
-                    : "bg-primary/10 text-primary border-primary/20"
+                    ? "bg-[color-mix(in_srgb,var(--c-danger)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-danger)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-danger)_30%,var(--c-line))]"
+                    : "bg-[color-mix(in_srgb,var(--c-info)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-info)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-info)_30%,var(--c-line))]"
                 }
               >
                 {shift > 0 ? `+${shift}` : shift} days
@@ -377,7 +373,7 @@ export default function ClientChangeEventDetail() {
                   </div>
                   <div className="flex-1 min-w-0 space-y-1">
                     {i.responseStatus === "Pending" ? (
-                      <div className="text-sm text-secondary-foreground flex items-center gap-2">
+                      <div className="text-sm text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))] flex items-center gap-2">
                         <Clock className="w-4 h-4" />
                         Awaiting response · notified{" "}
                         {formatDistanceToNow(new Date(i.notifiedAt), { addSuffix: true })}
@@ -385,7 +381,7 @@ export default function ClientChangeEventDetail() {
                     ) : (
                       <>
                         <div className="flex items-center gap-2 text-xs flex-wrap">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <CheckCircle2 className="w-4 h-4 text-[color:var(--c-success)]" />
                           {riskBadge(i.impactRiskLevel ?? null)}
                           {i.impactRiskType && (
                             <Badge variant="outline">{i.impactRiskType}</Badge>

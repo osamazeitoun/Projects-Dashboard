@@ -12,13 +12,13 @@ import { Mail, User } from "lucide-react";
 function responsivenessBadge(r: string) {
   switch (r) {
     case "Responsive":
-      return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Responsive</Badge>;
+      return <Badge variant="success" withDot>Responsive</Badge>;
     case "Slow":
-      return <Badge variant="outline" className="bg-secondary/10 text-secondary-foreground border-secondary/30">Slow</Badge>;
+      return <Badge variant="warn" withDot>Slow</Badge>;
     case "NonResponding":
-      return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">Non-responding</Badge>;
+      return <Badge variant="danger" withDot>Non-responding</Badge>;
     default:
-      return <Badge variant="outline" className="bg-muted text-muted-foreground">No data</Badge>;
+      return <Badge variant="neutral" withDot>No data</Badge>;
   }
 }
 
@@ -41,7 +41,7 @@ export default function PmCompanies() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight">Companies on this Project</h1>
+        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">Companies on this Project</h1>
         <p className="text-muted-foreground mt-1">{data.length} companies participating across the schedule.</p>
       </header>
 
@@ -76,7 +76,7 @@ export default function PmCompanies() {
                 <TableCell className="text-right tabular-nums">{c.ownedMilestoneCount}</TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">{c.contributorMilestoneCount}</TableCell>
                 <TableCell className="text-right text-sm tabular-nums">
-                  <span className={c.pendingImpacts > 0 ? "font-bold text-secondary-foreground" : "text-muted-foreground"}>{c.pendingImpacts}</span>
+                  <span className={c.pendingImpacts > 0 ? "font-bold text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))]" : "text-muted-foreground"}>{c.pendingImpacts}</span>
                   <span className="text-muted-foreground"> / {c.totalImpacts}</span>
                   {c.overdueImpacts > 0 && (
                     <div className="text-[10px] text-destructive font-medium">{c.overdueImpacts} overdue</div>

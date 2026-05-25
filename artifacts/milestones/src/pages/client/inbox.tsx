@@ -24,8 +24,8 @@ export default function ClientInbox() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <Inbox className="w-7 h-7 text-primary" />
+        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink flex items-center gap-2">
+          <Inbox className="w-7 h-7 text-[color:var(--c-gold)]" />
           Date changes awaiting your decision
         </h1>
         <p className="text-muted-foreground mt-1">
@@ -71,22 +71,13 @@ export default function ClientInbox() {
                         <span className="font-bold">
                           {format(new Date(ev.proposedNewDate), "MMM d, yyyy")}
                         </span>
-                        <Badge
-                          variant="outline"
-                          className={
-                            shift > 0
-                              ? "bg-destructive/10 text-destructive border-destructive/20"
-                              : "bg-primary/10 text-primary border-primary/20"
-                          }
-                        >
+                        <Badge variant={shift > 0 ? "danger" : "info"}>
                           {shift > 0 ? `+${shift}` : shift} days
                         </Badge>
                       </div>
                     </div>
                     <div className="flex-shrink-0">
-                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                        Awaiting your decision
-                      </Badge>
+                      <Badge variant="warn" withDot>Awaiting your decision</Badge>
                     </div>
                   </div>
                 </Card>

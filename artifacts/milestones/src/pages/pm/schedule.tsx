@@ -16,15 +16,15 @@ const STATUSES = ["Planned", "OnTrack", "AtRisk", "Delayed", "Completed"] as con
 function statusBadge(status: string) {
   switch (status) {
     case "Completed":
-      return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200"><CheckCircle2 className="w-3 h-3 mr-1" />Completed</Badge>;
+      return <Badge variant="success" withDot><CheckCircle2 className="w-3 h-3 mr-1" />Completed</Badge>;
     case "OnTrack":
-      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><PlayCircle className="w-3 h-3 mr-1" />On Track</Badge>;
+      return <Badge variant="info" withDot><PlayCircle className="w-3 h-3 mr-1" />On Track</Badge>;
     case "AtRisk":
-      return <Badge variant="outline" className="bg-secondary/10 text-secondary-foreground border-secondary/30"><AlertCircle className="w-3 h-3 mr-1" />At Risk</Badge>;
+      return <Badge variant="warn" withDot><AlertCircle className="w-3 h-3 mr-1" />At Risk</Badge>;
     case "Delayed":
-      return <Badge variant="outline" className="bg-destructive/10 text-destructive-foreground border-destructive/30"><Clock className="w-3 h-3 mr-1" />Delayed</Badge>;
+      return <Badge variant="danger" withDot><Clock className="w-3 h-3 mr-1" />Delayed</Badge>;
     default:
-      return <Badge variant="outline" className="bg-muted text-muted-foreground">Planned</Badge>;
+      return <Badge variant="neutral" withDot>Planned</Badge>;
   }
 }
 
@@ -79,7 +79,7 @@ export default function PmSchedule() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Master Schedule</h1>
+        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">Master Schedule</h1>
         <p className="text-muted-foreground mt-1">
           Every milestone in the project, across every company.
         </p>
@@ -127,7 +127,7 @@ export default function PmSchedule() {
             onClick={() => setRiskOnly(!riskOnly)}
             className={`px-2 py-1 rounded border transition-colors ${riskOnly ? "bg-destructive/10 border-destructive/30 text-destructive" : "border-border text-muted-foreground hover:bg-muted"}`}
           >
-            {riskOnly ? "✓ " : ""}At-risk only
+            At-risk only
           </button>
           <span className="text-muted-foreground ml-auto">
             {filtered.length} of {milestones?.length ?? 0} milestones
@@ -166,7 +166,7 @@ export default function PmSchedule() {
                         {m.criticalFlag && (<Badge variant="destructive" className="text-[10px] h-4 px-1 py-0 uppercase"><Flag className="w-3 h-3 mr-1" />Critical</Badge>)}
                         {m.isPaymentTrigger && (<Badge variant="outline" className="text-[10px] h-4 px-1 py-0 uppercase">$</Badge>)}
                       </div>
-                      <div className="font-medium text-sm group-hover:text-primary transition-colors">{m.name}</div>
+                      <div className="font-medium text-sm group-hover:text-ink transition-colors">{m.name}</div>
                     </Link>
                   </TableCell>
                   <TableCell className="text-xs">
@@ -186,14 +186,14 @@ export default function PmSchedule() {
                     {m.previousDate && (
                       <div className="text-xs text-muted-foreground">
                         was <span className="line-through">{format(new Date(m.previousDate), "MMM d")}</span>
-                        {shift !== 0 && (<span className={shift > 0 ? "text-destructive ml-1" : "text-primary ml-1"}>({shift > 0 ? `+${shift}` : shift}d)</span>)}
+                        {shift !== 0 && (<span className={shift > 0 ? "text-destructive ml-1" : "text-[color:var(--c-info)] ml-1"}>({shift > 0 ? `+${shift}` : shift}d)</span>)}
                       </div>
                     )}
                   </TableCell>
                   <TableCell>{statusBadge(m.status)}</TableCell>
                   <TableCell className="text-right text-xs">
                     {m.openChangeEventCount > 0 && (
-                      <Badge variant="outline" className="bg-secondary/10 text-secondary-foreground border-secondary/30">{m.openChangeEventCount} open</Badge>
+                      <Badge variant="outline" className="bg-[color-mix(in_srgb,var(--c-warn)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-warn)_30%,var(--c-line))]">{m.openChangeEventCount} open</Badge>
                     )}
                     {m.pendingResponseCount > 0 && (
                       <div className="text-[10px] text-muted-foreground mt-0.5">{m.pendingResponseCount} awaiting</div>

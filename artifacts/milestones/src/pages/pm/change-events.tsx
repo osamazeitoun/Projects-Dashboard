@@ -10,11 +10,11 @@ import { ArrowRight, GitPullRequestArrow } from "lucide-react";
 function rollupBadge(r: string) {
   switch (r) {
     case "FullyResponded":
-      return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Fully responded</Badge>;
+      return <Badge variant="success" withDot>Fully responded</Badge>;
     case "PartiallyResponded":
-      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Partially responded</Badge>;
+      return <Badge variant="info" withDot>Partially responded</Badge>;
     default:
-      return <Badge variant="outline" className="bg-secondary/10 text-secondary-foreground border-secondary/30">Pending</Badge>;
+      return <Badge variant="warn" withDot>Pending</Badge>;
   }
 }
 
@@ -35,8 +35,8 @@ export default function PmChangeEvents() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <GitPullRequestArrow className="w-7 h-7 text-primary" />
+        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink flex items-center gap-2">
+          <GitPullRequestArrow className="w-7 h-7 text-[color:var(--c-gold)]" />
           Change Events
         </h1>
         <p className="text-muted-foreground mt-1">All date-change proposals issued on this project.</p>
@@ -65,7 +65,7 @@ export default function PmChangeEvents() {
                         <span className="line-through text-muted-foreground">{format(new Date(ev.oldDate), "MMM d, yyyy")}</span>
                         <ArrowRight className="w-4 h-4 text-muted-foreground" />
                         <span className="font-bold">{format(new Date(ev.proposedNewDate), "MMM d, yyyy")}</span>
-                        <Badge variant="outline" className={shift > 0 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-primary/10 text-primary border-primary/20"}>
+                        <Badge variant="outline" className={shift > 0 ? "bg-[color-mix(in_srgb,var(--c-danger)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-danger)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-danger)_30%,var(--c-line))]" : "bg-[color-mix(in_srgb,var(--c-info)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-info)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-info)_30%,var(--c-line))]"}>
                           {shift > 0 ? `+${shift}` : shift} days
                         </Badge>
                       </div>
@@ -76,7 +76,7 @@ export default function PmChangeEvents() {
                         {ev.respondedCount}/{ev.impactedCompanyCount} responded
                       </div>
                       {ev.pendingCount > 0 && (
-                        <div className="text-xs font-medium text-secondary-foreground">{ev.pendingCount} pending</div>
+                        <div className="text-xs font-medium text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))]">{ev.pendingCount} pending</div>
                       )}
                     </div>
                   </div>

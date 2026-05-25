@@ -4,24 +4,42 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  // @replit
-  // Whitespace-nowrap: Badges should never wrap.
-  "whitespace-nowrap inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" +
-  " hover-elevate ",
+  "whitespace-nowrap inline-flex items-center rounded-xs px-2 py-0.5 text-[11px] font-medium transition-colors focus:outline-none",
   {
     variants: {
       variant: {
         default:
-          // @replit shadow-xs instead of shadow, no hover because we use hover-elevate
-          "border-transparent bg-primary text-primary-foreground shadow-xs",
+          "bg-surface-2 text-ink-2",
         secondary:
-          // @replit no hover because we use hover-elevate
-          "border-transparent bg-secondary text-secondary-foreground",
+          "bg-surface-2 text-ink-2",
+        outline:
+          "bg-transparent text-ink-2 border border-line",
+        neutral:
+          "bg-surface-2 text-ink-2",
+        gold:
+          "text-ink",
+        success:
+          "text-[color:var(--c-success)]",
+        warn:
+          "text-[color:var(--c-warn)]",
+        danger:
+          "text-[color:var(--c-danger)]",
+        info:
+          "text-[color:var(--c-info)]",
         destructive:
-          // @replit shadow-xs instead of shadow, no hover because we use hover-elevate
-          "border-transparent bg-destructive text-destructive-foreground shadow-xs",
-          // @replit shadow-xs" - use badge outline variable
-        outline: "text-foreground border [border-color:var(--badge-outline)]",
+          "text-[color:var(--c-danger)]",
+        "neutral-solid":
+          "bg-ink text-[color:var(--c-accent-fg)]",
+        "gold-solid":
+          "bg-[color:var(--c-gold)] text-ink",
+        "success-solid":
+          "bg-[color:var(--c-success)] text-[color:var(--c-accent-fg)]",
+        "warn-solid":
+          "bg-[color:var(--c-warn)] text-[color:var(--c-accent-fg)]",
+        "danger-solid":
+          "bg-[color:var(--c-danger)] text-[color:var(--c-accent-fg)]",
+        "info-solid":
+          "bg-[color:var(--c-info)] text-[color:var(--c-accent-fg)]",
       },
     },
     defaultVariants: {
@@ -30,13 +48,32 @@ const badgeVariants = cva(
   }
 )
 
+const tonedSoftBg: Record<string, string> = {
+  gold: "color-mix(in oklab, var(--c-gold) 18%, var(--c-surface))",
+  success: "color-mix(in oklab, var(--c-success) 12%, var(--c-surface))",
+  warn: "color-mix(in oklab, var(--c-warn) 12%, var(--c-surface))",
+  danger: "color-mix(in oklab, var(--c-danger) 12%, var(--c-surface))",
+  info: "color-mix(in oklab, var(--c-info) 12%, var(--c-surface))",
+  destructive: "color-mix(in oklab, var(--c-danger) 12%, var(--c-surface))",
+}
+
+export type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>
+
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+    VariantProps<typeof badgeVariants> {
+  withDot?: boolean
+}
 
-function Badge({ className, variant, ...props }: BadgeProps) {
+function Badge({ className, variant, withDot, style, children, ...props }: BadgeProps) {
+  const v = (variant ?? "default") as string
+  const softBg = tonedSoftBg[v]
+  const mergedStyle = softBg ? { background: softBg, ...style } : style
   return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+    <div className={cn(badgeVariants({ variant }), className)} style={mergedStyle} {...props}>
+      {withDot && <span className="status-dot" />}
+      {children}
+    </div>
   )
 }
 

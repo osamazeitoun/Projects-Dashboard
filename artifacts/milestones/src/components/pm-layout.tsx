@@ -50,7 +50,7 @@ export default function PmLayout({ children }: { children: ReactNode }) {
       icon: GitPullRequestArrow,
       match: (l: string) => l.startsWith("/pm/change-events") || l.startsWith("/pm/change-event"),
       count: summary?.openChangeEventCount,
-      countColor: "bg-secondary text-secondary-foreground",
+      countColor: "bg-[color-mix(in_srgb,var(--c-warn)_18%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))]",
     },
   ];
 
@@ -60,7 +60,7 @@ export default function PmLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
       <aside className="w-full md:w-72 border-r bg-card flex flex-col">
         <div className="p-4 border-b space-y-3">
-          <div className="flex items-center gap-2 text-primary">
+          <div className="flex items-center gap-2 text-ink">
             <Briefcase className="h-5 w-5" />
             <span className="font-bold tracking-tight">Command Center</span>
           </div>
@@ -102,14 +102,14 @@ export default function PmLayout({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center justify-between px-3 py-2 rounded-md transition-colors text-sm font-medium ${active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}
+                className={`flex items-center justify-between px-3 py-2 rounded-sm transition-colors text-sm border-l-2 ${active ? "bg-surface-2 text-ink font-medium border-[color:var(--c-gold)]" : "text-ink-3 border-transparent hover:bg-surface-2 hover:text-ink"}`}
               >
                 <div className="flex items-center gap-2">
                   <item.icon className="h-4 w-4" />
                   {item.name}
                 </div>
                 {item.count !== undefined && item.count > 0 && (
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${item.countColor ?? "bg-primary text-primary-foreground"}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded-sm font-medium font-mono ${item.countColor ?? "bg-ink text-[color:var(--c-accent-fg)]"}`}>
                     {item.count}
                   </span>
                 )}

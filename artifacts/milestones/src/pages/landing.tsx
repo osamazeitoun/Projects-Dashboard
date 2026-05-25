@@ -7,7 +7,7 @@ export default function Landing() {
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-primary">
+          <div className="flex items-center gap-2 text-[color:var(--c-gold)]">
             <HardHat className="h-5 w-5" />
             <span className="font-bold tracking-tight">MilestoneTracker</span>
           </div>
@@ -24,7 +24,7 @@ export default function Landing() {
 
       <main className="flex-1 flex items-center">
         <div className="max-w-4xl mx-auto px-6 py-16 text-center space-y-6">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+          <h1 className="font-serif text-5xl md:text-6xl font-normal tracking-tight text-ink">
             Stay on top of construction milestones
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -44,7 +44,7 @@ export default function Landing() {
 
           <div className="grid gap-6 md:grid-cols-2 pt-12 max-w-3xl mx-auto text-left">
             <div className="border rounded-lg p-5 bg-card">
-              <Flag className="h-5 w-5 text-primary mb-2" />
+              <Flag className="h-5 w-5 text-[color:var(--c-gold)] mb-2" />
               <h3 className="font-semibold mb-1">Upcoming milestones</h3>
               <p className="text-sm text-muted-foreground">
                 A live list of every milestone your company is responsible for,
@@ -52,7 +52,7 @@ export default function Landing() {
               </p>
             </div>
             <div className="border rounded-lg p-5 bg-card">
-              <AlertTriangle className="h-5 w-5 text-secondary mb-2" />
+              <AlertTriangle className="h-5 w-5 text-[color:var(--c-warn)] mb-2" />
               <h3 className="font-semibold mb-1">Pending impact responses</h3>
               <p className="text-sm text-muted-foreground">
                 When a schedule change affects your work, log your risk

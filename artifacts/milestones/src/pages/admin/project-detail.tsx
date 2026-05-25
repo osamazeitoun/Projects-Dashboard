@@ -68,11 +68,11 @@ const ROLE_LABEL: Record<AdminProjectAssignmentRole, string> = {
 };
 
 const ROLE_BADGE: Record<AdminProjectAssignmentRole, string> = {
-  admin: "bg-primary/10 text-primary border-primary/30",
-  pm: "bg-secondary/10 text-secondary-foreground border-secondary/30",
-  contractor_lead: "bg-amber-50 text-amber-700 border-amber-200",
-  contractor_member: "bg-amber-50/60 text-amber-700 border-amber-200",
-  viewer: "bg-muted text-muted-foreground",
+  admin: "bg-ink text-[color:var(--c-accent-fg)] border-transparent",
+  pm: "bg-[color-mix(in_srgb,var(--c-info)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-info)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-info)_30%,var(--c-line))]",
+  contractor_lead: "bg-[color-mix(in_srgb,var(--c-gold)_18%,var(--c-surface))] text-ink border-[color-mix(in_srgb,var(--c-gold)_40%,var(--c-line))]",
+  contractor_member: "bg-[color-mix(in_srgb,var(--c-gold)_10%,var(--c-surface))] text-ink-2 border-line",
+  viewer: "bg-surface-2 text-ink-3 border-line",
 };
 
 export default function AdminProjectDetail() {
@@ -337,12 +337,12 @@ export default function AdminProjectDetail() {
         <div className="text-[11px] uppercase tracking-wide font-mono text-muted-foreground">
           {data.projectCode}
         </div>
-        <h1 className="text-3xl font-bold tracking-tight">{data.projectName}</h1>
+        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">{data.projectName}</h1>
       </header>
 
       <Card className="p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <Briefcase className="h-5 w-5 text-primary" />
+          <Briefcase className="h-5 w-5 text-[color:var(--c-gold)]" />
           <h2 className="font-semibold">Project Managers</h2>
           <Badge variant="outline" className="ml-1">
             {pms.length}
@@ -416,7 +416,7 @@ export default function AdminProjectDetail() {
 
       <Card className="p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <Building2 className="h-5 w-5 text-primary" />
+          <Building2 className="h-5 w-5 text-[color:var(--c-gold)]" />
           <h2 className="font-semibold">Contractor Companies</h2>
           <Badge variant="outline" className="ml-1">
             {data.contractorCompanies.length}
@@ -537,7 +537,7 @@ export default function AdminProjectDetail() {
                         />
                         <button
                           type="button"
-                          className="text-muted-foreground hover:text-primary p-1"
+                          className="text-muted-foreground hover:text-ink p-1"
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -608,7 +608,7 @@ export default function AdminProjectDetail() {
                     </SelectItem>
                   );
                 })}
-                <SelectItem value="__create__" className="text-primary">
+                <SelectItem value="__create__" className="text-[color:var(--c-gold)]">
                   + Create new role…
                 </SelectItem>
               </SelectContent>
@@ -625,7 +625,7 @@ export default function AdminProjectDetail() {
 
       <Card className="p-5 space-y-4">
         <div className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-primary" />
+          <Users className="h-5 w-5 text-[color:var(--c-gold)]" />
           <h2 className="font-semibold">Permission Levels</h2>
           <Badge variant="outline" className="ml-1">
             {others.length}

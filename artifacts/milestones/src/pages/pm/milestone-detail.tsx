@@ -11,7 +11,7 @@ import {
 import { usePmProjectId } from "@/components/pm-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,15 +43,15 @@ import {
 
 function riskBadge(level: string | null | undefined) {
   if (!level) return null;
-  const tone =
+  const tone: BadgeVariant =
     level === "High"
-      ? "bg-destructive/10 text-destructive border-destructive/30"
+      ? "danger"
       : level === "Medium"
-        ? "bg-secondary/10 text-secondary-foreground border-secondary/30"
+        ? "warn"
         : level === "Low"
-          ? "bg-blue-50 text-blue-700 border-blue-200"
-          : "bg-muted text-muted-foreground";
-  return <Badge variant="outline" className={tone}>{level} risk</Badge>;
+          ? "info"
+          : "neutral";
+  return <Badge variant={tone} withDot>{level} risk</Badge>;
 }
 
 function ProposeDateChangeDialog({
@@ -209,7 +209,7 @@ function ProposeDateChangeDialog({
                 <p className="text-xs text-destructive">{errors.newDate}</p>
               )}
               {!errors.newDate && shiftDays !== null && (
-                <p className={`text-xs ${shiftDays > 0 ? "text-destructive" : "text-primary"}`}>
+                <p className={`text-xs ${shiftDays > 0 ? "text-destructive" : "text-[color:var(--c-gold)]"}`}>
                   {shiftDays > 0 ? `+${shiftDays}` : shiftDays} day{Math.abs(shiftDays) === 1 ? "" : "s"} shift
                 </p>
               )}
@@ -317,7 +317,7 @@ export default function PmMilestoneDetail() {
             {data.criticalFlag && (<Badge variant="destructive"><Flag className="w-3 h-3 mr-1" />Critical</Badge>)}
             {data.isPaymentTrigger && <Badge variant="outline">Payment Trigger</Badge>}
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">{data.name}</h1>
+          <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">{data.name}</h1>
           {data.description && (<p className="text-muted-foreground">{data.description}</p>)}
         </div>
         <Button onClick={() => setDialogOpen(true)} className="flex-shrink-0">
@@ -337,7 +337,7 @@ export default function PmMilestoneDetail() {
             {data.previousDate && (
               <div className="text-xs text-muted-foreground mt-1">
                 Was <span className="line-through">{format(new Date(data.previousDate), "MMM d")}</span>{" "}
-                <span className={shift > 0 ? "text-destructive" : "text-primary"}>({shift > 0 ? "+" : ""}{shift}d)</span>
+                <span className={shift > 0 ? "text-destructive" : "text-[color:var(--c-gold)]"}>({shift > 0 ? "+" : ""}{shift}d)</span>
               </div>
             )}
             <div className="text-xs text-muted-foreground mt-0.5">Baseline {format(new Date(data.baselineDate), "MMM d, yyyy")}</div>
@@ -349,8 +349,8 @@ export default function PmMilestoneDetail() {
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold flex items-center gap-2">
-              {data.status === "Completed" && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
-              {data.status === "AtRisk" && <AlertCircle className="w-5 h-5 text-secondary-foreground" />}
+              {data.status === "Completed" && <CheckCircle2 className="w-5 h-5 text-[color:var(--c-success)]" />}
+              {data.status === "AtRisk" && <AlertCircle className="w-5 h-5 text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))]" />}
               {data.status === "Delayed" && <Clock className="w-5 h-5 text-destructive" />}
               {data.status}
             </div>
@@ -415,7 +415,7 @@ export default function PmMilestoneDetail() {
 
       <div className="space-y-4">
         <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
-          <GitPullRequestArrow className="w-5 h-5 text-primary" /> Change History
+          <GitPullRequestArrow className="w-5 h-5 text-[color:var(--c-gold)]" /> Change History
         </h2>
         {data.changeEvents.length === 0 ? (
           <Card className="p-8 text-center text-muted-foreground border-dashed">No date changes have been proposed on this milestone yet.</Card>
@@ -435,13 +435,13 @@ export default function PmMilestoneDetail() {
                         <span className="line-through text-muted-foreground">{format(new Date(ev.oldDate), "MMM d, yyyy")}</span>
                         <ArrowRight className="w-4 h-4" />
                         <span className="font-bold">{format(new Date(ev.proposedNewDate), "MMM d, yyyy")}</span>
-                        <Badge variant="outline" className={evShift > 0 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-primary/10 text-primary border-primary/20"}>
+                        <Badge variant="outline" className={evShift > 0 ? "bg-[color-mix(in_srgb,var(--c-danger)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-danger)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-danger)_30%,var(--c-line))]" : "bg-[color-mix(in_srgb,var(--c-info)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-info)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-info)_30%,var(--c-line))]"}>
                           {evShift > 0 ? `+${evShift}` : evShift} days
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground italic">"{ev.changeReason}"</p>
                     </div>
-                    <Link href={`/pm/change-event/${ev.id}`} className="text-xs text-primary hover:underline whitespace-nowrap">Open full event →</Link>
+                    <Link href={`/pm/change-event/${ev.id}`} className="text-xs text-[color:var(--c-gold)] hover:underline whitespace-nowrap">Open full event →</Link>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -457,7 +457,7 @@ export default function PmMilestoneDetail() {
                             <span className="text-xs text-muted-foreground">{i.companyRole}</span>
                           </div>
                           {i.responseStatus === "Pending" ? (
-                            <div className="text-xs text-secondary-foreground mt-0.5">
+                            <div className="text-xs text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))] mt-0.5">
                               Awaiting response · notified {formatDistanceToNow(new Date(i.notifiedAt), { addSuffix: true })}
                             </div>
                           ) : (

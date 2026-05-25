@@ -45,11 +45,11 @@ export default function AdminProjects() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <header className="flex items-start gap-3">
-        <div className="bg-primary/10 text-primary p-2 rounded-md">
+        <div className="bg-surface-2 text-ink p-2 rounded-md">
           <FolderKanban className="h-6 w-6" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
+          <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">Projects</h1>
           <p className="text-muted-foreground mt-1">
             Assign PMs, contractor companies, and per-user permissions across
             every project your company runs.

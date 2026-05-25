@@ -26,7 +26,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
       <aside className="w-full md:w-64 border-r bg-card flex flex-col">
         <div className="p-4 border-b">
-          <div className="flex items-center gap-2 mb-3 text-primary">
+          <div className="flex items-center gap-2 mb-3 text-ink">
             <ShieldCheck className="h-5 w-5" />
             <span className="font-bold tracking-tight">Admin Console</span>
           </div>
@@ -41,10 +41,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors text-sm font-medium ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-sm transition-colors text-sm border-l-2 ${
                   isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    ? "bg-surface-2 text-ink font-medium border-[color:var(--c-gold)]"
+                    : "text-ink-3 border-transparent hover:bg-surface-2 hover:text-ink"
                 }`}
               >
                 <item.icon className="h-4 w-4" />

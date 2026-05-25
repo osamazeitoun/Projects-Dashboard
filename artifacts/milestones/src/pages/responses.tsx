@@ -116,10 +116,10 @@ export default function Responses() {
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <header className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+          <h1 className="font-serif text-4xl font-normal tracking-tight text-ink flex items-center gap-2">
             Pending Responses
             {impacts.length > 0 && (
-              <Badge className="bg-secondary text-secondary-foreground hover:bg-secondary border-none">{impacts.length}</Badge>
+              <Badge className="bg-[color-mix(in_srgb,var(--c-warn)_18%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))] border-transparent">{impacts.length}</Badge>
             )}
           </h1>
           <p className="text-muted-foreground mt-1">Schedule changes requiring your assessment.</p>
@@ -174,7 +174,7 @@ export default function Responses() {
                     </div>
 
                     {!isWithdrawn && (
-                      <Badge variant="outline" className={isDelay ? "bg-destructive/10 text-destructive-foreground border-destructive/20" : "bg-primary/10 text-primary border-primary/20"}>
+                      <Badge variant="outline" className={isDelay ? "bg-[color-mix(in_srgb,var(--c-danger)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-danger)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-danger)_30%,var(--c-line))]" : "bg-[color-mix(in_srgb,var(--c-info)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-info)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-info)_30%,var(--c-line))]"}>
                         {isDelay ? `+${daysShift} Days Delay` : `${daysShift} Days Early`}
                       </Badge>
                     )}
@@ -197,7 +197,7 @@ export default function Responses() {
                   ) : (
                     <Button
                       size="lg"
-                      className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+                      className="w-full md:w-auto bg-ink hover:bg-ink-2 text-[color:var(--c-accent-fg)]"
                       onClick={() => {
                         setSelectedImpact(impact.id);
                         form.reset();

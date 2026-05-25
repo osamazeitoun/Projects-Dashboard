@@ -19,7 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { usePmProjectId } from "@/components/pm-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,30 +55,30 @@ import {
 
 function riskBadge(level: string | null | undefined) {
   if (!level) return null;
-  const tone =
+  const tone: BadgeVariant =
     level === "High"
-      ? "bg-destructive/10 text-destructive border-destructive/30"
+      ? "danger"
       : level === "Medium"
-        ? "bg-secondary/10 text-secondary-foreground border-secondary/30"
+        ? "warn"
         : level === "Low"
-          ? "bg-blue-50 text-blue-700 border-blue-200"
-          : "bg-muted text-muted-foreground";
-  return <Badge variant="outline" className={tone}>{level} risk</Badge>;
+          ? "info"
+          : "neutral";
+  return <Badge variant={tone} withDot>{level} risk</Badge>;
 }
 
 function statusBadge(status: ChangeEventDetail["status"]) {
-  const tone =
+  const tone: BadgeVariant =
     status === "PMApproved"
-      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      ? "success"
       : status === "ClientApproved"
-        ? "bg-blue-50 text-blue-700 border-blue-200"
+        ? "info"
         : status === "ClientRejected" || status === "Cancelled"
-          ? "bg-destructive/10 text-destructive border-destructive/30"
+          ? "danger"
           : status === "SentForClientReview"
-            ? "bg-amber-50 text-amber-700 border-amber-200"
-            : "bg-muted text-muted-foreground";
+            ? "warn"
+            : "neutral";
   return (
-    <Badge variant="outline" className={tone}>
+    <Badge variant={tone} withDot>
       {status}
     </Badge>
   );
@@ -97,7 +97,7 @@ function deliveryBadge(
   }
   if (status === "Failed") {
     return (
-      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
+      <Badge variant="danger" withDot>
         <AlertTriangle className="w-3 h-3 mr-1" />
         Delivery failed
       </Badge>
@@ -105,14 +105,14 @@ function deliveryBadge(
   }
   if (channel === "log") {
     return (
-      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+      <Badge variant="warn" withDot>
         <Mail className="w-3 h-3 mr-1" />
         Logged (no SMTP)
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+    <Badge variant="success" withDot>
       <Mail className="w-3 h-3 mr-1" />
       Emailed
     </Badge>
@@ -509,7 +509,7 @@ function EditChangeEventDialog({
                   <p className="text-xs text-destructive">{errors.newDate}</p>
                 )}
                 {!errors.newDate && shiftDays !== null && (
-                  <p className={`text-xs ${shiftDays > 0 ? "text-destructive" : "text-primary"}`}>
+                  <p className={`text-xs ${shiftDays > 0 ? "text-destructive" : "text-[color:var(--c-gold)]"}`}>
                     {shiftDays > 0 ? `+${shiftDays}` : shiftDays} day{Math.abs(shiftDays) === 1 ? "" : "s"} shift
                   </p>
                 )}
@@ -599,17 +599,17 @@ function timelineLabel(eventType: ChangeEventTimelineEntry["eventType"]): string
 function timelineIcon(eventType: ChangeEventTimelineEntry["eventType"]) {
   switch (eventType) {
     case "Opened":
-      return { Icon: FilePlus, tone: "bg-muted text-muted-foreground" };
+      return { Icon: FilePlus, tone: "bg-surface-2 text-ink-3" };
     case "SentForClientReview":
-      return { Icon: Send, tone: "bg-amber-50 text-amber-700" };
+      return { Icon: Send, tone: "bg-[color-mix(in_srgb,var(--c-warn)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))]" };
     case "ClientApproved":
-      return { Icon: ThumbsUp, tone: "bg-blue-50 text-blue-700" };
+      return { Icon: ThumbsUp, tone: "bg-[color-mix(in_srgb,var(--c-info)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-info)_70%,var(--c-ink))]" };
     case "ClientRejected":
-      return { Icon: ThumbsDown, tone: "bg-destructive/10 text-destructive" };
+      return { Icon: ThumbsDown, tone: "bg-[color-mix(in_srgb,var(--c-danger)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-danger)_70%,var(--c-ink))]" };
     case "PMApproved":
-      return { Icon: Stamp, tone: "bg-emerald-50 text-emerald-700" };
+      return { Icon: Stamp, tone: "bg-[color-mix(in_srgb,var(--c-success)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-success)_70%,var(--c-ink))]" };
     case "Cancelled":
-      return { Icon: XCircle, tone: "bg-destructive/10 text-destructive" };
+      return { Icon: XCircle, tone: "bg-[color-mix(in_srgb,var(--c-danger)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-danger)_70%,var(--c-ink))]" };
   }
 }
 
@@ -747,7 +747,7 @@ export default function PmChangeEventDetail() {
       <header className="space-y-2">
         <div className="flex items-center gap-2 text-xs flex-wrap">
           <Badge variant="outline">{data.stageName}</Badge>
-          <Link href={`/pm/milestone/${data.milestoneId}`} className="font-mono text-muted-foreground hover:text-primary">{data.milestoneCode}</Link>
+          <Link href={`/pm/milestone/${data.milestoneId}`} className="font-mono text-muted-foreground hover:text-ink">{data.milestoneCode}</Link>
           {statusBadge(data.status)}
           <span className="text-muted-foreground">Opened {formatDistanceToNow(new Date(data.initiatedAt), { addSuffix: true })}</span>
           {data.clientDecisionAt && (
@@ -758,7 +758,7 @@ export default function PmChangeEventDetail() {
         </div>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">{data.milestoneName}</h1>
+            <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">{data.milestoneName}</h1>
             <p className="text-muted-foreground italic">"{data.changeReason}"</p>
           </div>
           <Button
@@ -787,7 +787,7 @@ export default function PmChangeEventDetail() {
               <span className="line-through text-muted-foreground">{format(new Date(data.oldDate), "MMM d, yyyy")}</span>
               <ArrowRight className="w-4 h-4" />
               <span className="font-bold">{format(new Date(data.proposedNewDate), "MMM d, yyyy")}</span>
-              <Badge variant="outline" className={shift > 0 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-primary/10 text-primary border-primary/20"}>
+              <Badge variant="outline" className={shift > 0 ? "bg-[color-mix(in_srgb,var(--c-danger)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-danger)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-danger)_30%,var(--c-line))]" : "bg-[color-mix(in_srgb,var(--c-info)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-info)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-info)_30%,var(--c-line))]"}>
                 {shift > 0 ? `+${shift}` : shift} days
               </Badge>
             </div>
@@ -927,14 +927,14 @@ export default function PmChangeEventDetail() {
                   )}
 
                   {i.responseStatus === "Pending" ? (
-                    <div className="text-sm text-secondary-foreground flex items-center gap-2">
+                    <div className="text-sm text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))] flex items-center gap-2">
                       <Clock className="w-4 h-4" />
                       Awaiting response · notified {formatDistanceToNow(new Date(i.notifiedAt), { addSuffix: true })}
                     </div>
                   ) : (
                     <>
                       <div className="flex items-center gap-2 text-xs flex-wrap">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        <CheckCircle2 className="w-4 h-4 text-[color:var(--c-success)]" />
                         {riskBadge(i.impactRiskLevel ?? null)}
                         {i.impactRiskType && <Badge variant="outline">{i.impactRiskType}</Badge>}
                         <span className="text-muted-foreground">

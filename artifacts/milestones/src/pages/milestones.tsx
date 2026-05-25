@@ -15,11 +15,11 @@ export default function Milestones() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'Completed': return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200"><CheckCircle2 className="w-3 h-3 mr-1" />Completed</Badge>;
-      case 'OnTrack': return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><PlayCircle className="w-3 h-3 mr-1" />On Track</Badge>;
-      case 'AtRisk': return <Badge variant="outline" className="bg-secondary/10 text-secondary-foreground border-secondary/30"><AlertCircle className="w-3 h-3 mr-1" />At Risk</Badge>;
-      case 'Delayed': return <Badge variant="outline" className="bg-destructive/10 text-destructive-foreground border-destructive/30"><Clock className="w-3 h-3 mr-1" />Delayed</Badge>;
-      default: return <Badge variant="outline" className="bg-muted text-muted-foreground">Planned</Badge>;
+      case 'Completed': return <Badge variant="success" withDot><CheckCircle2 className="w-3 h-3 mr-1" />Completed</Badge>;
+      case 'OnTrack': return <Badge variant="info" withDot><PlayCircle className="w-3 h-3 mr-1" />On Track</Badge>;
+      case 'AtRisk': return <Badge variant="warn" withDot><AlertCircle className="w-3 h-3 mr-1" />At Risk</Badge>;
+      case 'Delayed': return <Badge variant="danger" withDot><Clock className="w-3 h-3 mr-1" />Delayed</Badge>;
+      default: return <Badge variant="neutral" withDot>Planned</Badge>;
     }
   };
 
@@ -39,7 +39,7 @@ export default function Milestones() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Upcoming Milestones</h1>
+        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">Upcoming Milestones</h1>
         <p className="text-muted-foreground mt-1">All upcoming milestones your company owns or contributes to.</p>
       </header>
 
@@ -68,7 +68,7 @@ export default function Milestones() {
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{milestone.code}</span>
                         {milestone.isKeyOutput && (
-                          <Badge variant="default" className="text-[10px] h-4 px-1 py-0 uppercase bg-primary text-primary-foreground border-none">Key Output</Badge>
+                          <Badge variant="default" className="text-[10px] h-4 px-1 py-0 uppercase bg-ink text-[color:var(--c-accent-fg)] border-transparent">Key Output</Badge>
                         )}
                         {milestone.criticalFlag && (
                           <Badge variant="destructive" className="text-[10px] h-4 px-1 py-0 uppercase border-none"><Flag className="w-3 h-3 mr-1" />Critical</Badge>

@@ -42,8 +42,8 @@ export default function PmDashboard() {
       value: data.totalMilestones,
       sub: `${data.keyOutputCount} key outputs`,
       icon: Flag,
-      tone: "text-primary",
-      bg: "bg-primary/5",
+      tone: "text-[color:var(--c-gold)]",
+      bg: "bg-surface-2",
     },
     {
       label: "At Risk",
@@ -58,8 +58,8 @@ export default function PmDashboard() {
       value: data.openChangeEventCount,
       sub: "awaiting responses",
       icon: GitPullRequestArrow,
-      tone: "text-secondary-foreground",
-      bg: "bg-secondary/10",
+      tone: "text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))]",
+      bg: "bg-surface-2",
       href: "/pm/change-events",
     },
     {
@@ -79,7 +79,7 @@ export default function PmDashboard() {
           <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">
             {data.projectCode}
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">{data.projectName}</h1>
+          <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">{data.projectName}</h1>
           <p className="text-muted-foreground mt-1">
             Command center for {data.gcCompanyName}
           </p>
@@ -116,7 +116,7 @@ export default function PmDashboard() {
         <Card className="lg:col-span-2 shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <TrendingUp className="w-4 h-4 text-primary" /> Stage Breakdown
+              <TrendingUp className="w-4 h-4 text-[color:var(--c-gold)]" /> Stage Breakdown
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -143,7 +143,7 @@ export default function PmDashboard() {
                       </div>
                       <div className="h-2 bg-muted rounded-full overflow-hidden">
                         <div
-                          className={`h-full ${s.atRiskCount > 0 ? "bg-secondary" : "bg-primary"}`}
+                          className={`h-full ${s.atRiskCount > 0 ? "bg-[color:var(--c-warn)]" : "bg-ink"}`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>
@@ -156,7 +156,7 @@ export default function PmDashboard() {
                 <CheckCircle2 className="w-3 h-3" />
                 {data.completedMilestoneCount} completed across project
               </span>
-              <Link href="/pm/schedule" className="text-primary font-medium hover:underline inline-flex items-center gap-1">
+              <Link href="/pm/schedule" className="text-[color:var(--c-gold)] font-medium hover:underline inline-flex items-center gap-1">
                 Open master schedule <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
@@ -166,7 +166,7 @@ export default function PmDashboard() {
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Activity className="w-4 h-4 text-primary" /> Recent Activity
+              <Activity className="w-4 h-4 text-[color:var(--c-gold)]" /> Recent Activity
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -178,7 +178,7 @@ export default function PmDashboard() {
               data.recentActivity.map((a) => (
                 <div key={a.id} className="flex gap-3 text-sm">
                   <div
-                    className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${a.kind === "ChangeEventOpened" ? "bg-secondary/20 text-secondary-foreground" : "bg-primary/10 text-primary"}`}
+                    className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${a.kind === "ChangeEventOpened" ? "bg-[color-mix(in_srgb,var(--c-warn)_18%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))]" : "bg-surface-2 text-ink"}`}
                   >
                     {a.kind === "ChangeEventOpened" ? (
                       <GitPullRequestArrow className="w-3.5 h-3.5" />

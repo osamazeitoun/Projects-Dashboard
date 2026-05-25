@@ -32,11 +32,14 @@ export default function NoAccessGate({
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-muted/40">
       <Card className="max-w-md w-full p-8 space-y-4 text-center">
-        <div className="mx-auto h-12 w-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center">
+        <div
+          className="mx-auto h-16 w-16 rounded-full flex items-center justify-center"
+          style={{ background: "var(--c-cream)", color: "var(--c-gold)" }}
+        >
           <ShieldAlert className="h-6 w-6" />
         </div>
-        <h1 className="text-xl font-semibold">No projects assigned yet</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="font-serif text-3xl font-normal tracking-tight text-ink">No projects assigned yet</h1>
+        <p className="text-sm text-ink-3">
           Your account is set up, but you haven't been added to any projects.
           Please ask your company administrator to assign you to a project.
         </p>

@@ -36,7 +36,7 @@ export default function Dashboard() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Company Dashboard</h1>
+        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">Company Dashboard</h1>
         <p className="text-muted-foreground mt-1">Overview of your milestones and required actions.</p>
       </header>
 
@@ -44,26 +44,26 @@ export default function Dashboard() {
         <Card className="border-border hover:border-primary/50 transition-colors shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Upcoming Milestones</CardTitle>
-            <Flag className="h-4 w-4 text-primary" />
+            <Flag className="h-4 w-4 text-[color:var(--c-gold)]" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">{summary.upcomingMilestoneCount}</div>
             <p className="text-xs text-muted-foreground mt-1 mb-4">All upcoming milestones for your company</p>
-            <Link href="/milestones" className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1">
+            <Link href="/milestones" className="text-sm font-medium text-[color:var(--c-gold)] hover:underline inline-flex items-center gap-1">
               View Milestones <ArrowRight className="h-3 w-3" />
             </Link>
           </CardContent>
         </Card>
 
-        <Card className="border-border hover:border-secondary/50 transition-colors shadow-sm">
+        <Card className="border-border hover:border-line-2 transition-colors shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Pending Responses</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-secondary" />
+            <AlertTriangle className="h-4 w-4 text-[color:var(--c-warn)]" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-secondary-foreground">{summary.pendingImpactCount}</div>
+            <div className="text-3xl font-bold text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))]">{summary.pendingImpactCount}</div>
             <p className="text-xs text-muted-foreground mt-1 mb-4">Schedule changes requiring your risk assessment</p>
-            <Link href="/responses" className="text-sm font-medium text-secondary hover:underline inline-flex items-center gap-1">
+            <Link href="/responses" className="text-sm font-medium text-[color:var(--c-warn)] hover:underline inline-flex items-center gap-1">
               Respond Now <ArrowRight className="h-3 w-3" />
             </Link>
           </CardContent>
@@ -78,7 +78,7 @@ export default function Dashboard() {
             return (
               <Card
                 key={stage.stageCode}
-                className={`flex flex-col text-sm border-t-4 transition-all ${hasMilestones ? 'border-t-primary bg-primary/5 shadow-sm' : 'border-t-muted bg-card shadow-none opacity-60 hover:opacity-100'}`}
+                className={`flex flex-col text-sm border-t-4 transition-all ${hasMilestones ? 'border-t-[color:var(--c-gold)] bg-surface-2 shadow-sm' : 'border-t-muted bg-card shadow-none opacity-60 hover:opacity-100'}`}
               >
                 <div className="p-3 pb-2 flex-1">
                   <div className="font-semibold text-xs text-muted-foreground mb-1">STAGE {stage.order}</div>
@@ -87,7 +87,7 @@ export default function Dashboard() {
                 <div className="px-3 py-2 bg-muted/30 border-t flex justify-between text-xs mt-auto">
                   <span title="Total Milestones" className="text-muted-foreground">{stage.milestoneCount} Total</span>
                   {hasMilestones && (
-                    <span title="Your Milestones" className="font-bold text-primary">{stage.companyMilestoneCount} Yours</span>
+                    <span title="Your Milestones" className="font-bold text-[color:var(--c-gold)]">{stage.companyMilestoneCount} Yours</span>
                   )}
                 </div>
               </Card>
