@@ -96,7 +96,7 @@ export const GetMyProjectSummaryResponse = zod.object({
   "projectName": zod.string(),
   "projectCode": zod.string(),
   "stages": zod.array(zod.object({
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "name": zod.string(),
   "order": zod.number(),
   "milestoneCount": zod.number(),
@@ -115,7 +115,7 @@ export const GetMyUpcomingMilestonesResponseItem = zod.object({
   "id": zod.number(),
   "code": zod.string(),
   "name": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string(),
   "currentDate": zod.coerce.date(),
   "baselineDate": zod.coerce.date().optional(),
@@ -136,7 +136,7 @@ export const GetMyPendingImpactsResponseItem = zod.object({
   "milestoneId": zod.number(),
   "milestoneName": zod.string(),
   "milestoneCode": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string(),
   "oldDate": zod.coerce.date(),
   "newDate": zod.coerce.date(),
@@ -184,7 +184,7 @@ export const ListClientReviewsResponseItem = zod.object({
   "milestoneId": zod.number(),
   "milestoneCode": zod.string(),
   "milestoneName": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string(),
   "initiatedAt": zod.coerce.date(),
   "oldDate": zod.coerce.date().nullish(),
@@ -220,7 +220,7 @@ export const GetClientReviewDetailResponse = zod.object({
   "milestoneId": zod.number(),
   "milestoneCode": zod.string(),
   "milestoneName": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string(),
   "initiatedAt": zod.coerce.date(),
   "oldDate": zod.coerce.date().nullish(),
@@ -289,7 +289,7 @@ export const SubmitClientDecisionResponse = zod.object({
   "milestoneId": zod.number(),
   "milestoneCode": zod.string(),
   "milestoneName": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string(),
   "initiatedAt": zod.coerce.date(),
   "oldDate": zod.coerce.date().nullish(),
@@ -377,7 +377,7 @@ export const GetPmProjectSummaryResponse = zod.object({
   "overdueResponseCount": zod.number(),
   "keyOutputCount": zod.number(),
   "stages": zod.array(zod.object({
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "name": zod.string(),
   "order": zod.number(),
   "milestoneCount": zod.number(),
@@ -423,7 +423,7 @@ export const GetProjectMilestonesResponseItem = zod.object({
   "id": zod.number(),
   "code": zod.string(),
   "name": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string(),
   "stageOrder": zod.number(),
   "status": zod.enum(['Planned', 'OnTrack', 'AtRisk', 'Delayed', 'Completed']),
@@ -467,7 +467,7 @@ export const GetMilestoneDetailResponse = zod.object({
   "code": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string(),
   "stageOrder": zod.number(),
   "status": zod.enum(['Planned', 'OnTrack', 'AtRisk', 'Delayed', 'Completed']),
@@ -555,7 +555,7 @@ export const CreateMilestoneParams = zod.object({
 
 
 export const CreateMilestoneBody = zod.object({
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "code": zod.string().min(1),
   "name": zod.string().min(1),
   "description": zod.string().optional(),
@@ -583,7 +583,7 @@ export const UpdateMilestoneParams = zod.object({
 
 
 export const UpdateMilestoneBody = zod.object({
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']).optional(),
+  "stageCode": zod.string().optional().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "code": zod.string().min(1).optional(),
   "name": zod.string().min(1).optional(),
   "description": zod.string().nullish(),
@@ -603,7 +603,7 @@ export const UpdateMilestoneResponse = zod.object({
   "code": zod.string(),
   "name": zod.string(),
   "description": zod.string().nullish(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string(),
   "stageOrder": zod.number(),
   "status": zod.enum(['Planned', 'OnTrack', 'AtRisk', 'Delayed', 'Completed']),
@@ -718,7 +718,7 @@ export const SubmitScheduleBaselineResponse = zod.object({
   "milestoneId": zod.number(),
   "code": zod.string(),
   "name": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string().optional(),
   "ownerRole": zod.string(),
   "baselineDate": zod.coerce.date(),
@@ -759,7 +759,7 @@ export const GetProjectScheduleBaselineResponse = zod.union([zod.object({
   "milestoneId": zod.number(),
   "code": zod.string(),
   "name": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string().optional(),
   "ownerRole": zod.string(),
   "baselineDate": zod.coerce.date(),
@@ -817,7 +817,7 @@ export const GetBaselineReviewDetailResponse = zod.object({
   "milestoneId": zod.number(),
   "code": zod.string(),
   "name": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string().optional(),
   "ownerRole": zod.string(),
   "baselineDate": zod.coerce.date(),
@@ -863,7 +863,7 @@ export const SubmitBaselineDecisionResponse = zod.object({
   "milestoneId": zod.number(),
   "code": zod.string(),
   "name": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string().optional(),
   "ownerRole": zod.string(),
   "baselineDate": zod.coerce.date(),
@@ -905,7 +905,7 @@ export const AcknowledgeBaselineDecisionResponse = zod.object({
   "milestoneId": zod.number(),
   "code": zod.string(),
   "name": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string().optional(),
   "ownerRole": zod.string(),
   "baselineDate": zod.coerce.date(),
@@ -986,7 +986,7 @@ export const GetProjectChangeEventsResponseItem = zod.object({
   "milestoneId": zod.number(),
   "milestoneCode": zod.string(),
   "milestoneName": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string(),
   "initiatedAt": zod.coerce.date(),
   "oldDate": zod.coerce.date().nullish(),
@@ -1059,7 +1059,7 @@ export const GetChangeEventDetailResponse = zod.object({
   "milestoneId": zod.number(),
   "milestoneCode": zod.string(),
   "milestoneName": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string(),
   "initiatedAt": zod.coerce.date(),
   "oldDate": zod.coerce.date().nullish(),
@@ -1132,7 +1132,7 @@ export const EditChangeEventResponse = zod.object({
   "milestoneId": zod.number(),
   "milestoneCode": zod.string(),
   "milestoneName": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string(),
   "initiatedAt": zod.coerce.date(),
   "oldDate": zod.coerce.date().nullish(),
@@ -1201,7 +1201,7 @@ export const TransitionChangeEventResponse = zod.object({
   "milestoneId": zod.number(),
   "milestoneCode": zod.string(),
   "milestoneName": zod.string(),
-  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageCode": zod.string().describe('Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).\n'),
   "stageName": zod.string(),
   "initiatedAt": zod.coerce.date(),
   "oldDate": zod.coerce.date().nullish(),
@@ -1399,6 +1399,92 @@ export const AdminRenameProjectCompanyRoleResponse = zod.object({
  * @summary Delete a custom project-company role (not allowed for built-in or in-use roles)
  */
 export const AdminDeleteProjectCompanyRoleParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary List global project stages (built-in + custom), ordered by display order
+ */
+export const ListStagesResponseItem = zod.object({
+  "id": zod.number(),
+  "code": zod.string(),
+  "label": zod.string(),
+  "displayOrder": zod.number(),
+  "isBuiltIn": zod.boolean(),
+  "milestoneCount": zod.number()
+})
+export const ListStagesResponse = zod.array(ListStagesResponseItem)
+
+
+/**
+ * @summary Add a new custom global stage. Requires PM access on at least one project.
+ */
+export const createStageBodyLabelMax = 120;
+
+
+
+export const CreateStageBody = zod.object({
+  "label": zod.string().min(1).max(createStageBodyLabelMax)
+})
+
+export const CreateStageResponse = zod.object({
+  "id": zod.number(),
+  "code": zod.string(),
+  "label": zod.string(),
+  "displayOrder": zod.number(),
+  "isBuiltIn": zod.boolean(),
+  "milestoneCount": zod.number()
+})
+
+
+/**
+ * @summary Update display order for stages (provide all stage IDs in desired order)
+ */
+export const ReorderStagesBody = zod.object({
+  "stageIds": zod.array(zod.number())
+})
+
+export const ReorderStagesResponseItem = zod.object({
+  "id": zod.number(),
+  "code": zod.string(),
+  "label": zod.string(),
+  "displayOrder": zod.number(),
+  "isBuiltIn": zod.boolean(),
+  "milestoneCount": zod.number()
+})
+export const ReorderStagesResponse = zod.array(ReorderStagesResponseItem)
+
+
+/**
+ * @summary Rename a stage. Built-in stages can be renamed but not deleted.
+ */
+export const RenameStageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const renameStageBodyLabelMax = 120;
+
+
+
+export const RenameStageBody = zod.object({
+  "label": zod.string().min(1).max(renameStageBodyLabelMax)
+})
+
+export const RenameStageResponse = zod.object({
+  "id": zod.number(),
+  "code": zod.string(),
+  "label": zod.string(),
+  "displayOrder": zod.number(),
+  "isBuiltIn": zod.boolean(),
+  "milestoneCount": zod.number()
+})
+
+
+/**
+ * @summary Delete a stage. Not allowed for built-in stages or stages with milestones.
+ */
+export const DeleteStageParams = zod.object({
   "id": zod.coerce.number()
 })
 

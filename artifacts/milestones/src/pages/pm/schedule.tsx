@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   useGetProjectMilestones,
   useGetProjectCompanies,
@@ -7,11 +7,18 @@ import {
   useDeleteMilestone,
   useSubmitScheduleBaseline,
   useAcknowledgeBaselineDecision,
+  useListStages,
+  useCreateStage,
+  useRenameStage,
+  useDeleteStage,
+  useReorderStages,
   getGetProjectMilestonesQueryKey,
   getGetPmProjectSummaryQueryKey,
   getListBaselineReviewsQueryKey,
+  getListStagesQueryKey,
   type CreateMilestoneInput,
   type BaselineDecisionSummary,
+  type ProjectStage,
   StageCode,
 } from "@workspace/api-client-react";
 import { usePmProjectId } from "@/components/pm-layout";
@@ -47,15 +54,6 @@ import {
 
 const STATUSES = ["Planned", "OnTrack", "AtRisk", "Delayed", "Completed"] as const;
 
-const STAGE_OPTIONS: Array<{ code: StageCode; label: string }> = [
-  { code: "S1_FEASIBILITY" as StageCode, label: "S1 Feasibility" },
-  { code: "S2_CONCEPT_DESIGN" as StageCode, label: "S2 Concept Design" },
-  { code: "S3_DETAILED_DESIGN" as StageCode, label: "S3 Detailed Design" },
-  { code: "S4_PROCUREMENT" as StageCode, label: "S4 Procurement" },
-  { code: "S5_CONSTRUCTION" as StageCode, label: "S5 Construction" },
-  { code: "S6_COMMISSIONING" as StageCode, label: "S6 Commissioning" },
-  { code: "S7_HANDOVER" as StageCode, label: "S7 Handover" },
-];
 
 function statusBadge(status: string) {
   switch (status) {
@@ -294,16 +292,21 @@ function AddMilestoneDialog({
   projectId,
   companies,
   siblings,
+  stageOptions,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   projectId: number;
   companies: Array<{ projectCompanyId: number; name: string; roleOnProject: string }>;
   siblings: Array<{ id: number; code: string; name: string }>;
+  stageOptions: Array<{ code: string; label: string }>;
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [stageCode, setStageCode] = useState<string>(STAGE_OPTIONS[0].code);
+  const [stageCode, setStageCode] = useState<string>(stageOptions[0]?.code ?? "");
+  useEffect(() => {
+    if (!stageCode && stageOptions[0]) setStageCode(stageOptions[0].code);
+  }, [stageOptions, stageCode]);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -318,7 +321,7 @@ function AddMilestoneDialog({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   function reset() {
-    setStageCode(STAGE_OPTIONS[0].code);
+    setStageCode(stageOptions[0]?.code ?? "");
     setCode(""); setName(""); setDescription(""); setOwnerRole(""); setBaselineDate("");
     setIsKeyOutput(false); setCritical(false); setIsPayment(false);
     setOwnerPcIds(new Set()); setContribPcIds(new Set()); setPredIds(new Set()); setErrors({});
@@ -387,7 +390,7 @@ function AddMilestoneDialog({
               <Select value={stageCode} onValueChange={setStageCode}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {STAGE_OPTIONS.map((s) => (
+                  {stageOptions.map((s) => (
                     <SelectItem key={s.code} value={s.code}>{s.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -565,6 +568,7 @@ export default function PmSchedule() {
   const { data: milestones, isLoading } = useGetProjectMilestones(projectId);
   const { data: companies } = useGetProjectCompanies(projectId);
   const { data: summary } = useGetPmProjectSummary(projectId);
+  const { data: globalStages = [] } = useListStages();
 
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
@@ -576,13 +580,27 @@ export default function PmSchedule() {
   const scheduleStatus = summary?.scheduleStatus ?? "Draft";
   const isDraft = scheduleStatus === "Draft";
 
-  const stageOptions = useMemo(() => {
-    if (!milestones) return [];
-    const seen = new Map<string, { code: string; name: string; order: number }>();
-    for (const m of milestones) {
-      if (!seen.has(m.stageCode)) seen.set(m.stageCode, { code: m.stageCode, name: m.stageName, order: m.stageOrder });
+  const stageOptions = useMemo(
+    () =>
+      globalStages.map((s) => ({
+        code: s.code,
+        name: s.label,
+        order: s.displayOrder,
+      })),
+    [globalStages],
+  );
+
+  const dialogStageOptions = useMemo(
+    () => globalStages.map((s) => ({ code: s.code, label: s.label })),
+    [globalStages],
+  );
+
+  const milestoneCountByStageCode = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const ms of milestones ?? []) {
+      m.set(ms.stageCode, (m.get(ms.stageCode) ?? 0) + 1);
     }
-    return [...seen.values()].sort((a, b) => a.order - b.order);
+    return m;
   }, [milestones]);
 
   const filtered = useMemo(() => {
@@ -636,6 +654,10 @@ export default function PmSchedule() {
         />
       )}
 
+      {isDraft && (
+        <StagesEditor milestoneCountByStageCode={milestoneCountByStageCode} />
+      )}
+
       {summary && (
         <LifecycleBanner
           status={scheduleStatus}
@@ -657,7 +679,7 @@ export default function PmSchedule() {
             <SelectContent>
               <SelectItem value="all">All stages</SelectItem>
               {stageOptions.map((s) => (
-                <SelectItem key={s.code} value={s.code}>S{s.order}: {s.name}</SelectItem>
+                <SelectItem key={s.code} value={s.code}>{s.order}. {s.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -789,7 +811,218 @@ export default function PmSchedule() {
         projectId={projectId}
         companies={companies ?? []}
         siblings={(milestones ?? []).map((m) => ({ id: m.id, code: m.code, name: m.name }))}
+        stageOptions={dialogStageOptions}
       />
     </div>
+  );
+}
+
+// ---------- Editable global stages strip ----------
+
+function StagesEditor({
+  milestoneCountByStageCode,
+}: {
+  milestoneCountByStageCode: Map<string, number>;
+}) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data: stages = [] } = useListStages();
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingValue, setEditingValue] = useState("");
+  const [addingLabel, setAddingLabel] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+
+  function invalidate() {
+    qc.invalidateQueries({ queryKey: getListStagesQueryKey() });
+  }
+
+  const rename = useRenameStage({
+    mutation: {
+      onSuccess: () => { toast({ title: "Stage renamed" }); invalidate(); setEditingId(null); },
+      onError: (err) => toast({
+        variant: "destructive",
+        title: "Couldn't rename",
+        description: (err as unknown as { error?: string })?.error ?? "Try again.",
+      }),
+    },
+  });
+  const create = useCreateStage({
+    mutation: {
+      onSuccess: () => { toast({ title: "Stage added" }); invalidate(); setAddingLabel(""); setShowAdd(false); },
+      onError: (err) => toast({
+        variant: "destructive",
+        title: "Couldn't add",
+        description: (err as unknown as { error?: string })?.error ?? "Try again.",
+      }),
+    },
+  });
+  const remove = useDeleteStage({
+    mutation: {
+      onSuccess: () => { toast({ title: "Stage removed" }); invalidate(); },
+      onError: (err) => toast({
+        variant: "destructive",
+        title: "Couldn't remove",
+        description: (err as unknown as { error?: string })?.error ?? "Try again.",
+      }),
+    },
+  });
+  const reorder = useReorderStages({
+    mutation: {
+      onSuccess: () => { invalidate(); },
+      onError: (err) => toast({
+        variant: "destructive",
+        title: "Couldn't reorder",
+        description: (err as unknown as { error?: string })?.error ?? "Try again.",
+      }),
+    },
+  });
+
+  function move(idx: number, dir: -1 | 1) {
+    const ids = stages.map((s) => s.id);
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= ids.length) return;
+    [ids[idx], ids[newIdx]] = [ids[newIdx], ids[idx]];
+    reorder.mutate({ data: { stageIds: ids } });
+  }
+
+  function startEdit(s: ProjectStage) {
+    setEditingId(s.id);
+    setEditingValue(s.label);
+  }
+  function commitEdit() {
+    if (editingId == null) return;
+    const label = editingValue.trim();
+    const orig = stages.find((s) => s.id === editingId);
+    if (!label || !orig || label === orig.label) { setEditingId(null); return; }
+    rename.mutate({ id: editingId, data: { label } });
+  }
+
+  return (
+    <Card className="p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <div className="text-sm font-semibold text-ink">Project Stages</div>
+          <div className="text-xs text-muted-foreground">
+            These stages apply to every project. Click a name to rename, use the arrows to reorder.
+          </div>
+        </div>
+        {!showAdd && (
+          <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}>
+            <Plus className="w-4 h-4 mr-1" /> Add stage
+          </Button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {stages.map((s, idx) => {
+          const count = milestoneCountByStageCode.get(s.code) ?? s.milestoneCount ?? 0;
+          const canDelete = !s.isBuiltIn && count === 0;
+          const isEditing = editingId === s.id;
+          return (
+            <div
+              key={s.id}
+              className="flex items-center gap-1 rounded-md border border-border bg-muted/30 pl-1 pr-1 py-1 text-xs"
+            >
+              <div className="flex flex-col text-muted-foreground">
+                <button
+                  className="hover:text-ink disabled:opacity-30 leading-none"
+                  disabled={idx === 0 || reorder.isPending}
+                  onClick={() => move(idx, -1)}
+                  title="Move up"
+                >▲</button>
+                <button
+                  className="hover:text-ink disabled:opacity-30 leading-none"
+                  disabled={idx === stages.length - 1 || reorder.isPending}
+                  onClick={() => move(idx, 1)}
+                  title="Move down"
+                >▼</button>
+              </div>
+              <span className="tabular-nums text-muted-foreground w-6 text-right">{s.displayOrder}.</span>
+              {isEditing ? (
+                <Input
+                  autoFocus
+                  value={editingValue}
+                  onChange={(e) => setEditingValue(e.target.value)}
+                  onBlur={commitEdit}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); commitEdit(); }
+                    if (e.key === "Escape") setEditingId(null);
+                  }}
+                  className="h-7 text-xs w-56"
+                />
+              ) : (
+                <button
+                  className="px-2 py-0.5 rounded hover:bg-background text-ink font-medium"
+                  onClick={() => startEdit(s)}
+                  title="Rename"
+                >
+                  {s.label}
+                </button>
+              )}
+              {s.isBuiltIn && (
+                <Badge variant="outline" className="text-[10px] h-4 px-1 py-0">built-in</Badge>
+              )}
+              <span className="text-muted-foreground px-1">· {count}</span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive disabled:opacity-30"
+                disabled={!canDelete || remove.isPending}
+                title={
+                  s.isBuiltIn
+                    ? "Built-in stages can be renamed but not deleted"
+                    : count > 0
+                      ? "Cannot delete: stage has milestones"
+                      : "Delete stage"
+                }
+                onClick={() => {
+                  if (!confirm(`Remove stage "${s.label}"?`)) return;
+                  remove.mutate({ id: s.id });
+                }}
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </div>
+          );
+        })}
+        {showAdd && (
+          <div className="flex items-center gap-1 rounded-md border border-dashed border-border p-1">
+            <Input
+              autoFocus
+              value={addingLabel}
+              placeholder="New stage name"
+              onChange={(e) => setAddingLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const label = addingLabel.trim();
+                  if (label) create.mutate({ data: { label } });
+                }
+                if (e.key === "Escape") { setShowAdd(false); setAddingLabel(""); }
+              }}
+              className="h-7 text-xs w-56"
+            />
+            <Button
+              size="sm"
+              className="h-7"
+              disabled={!addingLabel.trim() || create.isPending}
+              onClick={() => {
+                const label = addingLabel.trim();
+                if (label) create.mutate({ data: { label } });
+              }}
+            >
+              {create.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Add"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7"
+              onClick={() => { setShowAdd(false); setAddingLabel(""); }}
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }

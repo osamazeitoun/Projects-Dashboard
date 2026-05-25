@@ -33,52 +33,11 @@ import { projectAssignments } from "@workspace/db";
 
 const router: IRouter = Router();
 
-const STAGE_INFO = [
-  { code: "ST1_PRE_DESIGN_CONCEPT", name: "Pre-design and Concept", order: 1 },
-  {
-    code: "ST2_DESIGN_DEVELOPMENT",
-    name: "Design Development (Architecture, Structure, MEP)",
-    order: 2,
-  },
-  {
-    code: "ST3_AUTHORITY_APPROVALS",
-    name: "Authority Approvals and NOCs",
-    order: 3,
-  },
-  {
-    code: "ST4_DETAILED_DESIGN_TENDER",
-    name: "Detailed Design, Tender Documents and Contractor Award",
-    order: 4,
-  },
-  {
-    code: "ST5_CONSTRUCTION_SHELL_CORE",
-    name: "Construction – Shell and Core",
-    order: 5,
-  },
-  {
-    code: "ST6_CONSTRUCTION_MEP_BLOCKWORK",
-    name: "Construction – MEP Rough-in, Blockwork and Exterior",
-    order: 6,
-  },
-  { code: "ST7_INTERIOR_FITOUT", name: "Interior Fit-Out and Finishes", order: 7 },
-  {
-    code: "ST8_EXTERNAL_WORKS_FINAL_MEP",
-    name: "External Works, Landscape and Final MEP",
-    order: 8,
-  },
-  {
-    code: "ST9_COMPLETION_SNAGGING_HANDOVER",
-    name: "Completion Certificate, Snagging and Authority Handover",
-    order: 9,
-  },
-  {
-    code: "ST10_CLIENT_HANDOVER_DLP",
-    name: "Client Handover and Defects Liability",
-    order: 10,
-  },
-] as const;
-
-const stageNameByCode = new Map(STAGE_INFO.map((s) => [s.code, s.name]));
+// Stages are now editable globally — see lib/stages.ts.
+import {
+  stageNameByCode,
+  stageInfo as STAGE_INFO,
+} from "../lib/stages";
 
 async function buildMeResponse(ctx: NonNullable<Request["auth_ctx"]>) {
   const [memberships, accessibleProjectIds, admin, assignments, clientProjectIds] =

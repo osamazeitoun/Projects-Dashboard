@@ -11,6 +11,13 @@ import {
 } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { refreshStageCache } from "./lib/stages";
+
+// Populate the in-memory stage cache at boot so route handlers can use
+// synchronous `.get()` lookups. Built-in stages are seeded if missing.
+refreshStageCache().catch((err) => {
+  logger.error({ err }, "Failed to initialise stage cache");
+});
 
 const app: Express = express();
 

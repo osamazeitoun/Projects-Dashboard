@@ -80,21 +80,19 @@ async function requirePmAccess(
 }
 
 
-const STAGE_INFO = [
-  { code: "ST1_PRE_DESIGN_CONCEPT", name: "Pre-design and Concept", order: 1 },
-  { code: "ST2_DESIGN_DEVELOPMENT", name: "Design Development", order: 2 },
-  { code: "ST3_AUTHORITY_APPROVALS", name: "Authority Approvals and NOCs", order: 3 },
-  { code: "ST4_DETAILED_DESIGN_TENDER", name: "Detailed Design and Tender", order: 4 },
-  { code: "ST5_CONSTRUCTION_SHELL_CORE", name: "Construction – Shell and Core", order: 5 },
-  { code: "ST6_CONSTRUCTION_MEP_BLOCKWORK", name: "Construction – MEP / Blockwork", order: 6 },
-  { code: "ST7_INTERIOR_FITOUT", name: "Interior Fit-Out", order: 7 },
-  { code: "ST8_EXTERNAL_WORKS_FINAL_MEP", name: "External Works / Final MEP", order: 8 },
-  { code: "ST9_COMPLETION_SNAGGING_HANDOVER", name: "Completion and Handover", order: 9 },
-  { code: "ST10_CLIENT_HANDOVER_DLP", name: "Client Handover and DLP", order: 10 },
-] as const;
-
-const stageNameByCode = new Map(STAGE_INFO.map((s) => [s.code, s.name]));
-const stageOrderByCode = new Map(STAGE_INFO.map((s) => [s.code, s.order]));
+// Stages now live in the `project_stages` table and are user-editable
+// (see /pm/stages routes below). These imports are mutable references
+// to a process-level cache populated at server boot and refreshed after
+// every stage mutation.
+import {
+  stageNameByCode,
+  stageOrderByCode,
+  stageInfo as STAGE_INFO,
+  refreshStageCache,
+  listStageRows,
+  getMilestoneCountsByStageCode,
+} from "../lib/stages";
+import { projectStages } from "@workspace/db";
 
 const OVERDUE_DAYS = 3;
 
@@ -1758,6 +1756,10 @@ router.post("/projects/:projectId/milestones-create", async (req, res) => {
     return res.status(400).json({ error: "Invalid baselineDate" });
   }
 
+  if (!stageNameByCode.has(b.data.stageCode)) {
+    return res.status(400).json({ error: "Unknown stage. Pick one from the Project Stages list." });
+  }
+
   const created = await db.transaction(async (tx) => {
     const [m] = await tx
       .insert(milestones)
@@ -1819,6 +1821,10 @@ router.patch("/milestones/:milestoneId", async (req, res) => {
     if (!(await validateProjectCompanyIds(projectId, all))) {
       return res.status(400).json({ error: "One or more companies are not on this project" });
     }
+  }
+
+  if (b.data.stageCode !== undefined && !stageNameByCode.has(b.data.stageCode)) {
+    return res.status(400).json({ error: "Unknown stage. Pick one from the Project Stages list." });
   }
 
   await db.transaction(async (tx) => {
@@ -2203,6 +2209,184 @@ router.post("/milestones/:milestoneId/edit-requests", async (req, res) => {
 
   const detail = await loadChangeEventDetailResponse(created.id);
   return res.status(201).json(detail);
+});
+
+// ---------- Global stage management (editable inline on PM schedule) ----------
+
+function slugifyStageLabel(label: string): string {
+  const cleaned = label
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return cleaned || "STAGE";
+}
+
+router.get("/pm/stages", async (_req, res) => {
+  const rows = await listStageRows();
+  const counts = await getMilestoneCountsByStageCode();
+  return res.json(
+    rows.map((s) => ({
+      id: s.id,
+      code: s.code,
+      label: s.label,
+      displayOrder: s.displayOrder,
+      isBuiltIn: s.isBuiltIn,
+      milestoneCount: counts.get(s.code) ?? 0,
+    })),
+  );
+});
+
+async function requireAnyPmAccess(req: Request, res: Response): Promise<boolean> {
+  const ids = await listPmProjectIds(req.auth_ctx!.userId);
+  if (ids.length === 0) {
+    res.status(403).json({ error: "PM access required" });
+    return false;
+  }
+  return true;
+}
+
+router.post("/pm/stages", async (req, res) => {
+  if (!(await requireAnyPmAccess(req, res))) return;
+  const label = String(req.body?.label ?? "").trim();
+  if (!label) return res.status(400).json({ error: "Label is required" });
+  if (label.length > 120) return res.status(400).json({ error: "Label too long" });
+
+  const existing = await listStageRows();
+  if (existing.some((s) => s.label.toLowerCase() === label.toLowerCase())) {
+    return res.status(400).json({ error: "A stage with this label already exists" });
+  }
+
+  let code = slugifyStageLabel(label);
+  const usedCodes = new Set(existing.map((s) => s.code));
+  if (usedCodes.has(code)) {
+    let n = 2;
+    while (usedCodes.has(`${code}_${n}`)) n++;
+    code = `${code}_${n}`;
+  }
+  const maxOrder = existing.reduce((m, s) => Math.max(m, s.displayOrder), 0);
+
+  const [inserted] = await db
+    .insert(projectStages)
+    .values({ code, label, displayOrder: maxOrder + 1, isBuiltIn: false })
+    .returning();
+
+  await refreshStageCache();
+  return res.json({
+    id: inserted.id,
+    code: inserted.code,
+    label: inserted.label,
+    displayOrder: inserted.displayOrder,
+    isBuiltIn: inserted.isBuiltIn,
+    milestoneCount: 0,
+  });
+});
+
+router.post("/pm/stages/reorder", async (req, res) => {
+  if (!(await requireAnyPmAccess(req, res))) return;
+  const stageIds = Array.isArray(req.body?.stageIds)
+    ? (req.body.stageIds as unknown[]).map((v) => Number(v))
+    : null;
+  if (!stageIds || stageIds.some((n) => !Number.isFinite(n))) {
+    return res.status(400).json({ error: "stageIds must be an array of integers" });
+  }
+  const existing = await listStageRows();
+  if (stageIds.length !== existing.length) {
+    return res.status(400).json({ error: "stageIds must include every stage" });
+  }
+  const existingIds = new Set(existing.map((s) => s.id));
+  if (stageIds.some((id) => !existingIds.has(id))) {
+    return res.status(400).json({ error: "Unknown stage id" });
+  }
+
+  for (let i = 0; i < stageIds.length; i++) {
+    await db
+      .update(projectStages)
+      .set({ displayOrder: i + 1 })
+      .where(eq(projectStages.id, stageIds[i]));
+  }
+  await refreshStageCache();
+  const refreshed = await listStageRows();
+  const counts = await getMilestoneCountsByStageCode();
+  return res.json(
+    refreshed.map((s) => ({
+      id: s.id,
+      code: s.code,
+      label: s.label,
+      displayOrder: s.displayOrder,
+      isBuiltIn: s.isBuiltIn,
+      milestoneCount: counts.get(s.code) ?? 0,
+    })),
+  );
+});
+
+router.patch("/pm/stages/:id", async (req, res) => {
+  if (!(await requireAnyPmAccess(req, res))) return;
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: "Invalid id" });
+  const label = String(req.body?.label ?? "").trim();
+  if (!label) return res.status(400).json({ error: "Label is required" });
+  if (label.length > 120) return res.status(400).json({ error: "Label too long" });
+
+  const [stage] = await db
+    .select()
+    .from(projectStages)
+    .where(eq(projectStages.id, id))
+    .limit(1);
+  if (!stage) return res.status(404).json({ error: "Stage not found" });
+
+  if (label !== stage.label) {
+    const others = await listStageRows();
+    if (
+      others.some(
+        (s) => s.id !== id && s.label.toLowerCase() === label.toLowerCase(),
+      )
+    ) {
+      return res.status(400).json({ error: "A stage with this label already exists" });
+    }
+  }
+  const [updated] = await db
+    .update(projectStages)
+    .set({ label })
+    .where(eq(projectStages.id, id))
+    .returning();
+  await refreshStageCache();
+  const counts = await getMilestoneCountsByStageCode();
+  return res.json({
+    id: updated.id,
+    code: updated.code,
+    label: updated.label,
+    displayOrder: updated.displayOrder,
+    isBuiltIn: updated.isBuiltIn,
+    milestoneCount: counts.get(updated.code) ?? 0,
+  });
+});
+
+router.delete("/pm/stages/:id", async (req, res) => {
+  if (!(await requireAnyPmAccess(req, res))) return;
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) return res.status(400).json({ error: "Invalid id" });
+  const [stage] = await db
+    .select()
+    .from(projectStages)
+    .where(eq(projectStages.id, id))
+    .limit(1);
+  if (!stage) return res.status(404).json({ error: "Stage not found" });
+  if (stage.isBuiltIn) {
+    return res.status(400).json({ error: "Built-in stages cannot be deleted" });
+  }
+  const [used] = await db
+    .select({ id: milestones.id })
+    .from(milestones)
+    .where(eq(milestones.stageCode, stage.code))
+    .limit(1);
+  if (used) {
+    return res
+      .status(400)
+      .json({ error: "Stage has milestones and cannot be deleted" });
+  }
+  await db.delete(projectStages).where(eq(projectStages.id, id));
+  await refreshStageCache();
+  return res.status(204).send();
 });
 
 export default router;

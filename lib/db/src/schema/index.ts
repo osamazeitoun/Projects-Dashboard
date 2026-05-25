@@ -10,18 +10,29 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-export const stageCodeEnum = pgEnum("stage_code", [
-  "ST1_PRE_DESIGN_CONCEPT",
-  "ST2_DESIGN_DEVELOPMENT",
-  "ST3_AUTHORITY_APPROVALS",
-  "ST4_DETAILED_DESIGN_TENDER",
-  "ST5_CONSTRUCTION_SHELL_CORE",
-  "ST6_CONSTRUCTION_MEP_BLOCKWORK",
-  "ST7_INTERIOR_FITOUT",
-  "ST8_EXTERNAL_WORKS_FINAL_MEP",
-  "ST9_COMPLETION_SNAGGING_HANDOVER",
-  "ST10_CLIENT_HANDOVER_DLP",
-]);
+/**
+ * Stages used to be a hard-coded Postgres enum. They are now a regular
+ * table (`project_stages`) so admins/PMs can rename, reorder, add, or
+ * remove stages. `milestones.stage_code` is plain text referencing
+ * `project_stages.code`. The 10 original codes are seeded as built-in
+ * stages on startup so existing milestones keep resolving.
+ */
+export const projectStages = pgTable(
+  "project_stages",
+  {
+    id: serial("id").primaryKey(),
+    code: text("code").notNull(),
+    label: text("label").notNull(),
+    displayOrder: integer("display_order").notNull().default(0),
+    isBuiltIn: boolean("is_built_in").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    codeUnique: uniqueIndex("project_stages_code_unique").on(t.code),
+  }),
+);
 
 export const milestoneStatusEnum = pgEnum("milestone_status", [
   "Planned",
@@ -166,7 +177,7 @@ export const milestones = pgTable("milestones", {
   projectId: integer("project_id")
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
-  stageCode: stageCodeEnum("stage_code").notNull(),
+  stageCode: text("stage_code").notNull(),
   code: text("code").notNull(),
   name: text("name").notNull(),
   description: text("description"),

@@ -13,21 +13,40 @@ export interface ErrorResponse {
   error: string;
 }
 
-export type StageCode = typeof StageCode[keyof typeof StageCode];
+export interface ProjectStage {
+  id: number;
+  code: string;
+  label: string;
+  displayOrder: number;
+  isBuiltIn: boolean;
+  milestoneCount: number;
+}
 
+export interface CreateStageInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  label: string;
+}
 
-export const StageCode = {
-  ST1_PRE_DESIGN_CONCEPT: 'ST1_PRE_DESIGN_CONCEPT',
-  ST2_DESIGN_DEVELOPMENT: 'ST2_DESIGN_DEVELOPMENT',
-  ST3_AUTHORITY_APPROVALS: 'ST3_AUTHORITY_APPROVALS',
-  ST4_DETAILED_DESIGN_TENDER: 'ST4_DETAILED_DESIGN_TENDER',
-  ST5_CONSTRUCTION_SHELL_CORE: 'ST5_CONSTRUCTION_SHELL_CORE',
-  ST6_CONSTRUCTION_MEP_BLOCKWORK: 'ST6_CONSTRUCTION_MEP_BLOCKWORK',
-  ST7_INTERIOR_FITOUT: 'ST7_INTERIOR_FITOUT',
-  ST8_EXTERNAL_WORKS_FINAL_MEP: 'ST8_EXTERNAL_WORKS_FINAL_MEP',
-  ST9_COMPLETION_SNAGGING_HANDOVER: 'ST9_COMPLETION_SNAGGING_HANDOVER',
-  ST10_CLIENT_HANDOVER_DLP: 'ST10_CLIENT_HANDOVER_DLP',
-} as const;
+export interface RenameStageInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  label: string;
+}
+
+export interface ReorderStagesInput {
+  stageIds: number[];
+}
+
+/**
+ * Stable identifier for a project stage. Refers to `ProjectStage.code`. Stages are now editable, so this is a free-form string (the original 10 codes such as `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).
+
+ */
+export type StageCode = string;
 
 export type MilestoneStatus = typeof MilestoneStatus[keyof typeof MilestoneStatus];
 

@@ -34,20 +34,8 @@ const router: IRouter = Router();
 
 router.use(requireAuth);
 
-const STAGE_INFO = [
-  { code: "ST1_PRE_DESIGN_CONCEPT", name: "Pre-design and Concept" },
-  { code: "ST2_DESIGN_DEVELOPMENT", name: "Design Development" },
-  { code: "ST3_AUTHORITY_APPROVALS", name: "Authority Approvals and NOCs" },
-  { code: "ST4_DETAILED_DESIGN_TENDER", name: "Detailed Design and Tender" },
-  { code: "ST5_CONSTRUCTION_SHELL_CORE", name: "Construction – Shell and Core" },
-  { code: "ST6_CONSTRUCTION_MEP_BLOCKWORK", name: "Construction – MEP / Blockwork" },
-  { code: "ST7_INTERIOR_FITOUT", name: "Interior Fit-Out" },
-  { code: "ST8_EXTERNAL_WORKS_FINAL_MEP", name: "External Works / Final MEP" },
-  { code: "ST9_COMPLETION_SNAGGING_HANDOVER", name: "Completion and Handover" },
-  { code: "ST10_CLIENT_HANDOVER_DLP", name: "Client Handover and DLP" },
-] as const;
-
-const stageNameByCode = new Map(STAGE_INFO.map((s) => [s.code, s.name]));
+// Stages are now editable globally — see lib/stages.ts.
+import { stageNameByCode } from "../lib/stages";
 
 function isoOrNull(d: Date | null): string | null {
   return d ? d.toISOString() : null;

@@ -1029,6 +1029,143 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /pm/stages:
+    get:
+      operationId: listStages
+      tags: [pm]
+      summary: List global project stages (built-in + custom), ordered by display order
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProjectStage" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    post:
+      operationId: createStage
+      tags: [pm]
+      summary: Add a new custom global stage. Requires PM access on at least one project.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateStageInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectStage" }
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /pm/stages/reorder:
+    post:
+      operationId: reorderStages
+      tags: [pm]
+      summary: Update display order for stages (provide all stage IDs in desired order)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReorderStagesInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProjectStage" }
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /pm/stages/{id}:
+    patch:
+      operationId: renameStage
+      tags: [pm]
+      summary: Rename a stage. Built-in stages can be renamed but not deleted.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RenameStageInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectStage" }
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    delete:
+      operationId: deleteStage
+      tags: [pm]
+      summary: Delete a stage. Not allowed for built-in stages or stages with milestones.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Removed
+        "400":
+          description: Cannot delete (built-in or in use)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /admin/projects/{projectId}/contractors:
     post:
       operationId: adminAddContractorCompany
@@ -1155,19 +1292,44 @@ components:
         error: { type: string }
       required: [error]
 
+    ProjectStage:
+      type: object
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        label: { type: string }
+        displayOrder: { type: integer }
+        isBuiltIn: { type: boolean }
+        milestoneCount: { type: integer }
+      required: [id, code, label, displayOrder, isBuiltIn, milestoneCount]
+
+    CreateStageInput:
+      type: object
+      properties:
+        label: { type: string, minLength: 1, maxLength: 120 }
+      required: [label]
+
+    RenameStageInput:
+      type: object
+      properties:
+        label: { type: string, minLength: 1, maxLength: 120 }
+      required: [label]
+
+    ReorderStagesInput:
+      type: object
+      properties:
+        stageIds:
+          type: array
+          items: { type: integer }
+      required: [stageIds]
+
     StageCode:
       type: string
-      enum:
-        - ST1_PRE_DESIGN_CONCEPT
-        - ST2_DESIGN_DEVELOPMENT
-        - ST3_AUTHORITY_APPROVALS
-        - ST4_DETAILED_DESIGN_TENDER
-        - ST5_CONSTRUCTION_SHELL_CORE
-        - ST6_CONSTRUCTION_MEP_BLOCKWORK
-        - ST7_INTERIOR_FITOUT
-        - ST8_EXTERNAL_WORKS_FINAL_MEP
-        - ST9_COMPLETION_SNAGGING_HANDOVER
-        - ST10_CLIENT_HANDOVER_DLP
+      description: >
+        Stable identifier for a project stage. Refers to
+        `ProjectStage.code`. Stages are now editable, so this is a
+        free-form string (the original 10 codes such as
+        `ST1_PRE_DESIGN_CONCEPT` are seeded as built-in stages).
 
     MilestoneStatus:
       type: string
