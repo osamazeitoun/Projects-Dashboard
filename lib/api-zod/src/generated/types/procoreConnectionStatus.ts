@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ProcoreConnectionStatusSource } from './procoreConnectionStatusSource';
 
 export interface ProcoreConnectionStatus {
   connected: boolean;
@@ -15,4 +16,15 @@ export interface ProcoreConnectionStatus {
   /** @nullable */
   error: string | null;
   resyncIntervalMinutes: number;
+  source: ProcoreConnectionStatusSource;
+  /** @nullable */
+  connectedByEmail: string | null;
+  /** @nullable */
+  connectedProcoreUser: string | null;
+  /** @nullable */
+  connectedAt: Date | null;
+  /** @nullable */
+  lastRefreshedAt: Date | null;
+  oauthConfigured: boolean;
+  oauthMissingEnv: string[];
 }

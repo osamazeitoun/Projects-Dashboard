@@ -1188,6 +1188,55 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /admin/procore/oauth/start:
+    post:
+      operationId: adminStartProcoreOAuth
+      tags: [admin]
+      summary: Begin Procore OAuth — returns the consent URL the admin should be sent to
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProcoreOAuthStartResult" }
+        "400":
+          description: OAuth not configured
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/procore/disconnect:
+    post:
+      operationId: adminDisconnectProcore
+      tags: [admin]
+      summary: Disconnect the current Procore OAuth connection
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProcoreDisconnectResult" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /admin/procore/projects:
     get:
       operationId: adminListProcoreProjects
@@ -2429,7 +2478,10 @@ components:
 
     ProcoreConnectionStatus:
       type: object
-      required: [connected, demoMode, baseUrl, companyId, error, resyncIntervalMinutes]
+      required:
+        [connected, demoMode, baseUrl, companyId, error, resyncIntervalMinutes,
+         source, connectedByEmail, connectedProcoreUser, connectedAt,
+         lastRefreshedAt, oauthConfigured, oauthMissingEnv]
       properties:
         connected: { type: boolean }
         demoMode: { type: boolean }
@@ -2437,6 +2489,30 @@ components:
         companyId: { type: ["string", "null"] }
         error: { type: ["string", "null"] }
         resyncIntervalMinutes: { type: integer }
+        source:
+          type: string
+          enum: [oauth, env, demo, none]
+        connectedByEmail: { type: ["string", "null"] }
+        connectedProcoreUser: { type: ["string", "null"] }
+        connectedAt: { type: ["string", "null"], format: "date-time" }
+        lastRefreshedAt: { type: ["string", "null"], format: "date-time" }
+        oauthConfigured: { type: boolean }
+        oauthMissingEnv:
+          type: array
+          items: { type: string }
+
+    ProcoreOAuthStartResult:
+      type: object
+      required: [authorizeUrl, redirectUri]
+      properties:
+        authorizeUrl: { type: string }
+        redirectUri: { type: string }
+
+    ProcoreDisconnectResult:
+      type: object
+      required: [disconnected]
+      properties:
+        disconnected: { type: boolean }
 
     ProcoreAvailableProject:
       type: object

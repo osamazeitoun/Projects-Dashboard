@@ -425,6 +425,43 @@ export const baselineNotificationDeliveries = pgTable(
 export type BaselineNotificationDelivery =
   typeof baselineNotificationDeliveries.$inferSelect;
 
+/**
+ * Procore OAuth refresh tokens. Each row is a connection to a Procore
+ * account, typically scoped to one of our local companies (companyId).
+ * Tokens are stored encrypted at rest; see
+ * `artifacts/api-server/src/lib/encryption.ts`. The most recently
+ * connected row (any company) is used as the active credential by the
+ * Procore HTTP client, with the legacy `PROCORE_ACCESS_TOKEN` env var
+ * still serving as a fallback when no OAuth row exists.
+ */
+export const procoreOAuthTokens = pgTable("procore_oauth_tokens", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").references(() => companies.id, {
+    onDelete: "cascade",
+  }),
+  baseUrl: text("base_url").notNull(),
+  procoreCompanyId: text("procore_company_id"),
+  accessTokenEnc: text("access_token_enc").notNull(),
+  refreshTokenEnc: text("refresh_token_enc").notNull(),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", {
+    withTimezone: true,
+  }).notNull(),
+  scope: text("scope"),
+  procoreUserId: text("procore_user_id"),
+  procoreUserName: text("procore_user_name"),
+  procoreUserEmail: text("procore_user_email"),
+  connectedByUserId: integer("connected_by_user_id").references(
+    () => users.id,
+    { onDelete: "set null" },
+  ),
+  connectedAt: timestamp("connected_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  lastRefreshedAt: timestamp("last_refreshed_at", { withTimezone: true }),
+});
+
+export type ProcoreOAuthToken = typeof procoreOAuthTokens.$inferSelect;
+
 export type User = typeof users.$inferSelect;
 export type UserCompany = typeof userCompanies.$inferSelect;
 export type ProjectAssignment = typeof projectAssignments.$inferSelect;

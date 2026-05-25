@@ -1506,7 +1506,31 @@ export const AdminGetProcoreStatusResponse = zod.object({
   "baseUrl": zod.string(),
   "companyId": zod.string().nullable(),
   "error": zod.string().nullable(),
-  "resyncIntervalMinutes": zod.number()
+  "resyncIntervalMinutes": zod.number(),
+  "source": zod.enum(['oauth', 'env', 'demo', 'none']),
+  "connectedByEmail": zod.string().nullable(),
+  "connectedProcoreUser": zod.string().nullable(),
+  "connectedAt": zod.coerce.date().nullable(),
+  "lastRefreshedAt": zod.coerce.date().nullable(),
+  "oauthConfigured": zod.boolean(),
+  "oauthMissingEnv": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Begin Procore OAuth — returns the consent URL the admin should be sent to
+ */
+export const AdminStartProcoreOAuthResponse = zod.object({
+  "authorizeUrl": zod.string(),
+  "redirectUri": zod.string()
+})
+
+
+/**
+ * @summary Disconnect the current Procore OAuth connection
+ */
+export const AdminDisconnectProcoreResponse = zod.object({
+  "disconnected": zod.boolean()
 })
 
 

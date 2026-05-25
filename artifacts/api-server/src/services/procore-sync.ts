@@ -350,10 +350,13 @@ function inferCompanyType(
 /** Public entry: sync by procore project id (initial import or repeat). */
 export async function syncProcoreProjectById(
   procoreProjectId: string,
-  opts: { existingProjectId?: number } = {},
+  opts: { existingProjectId?: number; callerCompanyId?: number } = {},
 ): Promise<SyncResult> {
   try {
-    const snapshot = await getProcoreProjectSnapshot(procoreProjectId);
+    const snapshot = await getProcoreProjectSnapshot(
+      procoreProjectId,
+      opts.callerCompanyId,
+    );
     return await syncProcoreProjectFromSnapshot(snapshot, opts);
   } catch (e) {
     const message =
@@ -388,11 +391,15 @@ export async function syncProcoreProjectById(
 }
 
 /** Sync every Procore project visible to the connected account. */
-export async function syncAllProcoreProjects(): Promise<SyncResult[]> {
-  const list = await listProcoreProjects();
+export async function syncAllProcoreProjects(
+  callerCompanyId?: number,
+): Promise<SyncResult[]> {
+  const list = await listProcoreProjects(callerCompanyId);
   const results: SyncResult[] = [];
   for (const p of list) {
-    results.push(await syncProcoreProjectById(p.procoreProjectId));
+    results.push(
+      await syncProcoreProjectById(p.procoreProjectId, { callerCompanyId }),
+    );
   }
   return results;
 }

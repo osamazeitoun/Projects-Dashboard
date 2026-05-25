@@ -1,11 +1,13 @@
-import { useState } from "react";
-import { Link } from "wouter";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useAdminGetProcoreStatus,
   useAdminListProcoreProjects,
   useAdminImportProcoreProject,
   useAdminImportAllProcoreProjects,
+  useAdminStartProcoreOAuth,
+  useAdminDisconnectProcore,
   getAdminListProcoreProjectsQueryKey,
   getAdminGetProcoreStatusQueryKey,
   getAdminListProjectsQueryKey,
@@ -29,6 +31,8 @@ import {
   CloudOff,
   Download,
   Link2,
+  LogIn,
+  LogOut,
   RefreshCw,
 } from "lucide-react";
 
@@ -39,14 +43,63 @@ function formatTimestamp(ts: string | Date | null | undefined): string {
   return d.toLocaleString();
 }
 
+function sourceBadge(source: string | undefined) {
+  switch (source) {
+    case "oauth":
+      return <Badge variant="outline">OAuth connection</Badge>;
+    case "env":
+      return <Badge variant="outline">Server env token</Badge>;
+    case "demo":
+      return <Badge variant="outline">Demo data</Badge>;
+    default:
+      return null;
+  }
+}
+
 export default function AdminProcore() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [, setLocation] = useLocation();
   const [bulkRunning, setBulkRunning] = useState(false);
   const [lastBulk, setLastBulk] = useState<{
     ok: number;
     failed: number;
   } | null>(null);
+
+  // Surface ?procoreConnected=1 / ?procoreError=... from the OAuth callback
+  // redirect, then strip those params from the URL so they don't re-fire.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("procoreConnected");
+    const err = params.get("procoreError");
+    if (!connected && !err) return;
+    if (connected) {
+      toast({
+        title: "Procore connected",
+        description: "Your account is linked. You can now import projects.",
+      });
+    }
+    if (err) {
+      toast({
+        title: "Procore connection failed",
+        description: err,
+        variant: "destructive",
+      });
+    }
+    params.delete("procoreConnected");
+    params.delete("procoreError");
+    // wouter's setLocation works in the app's router base, so pass a path
+    // relative to the router root. We're already on the procore page, so
+    // staying on "/admin/procore" is correct regardless of the base URL.
+    const qs = params.toString();
+    setLocation(qs ? `/admin/procore?${qs}` : "/admin/procore", {
+      replace: true,
+    });
+    qc.invalidateQueries({ queryKey: getAdminGetProcoreStatusQueryKey() });
+    qc.invalidateQueries({ queryKey: getAdminListProcoreProjectsQueryKey() });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const status = useAdminGetProcoreStatus();
   const list = useAdminListProcoreProjects({
@@ -61,6 +114,41 @@ export default function AdminProcore() {
     qc.invalidateQueries({ queryKey: getAdminGetProcoreStatusQueryKey() });
     qc.invalidateQueries({ queryKey: getAdminListProjectsQueryKey() });
   };
+
+  const startOAuth = useAdminStartProcoreOAuth({
+    mutation: {
+      onSuccess: (r) => {
+        if (typeof window !== "undefined") {
+          window.location.href = r.authorizeUrl;
+        }
+      },
+      onError: (e: unknown) => {
+        toast({
+          title: "Couldn't start Procore connect flow",
+          description:
+            (e as { data?: { error?: string } } | null)?.data?.error ??
+            "Make sure PROCORE_CLIENT_ID, PROCORE_CLIENT_SECRET, PROCORE_OAUTH_REDIRECT_URI and PROCORE_TOKEN_ENCRYPTION_KEY are set.",
+          variant: "destructive",
+        });
+      },
+    },
+  });
+
+  const disconnect = useAdminDisconnectProcore({
+    mutation: {
+      onSuccess: () => {
+        invalidate();
+        toast({ title: "Procore disconnected" });
+      },
+      onError: (e: unknown) => {
+        toast({
+          title: "Couldn't disconnect",
+          description: (e as { data?: { error?: string } } | null)?.data?.error,
+          variant: "destructive",
+        });
+      },
+    },
+  });
 
   const importOne = useAdminImportProcoreProject({
     mutation: {
@@ -142,67 +230,142 @@ export default function AdminProcore() {
         </div>
       </header>
 
-      <Card className="p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="p-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
           {s?.connected ? (
             <CheckCircle2 className="h-6 w-6 text-[color:var(--c-success,green)] mt-0.5" />
           ) : (
             <CloudOff className="h-6 w-6 text-[color:var(--c-danger,red)] mt-0.5" />
           )}
-          <div>
-            <div className="font-semibold flex items-center gap-2">
+          <div className="space-y-1">
+            <div className="font-semibold flex items-center gap-2 flex-wrap">
               {s?.connected ? "Connected" : "Not connected"}
-              {s?.demoMode ? (
-                <Badge variant="outline">Demo data</Badge>
-              ) : null}
+              {sourceBadge(s?.source)}
             </div>
-            <div className="text-xs text-muted-foreground mt-0.5">
+            <div className="text-xs text-muted-foreground">
               {s?.connected ? (
                 <>
-                  Company <span className="font-mono">{s.companyId}</span> via{" "}
+                  Procore company{" "}
+                  <span className="font-mono">{s.companyId ?? "—"}</span> via{" "}
                   <span className="font-mono">{s.baseUrl}</span>
                   {s.resyncIntervalMinutes > 0
                     ? `. Background re-sync every ${s.resyncIntervalMinutes} min.`
                     : ". Background re-sync disabled."}
                 </>
               ) : (
-                <>
-                  {s?.error ?? "Procore credentials are not configured."}{" "}
-                  Set <span className="font-mono">PROCORE_ACCESS_TOKEN</span>{" "}
-                  and <span className="font-mono">PROCORE_COMPANY_ID</span> on
-                  the server (or{" "}
-                  <span className="font-mono">PROCORE_DEMO_MODE=1</span> to
-                  preview).
-                </>
+                <>{s?.error ?? "Procore credentials are not configured."}</>
               )}
             </div>
+            {s?.source === "oauth" ? (
+              <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
+                <div>
+                  Connected by{" "}
+                  <span className="font-medium text-ink">
+                    {s.connectedByEmail ?? "unknown user"}
+                  </span>
+                  {s.connectedProcoreUser ? (
+                    <>
+                      {" "}as Procore user{" "}
+                      <span className="font-medium text-ink">
+                        {s.connectedProcoreUser}
+                      </span>
+                    </>
+                  ) : null}
+                  {" "}on {formatTimestamp(s.connectedAt)}.
+                </div>
+                {s.lastRefreshedAt ? (
+                  <div>
+                    Last token refresh: {formatTimestamp(s.lastRefreshedAt)}.
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {s?.source === "env" ? (
+              <div className="text-xs text-muted-foreground pt-1">
+                Using the legacy{" "}
+                <span className="font-mono">PROCORE_ACCESS_TOKEN</span>{" "}
+                environment variable. Connect via OAuth below to use a
+                per-user refresh token instead.
+              </div>
+            ) : null}
+            {s && !s.connected ? (
+              s.oauthConfigured ? (
+                <div className="text-xs text-muted-foreground pt-1">
+                  Click <strong>Connect Procore</strong> to authorise an
+                  account, or set{" "}
+                  <span className="font-mono">PROCORE_ACCESS_TOKEN</span> and{" "}
+                  <span className="font-mono">PROCORE_COMPANY_ID</span> on the
+                  server for a shared credential.
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground pt-1">
+                  OAuth is not configured. Set these env vars to enable the
+                  Connect button:{" "}
+                  <span className="font-mono">
+                    {(s.oauthMissingEnv ?? []).join(", ") ||
+                      "PROCORE_CLIENT_ID, PROCORE_CLIENT_SECRET, PROCORE_OAUTH_REDIRECT_URI, PROCORE_TOKEN_ENCRYPTION_KEY"}
+                  </span>
+                  .
+                </div>
+              )
+            ) : null}
           </div>
         </div>
-        {s?.connected ? (
-          <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 justify-end">
+          {s?.source === "oauth" ? (
             <Button
               variant="outline"
-              onClick={() => list.refetch()}
-              disabled={list.isFetching}
-            >
-              <RefreshCw
-                className={`h-4 w-4 mr-1 ${list.isFetching ? "animate-spin" : ""}`}
-              />
-              Refresh list
-            </Button>
-            <Button
               onClick={() => {
-                setBulkRunning(true);
-                setLastBulk(null);
-                importAll.mutate();
+                if (
+                  window.confirm(
+                    "Disconnect Procore? This deletes the stored refresh token. Existing imported data is kept.",
+                  )
+                ) {
+                  disconnect.mutate();
+                }
               }}
-              disabled={bulkRunning || importAll.isPending}
+              disabled={disconnect.isPending}
             >
-              <Download className="h-4 w-4 mr-1" />
-              Import all
+              <LogOut className="h-4 w-4 mr-1" />
+              Disconnect
             </Button>
-          </div>
-        ) : null}
+          ) : null}
+          {s?.oauthConfigured && s?.source !== "demo" ? (
+            <Button
+              variant={s?.source === "oauth" ? "outline" : "default"}
+              onClick={() => startOAuth.mutate()}
+              disabled={startOAuth.isPending}
+            >
+              <LogIn className="h-4 w-4 mr-1" />
+              {s?.source === "oauth" ? "Reconnect Procore" : "Connect Procore"}
+            </Button>
+          ) : null}
+          {s?.connected ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => list.refetch()}
+                disabled={list.isFetching}
+              >
+                <RefreshCw
+                  className={`h-4 w-4 mr-1 ${list.isFetching ? "animate-spin" : ""}`}
+                />
+                Refresh list
+              </Button>
+              <Button
+                onClick={() => {
+                  setBulkRunning(true);
+                  setLastBulk(null);
+                  importAll.mutate();
+                }}
+                disabled={bulkRunning || importAll.isPending}
+              >
+                <Download className="h-4 w-4 mr-1" />
+                Import all
+              </Button>
+            </>
+          ) : null}
+        </div>
       </Card>
 
       {lastBulk ? (

@@ -1,22 +1,43 @@
 import { logger } from "../lib/logger";
+import {
+  getActiveToken,
+  getActiveTokenRow,
+  getConnectedByEmail,
+  checkOAuthEnv,
+} from "./procore-oauth";
+
+/**
+ * Resolve credential scope: a specific local companyId (admin's company)
+ * means "use that company's OAuth connection only"; undefined means "no
+ * user context — fall back to any usable token", used by the background
+ * re-sync at server boot.
+ */
+export type ProcoreCallerCompany = number | undefined;
 
 /**
  * Procore HTTP client + sync data shapes.
  *
- * We use one shared, app-level Procore credential (a personal/company access
- * token) rather than per-user OAuth. The credential is supplied via env vars
- * and is read on every call so an admin can update it without restarting.
+ * Credentials are resolved in this order on every request:
+ *   1. The most-recently connected OAuth refresh token (per-company), auto-
+ *      refreshed before expiry. Stored encrypted in `procore_oauth_tokens`.
+ *      Set up by an admin via the "Connect Procore" button on /admin/procore.
+ *   2. Legacy env-var fallback (PROCORE_ACCESS_TOKEN + PROCORE_COMPANY_ID)
+ *      so existing installs keep working without rotation.
+ *   3. Demo mode (PROCORE_DEMO_MODE=1) for previewing the UI with fixtures.
  *
  * Env vars:
- *   PROCORE_ACCESS_TOKEN     - bearer access token
+ *   PROCORE_ACCESS_TOKEN     - bearer access token (fallback)
  *   PROCORE_BASE_URL         - default https://api.procore.com
- *   PROCORE_COMPANY_ID       - Procore company id to scope project listings
+ *   PROCORE_COMPANY_ID       - Procore company id (fallback)
  *   PROCORE_DEMO_MODE        - if "1", serve fixture data instead of HTTP
- *                              (lets the admin console work end-to-end before
- *                               real credentials are provisioned)
- *   PROCORE_RESYNC_INTERVAL_MINUTES - background re-sync cadence (default 60,
- *                                     0 disables)
+ *   PROCORE_RESYNC_INTERVAL_MINUTES - background re-sync cadence
+ *
+ * OAuth-only env vars (see ./procore-oauth.ts):
+ *   PROCORE_CLIENT_ID, PROCORE_CLIENT_SECRET,
+ *   PROCORE_OAUTH_REDIRECT_URI, PROCORE_TOKEN_ENCRYPTION_KEY
  */
+
+export type ProcoreConnectionSource = "oauth" | "env" | "demo" | "none";
 
 export type ProcoreConnectionStatus = {
   connected: boolean;
@@ -26,6 +47,20 @@ export type ProcoreConnectionStatus = {
   /** A human-readable reason if not connected. */
   error: string | null;
   resyncIntervalMinutes: number;
+  /** Which credential the runtime is currently using. */
+  source: ProcoreConnectionSource;
+  /** Email of the user who linked the active OAuth connection, if any. */
+  connectedByEmail: string | null;
+  /** Procore display name of the linked Procore user, if any. */
+  connectedProcoreUser: string | null;
+  /** When the active OAuth connection was authorised (ISO string). */
+  connectedAt: string | null;
+  /** When the access token was last refreshed (ISO string). */
+  lastRefreshedAt: string | null;
+  /** Whether OAuth is fully configured on the server (independent of whether anyone has connected). */
+  oauthConfigured: boolean;
+  /** Missing env vars when oauthConfigured is false. */
+  oauthMissingEnv: string[];
 };
 
 export type ProcoreProjectSummary = {
@@ -67,28 +102,138 @@ export function getProcoreConfig() {
   return { baseUrl, token, companyId, demoMode, resyncIntervalMinutes };
 }
 
-export function getConnectionStatus(): ProcoreConnectionStatus {
+type ResolvedAuth = {
+  token: string;
+  companyId: string;
+  baseUrl: string;
+  source: "oauth" | "env";
+};
+
+/** Resolve the credential to use for the next outbound Procore call. */
+async function resolveAuth(
+  callerCompanyId?: ProcoreCallerCompany,
+): Promise<ResolvedAuth | null> {
+  try {
+    const oauth = await getActiveToken(callerCompanyId);
+    if (oauth) {
+      const cid =
+        oauth.procoreCompanyId ||
+        process.env.PROCORE_COMPANY_ID ||
+        "";
+      if (!cid) {
+        logProcore("warn", "OAuth connection has no procoreCompanyId and PROCORE_COMPANY_ID is unset");
+      }
+      return {
+        token: oauth.accessToken,
+        companyId: cid,
+        baseUrl: oauth.baseUrl,
+        source: "oauth",
+      };
+    }
+  } catch (e) {
+    logProcore("warn", "Procore OAuth token unusable, attempting env fallback", {
+      err: e instanceof Error ? e.message : String(e),
+    });
+  }
   const cfg = getProcoreConfig();
+  if (cfg.token && cfg.companyId) {
+    return {
+      token: cfg.token,
+      companyId: cfg.companyId,
+      baseUrl: cfg.baseUrl,
+      source: "env",
+    };
+  }
+  return null;
+}
+
+export async function getConnectionStatus(
+  callerCompanyId?: ProcoreCallerCompany,
+): Promise<ProcoreConnectionStatus> {
+  const cfg = getProcoreConfig();
+  const envCheck = checkOAuthEnv();
+  const base: Pick<
+    ProcoreConnectionStatus,
+    "resyncIntervalMinutes" | "oauthConfigured" | "oauthMissingEnv"
+  > = {
+    resyncIntervalMinutes: cfg.resyncIntervalMinutes,
+    oauthConfigured: envCheck.ok,
+    oauthMissingEnv: envCheck.missing,
+  };
+
   if (cfg.demoMode) {
     return {
+      ...base,
       connected: true,
       demoMode: true,
       baseUrl: cfg.baseUrl,
       companyId: cfg.companyId || "demo",
       error: null,
-      resyncIntervalMinutes: cfg.resyncIntervalMinutes,
+      source: "demo",
+      connectedByEmail: null,
+      connectedProcoreUser: null,
+      connectedAt: null,
+      lastRefreshedAt: null,
     };
   }
-  const errors: string[] = [];
-  if (!cfg.token) errors.push("PROCORE_ACCESS_TOKEN is not set");
-  if (!cfg.companyId) errors.push("PROCORE_COMPANY_ID is not set");
+
+  // Try OAuth row first (read-only — does not refresh, just reports).
+  try {
+    const row = await getActiveTokenRow(callerCompanyId);
+    if (row) {
+      const email = await getConnectedByEmail(row.connectedByUserId);
+      return {
+        ...base,
+        connected: true,
+        demoMode: false,
+        baseUrl: row.baseUrl,
+        companyId: row.procoreCompanyId || cfg.companyId || null,
+        error: null,
+        source: "oauth",
+        connectedByEmail: email,
+        connectedProcoreUser: row.procoreUserName ?? row.procoreUserEmail,
+        connectedAt: row.connectedAt.toISOString(),
+        lastRefreshedAt: row.lastRefreshedAt?.toISOString() ?? null,
+      };
+    }
+  } catch (e) {
+    logProcore("warn", "Failed reading procore_oauth_tokens row for status", {
+      err: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  // Fall back to env-var credential.
+  const envErrors: string[] = [];
+  if (!cfg.token) envErrors.push("PROCORE_ACCESS_TOKEN is not set");
+  if (!cfg.companyId) envErrors.push("PROCORE_COMPANY_ID is not set");
+  if (envErrors.length === 0) {
+    return {
+      ...base,
+      connected: true,
+      demoMode: false,
+      baseUrl: cfg.baseUrl,
+      companyId: cfg.companyId,
+      error: null,
+      source: "env",
+      connectedByEmail: null,
+      connectedProcoreUser: null,
+      connectedAt: null,
+      lastRefreshedAt: null,
+    };
+  }
+
   return {
-    connected: errors.length === 0,
+    ...base,
+    connected: false,
     demoMode: false,
     baseUrl: cfg.baseUrl,
     companyId: cfg.companyId || null,
-    error: errors.length === 0 ? null : errors.join("; "),
-    resyncIntervalMinutes: cfg.resyncIntervalMinutes,
+    error: envErrors.join("; "),
+    source: "none",
+    connectedByEmail: null,
+    connectedProcoreUser: null,
+    connectedAt: null,
+    lastRefreshedAt: null,
   };
 }
 
@@ -108,14 +253,21 @@ export class ProcoreApiError extends Error {
   }
 }
 
-async function procoreFetch<T>(path: string, query?: Record<string, string | number>): Promise<T> {
-  const cfg = getProcoreConfig();
-  if (!cfg.token || !cfg.companyId) {
+async function procoreFetch<T>(
+  path: string,
+  query?: Record<string, string | number>,
+  auth?: ResolvedAuth,
+): Promise<T> {
+  const resolved = auth ?? (await resolveAuth());
+  if (!resolved) {
     throw new ProcoreNotConnectedError(
-      !cfg.token ? "missing PROCORE_ACCESS_TOKEN" : "missing PROCORE_COMPANY_ID",
+      "no OAuth connection and PROCORE_ACCESS_TOKEN/PROCORE_COMPANY_ID not set",
     );
   }
-  const url = new URL(cfg.baseUrl + path);
+  if (!resolved.companyId) {
+    throw new ProcoreNotConnectedError("no Procore company id available");
+  }
+  const url = new URL(resolved.baseUrl + path);
   if (query) {
     for (const [k, v] of Object.entries(query)) url.searchParams.set(k, String(v));
   }
@@ -125,8 +277,8 @@ async function procoreFetch<T>(path: string, query?: Record<string, string | num
     try {
       const res = await fetch(url.toString(), {
         headers: {
-          Authorization: `Bearer ${cfg.token}`,
-          "Procore-Company-Id": cfg.companyId,
+          Authorization: `Bearer ${resolved.token}`,
+          "Procore-Company-Id": resolved.companyId,
           Accept: "application/json",
         },
       });
@@ -205,13 +357,25 @@ const DEMO_PROJECTS: ProcoreProjectSnapshot[] = [
 
 /* ---------------------------- public API calls ---------------------------- */
 
-export async function listProcoreProjects(): Promise<ProcoreProjectSummary[]> {
+export async function listProcoreProjects(
+  callerCompanyId?: ProcoreCallerCompany,
+): Promise<ProcoreProjectSummary[]> {
   const cfg = getProcoreConfig();
   if (cfg.demoMode) {
     return DEMO_PROJECTS.map((p) => p.project);
   }
+  const auth = await resolveAuth(callerCompanyId);
+  if (!auth) {
+    throw new ProcoreNotConnectedError(
+      "no OAuth connection and PROCORE_ACCESS_TOKEN/PROCORE_COMPANY_ID not set",
+    );
+  }
   type Row = { id: number; name: string; project_number?: string | null };
-  const rows = await procoreFetch<Row[]>("/rest/v1.0/projects", { company_id: cfg.companyId });
+  const rows = await procoreFetch<Row[]>(
+    "/rest/v1.0/projects",
+    { company_id: auth.companyId },
+    auth,
+  );
   return rows.map((r) => ({
     procoreProjectId: String(r.id),
     name: r.name,
@@ -221,12 +385,20 @@ export async function listProcoreProjects(): Promise<ProcoreProjectSummary[]> {
 
 export async function getProcoreProjectSnapshot(
   procoreProjectId: string,
+  callerCompanyId?: ProcoreCallerCompany,
 ): Promise<ProcoreProjectSnapshot> {
   const cfg = getProcoreConfig();
   if (cfg.demoMode) {
     const found = DEMO_PROJECTS.find((p) => p.project.procoreProjectId === procoreProjectId);
     if (!found) throw new ProcoreApiError(404, `Unknown demo project ${procoreProjectId}`);
     return found;
+  }
+
+  const auth = await resolveAuth(callerCompanyId);
+  if (!auth) {
+    throw new ProcoreNotConnectedError(
+      "no OAuth connection and PROCORE_ACCESS_TOKEN/PROCORE_COMPANY_ID not set",
+    );
   }
 
   type ProjectRow = { id: number; name: string; project_number?: string | null };
@@ -245,9 +417,9 @@ export async function getProcoreProjectSnapshot(
   }
 
   const [proj, vendors, projectUsers] = await Promise.all([
-    procoreFetch<ProjectRow>(`/rest/v1.0/projects/${idNum}`, { company_id: cfg.companyId }),
-    procoreFetch<VendorRow[]>(`/rest/v1.0/projects/${idNum}/vendors`, { company_id: cfg.companyId }),
-    procoreFetch<UserRow[]>(`/rest/v1.0/projects/${idNum}/users`, { company_id: cfg.companyId }),
+    procoreFetch<ProjectRow>(`/rest/v1.0/projects/${idNum}`, { company_id: auth.companyId }, auth),
+    procoreFetch<VendorRow[]>(`/rest/v1.0/projects/${idNum}/vendors`, { company_id: auth.companyId }, auth),
+    procoreFetch<UserRow[]>(`/rest/v1.0/projects/${idNum}/users`, { company_id: auth.companyId }, auth),
   ]);
 
   return {
@@ -292,7 +464,7 @@ export function normalizeCompanyName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-export const _procoreInternals = { DEMO_PROJECTS, procoreFetch };
+export const _procoreInternals = { DEMO_PROJECTS, procoreFetch, resolveAuth };
 
 export function logProcore(level: "info" | "warn" | "error", msg: string, extra?: object) {
   logger[level]({ procore: true, ...(extra ?? {}) }, msg);

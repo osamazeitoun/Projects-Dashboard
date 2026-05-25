@@ -831,6 +831,16 @@ export interface AdminProjectListItem {
   procoreLastSyncError?: string | null;
 }
 
+export type ProcoreConnectionStatusSource = typeof ProcoreConnectionStatusSource[keyof typeof ProcoreConnectionStatusSource];
+
+
+export const ProcoreConnectionStatusSource = {
+  oauth: 'oauth',
+  env: 'env',
+  demo: 'demo',
+  none: 'none',
+} as const;
+
 export interface ProcoreConnectionStatus {
   connected: boolean;
   demoMode: boolean;
@@ -840,6 +850,26 @@ export interface ProcoreConnectionStatus {
   /** @nullable */
   error: string | null;
   resyncIntervalMinutes: number;
+  source: ProcoreConnectionStatusSource;
+  /** @nullable */
+  connectedByEmail: string | null;
+  /** @nullable */
+  connectedProcoreUser: string | null;
+  /** @nullable */
+  connectedAt: string | null;
+  /** @nullable */
+  lastRefreshedAt: string | null;
+  oauthConfigured: boolean;
+  oauthMissingEnv: string[];
+}
+
+export interface ProcoreOAuthStartResult {
+  authorizeUrl: string;
+  redirectUri: string;
+}
+
+export interface ProcoreDisconnectResult {
+  disconnected: boolean;
 }
 
 export interface ProcoreAvailableProject {

@@ -27,6 +27,17 @@ import {
   syncProcoreProjectById,
   syncAllProcoreProjects,
 } from "../services/procore-sync";
+import {
+  buildAuthorizeUrl,
+  checkOAuthEnv,
+  exchangeCodeForTokens,
+  fetchFirstProcoreCompanyId,
+  fetchProcoreMe,
+  getOAuthConfig,
+  saveTokens,
+  deleteTokensForCompany,
+} from "../services/procore-oauth";
+import { randomBytes } from "node:crypto";
 
 const router: IRouter = Router();
 
@@ -705,12 +716,18 @@ router.delete(
 
 /* -------------------------------- Procore --------------------------------- */
 
-router.get("/admin/procore/status", async (_req: Request, res: Response) => {
-  return res.json(getConnectionStatus());
+async function callerCompanyId(req: Request): Promise<number | undefined> {
+  const ids = await listAdminCompanyIds(req.auth_ctx!.userId);
+  return ids[0];
+}
+
+router.get("/admin/procore/status", async (req: Request, res: Response) => {
+  return res.json(await getConnectionStatus(await callerCompanyId(req)));
 });
 
-router.get("/admin/procore/projects", async (_req: Request, res: Response) => {
-  const status = getConnectionStatus();
+router.get("/admin/procore/projects", async (req: Request, res: Response) => {
+  const cid = await callerCompanyId(req);
+  const status = await getConnectionStatus(cid);
   if (!status.connected) {
     return res.status(400).json({
       error: status.error ?? "Procore is not connected",
@@ -718,7 +735,7 @@ router.get("/admin/procore/projects", async (_req: Request, res: Response) => {
     });
   }
   try {
-    const remote = await listProcoreProjects();
+    const remote = await listProcoreProjects(cid);
     const linkedRows = await db
       .select({
         projectId: projects.id,
@@ -761,7 +778,9 @@ router.post(
       return res.status(400).json({ error: "Invalid procoreProjectId" });
     }
     try {
-      const result = await syncProcoreProjectById(procoreProjectId);
+      const result = await syncProcoreProjectById(procoreProjectId, {
+        callerCompanyId: await callerCompanyId(req),
+      });
       return res.json(result);
     } catch (e) {
       if (e instanceof ProcoreNotConnectedError) {
@@ -774,9 +793,9 @@ router.post(
   },
 );
 
-router.post("/admin/procore/import-all", async (_req: Request, res: Response) => {
+router.post("/admin/procore/import-all", async (req: Request, res: Response) => {
   try {
-    const results = await syncAllProcoreProjects();
+    const results = await syncAllProcoreProjects(await callerCompanyId(req));
     return res.json({ results });
   } catch (e) {
     if (e instanceof ProcoreNotConnectedError) {
@@ -787,6 +806,110 @@ router.post("/admin/procore/import-all", async (_req: Request, res: Response) =>
     });
   }
 });
+
+/* ------------------------- Procore OAuth (per-admin) ---------------------- */
+
+const PROCORE_OAUTH_STATE_COOKIE = "procore_oauth_state";
+
+router.post("/admin/procore/oauth/start", async (req: Request, res: Response) => {
+  const envCheck = checkOAuthEnv();
+  if (!envCheck.ok) {
+    return res.status(400).json({
+      error: `Procore OAuth is not configured. Missing: ${envCheck.missing.join(", ")}`,
+      missing: envCheck.missing,
+    });
+  }
+  const nonce = randomBytes(24).toString("base64url");
+  // We pin the state to the connecting user so the callback can't be
+  // hijacked into linking the wrong account.
+  const state = `${req.auth_ctx!.userId}.${nonce}`;
+  res.cookie(PROCORE_OAUTH_STATE_COOKIE, state, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: req.secure || req.headers["x-forwarded-proto"] === "https",
+    path: "/",
+    maxAge: 10 * 60 * 1000,
+  });
+  return res.json({
+    authorizeUrl: buildAuthorizeUrl(state),
+    redirectUri: getOAuthConfig().redirectUri,
+  });
+});
+
+router.post(
+  "/admin/procore/disconnect",
+  async (req: Request, res: Response) => {
+    const ids = await listAdminCompanyIds(req.auth_ctx!.userId);
+    let removed = 0;
+    if (ids.length === 0) {
+      // No admin company context — only allow clearing the install-global row.
+      removed += await deleteTokensForCompany(null);
+    } else {
+      // Only remove tokens belonging to the admin's own companies. Other
+      // companies' connections remain untouched.
+      for (const cid of ids) removed += await deleteTokensForCompany(cid);
+    }
+    return res.json({ disconnected: removed > 0 });
+  },
+);
+
+// OAuth callback — Procore redirects the user's browser here with
+// `?code=...&state=...`. The Clerk session cookie is sent along with the
+// request so requireAuth/requireCompanyAdmin still apply (this router has
+// them mounted globally above).
+router.get(
+  "/admin/procore/oauth/callback",
+  async (req: Request, res: Response) => {
+    const successRedirect =
+      process.env.PROCORE_OAUTH_SUCCESS_REDIRECT || "/admin/procore";
+    const failRedirect = (msg: string) =>
+      `${successRedirect}?procoreError=${encodeURIComponent(msg)}`;
+
+    const code = typeof req.query.code === "string" ? req.query.code : null;
+    const state = typeof req.query.state === "string" ? req.query.state : null;
+    const procoreError =
+      typeof req.query.error === "string" ? req.query.error : null;
+
+    if (procoreError) {
+      return res.redirect(failRedirect(`Procore rejected the request: ${procoreError}`));
+    }
+    if (!code || !state) {
+      return res.redirect(failRedirect("Missing code or state from Procore"));
+    }
+    const cookieState = req.cookies?.[PROCORE_OAUTH_STATE_COOKIE];
+    res.clearCookie(PROCORE_OAUTH_STATE_COOKIE, { path: "/" });
+    if (!cookieState || cookieState !== state) {
+      return res.redirect(failRedirect("OAuth state mismatch — please retry the connect flow"));
+    }
+    const [statedUserId] = state.split(".");
+    if (Number(statedUserId) !== req.auth_ctx!.userId) {
+      return res.redirect(failRedirect("OAuth state did not match the signed-in user"));
+    }
+
+    try {
+      const tokens = await exchangeCodeForTokens(code);
+      const baseUrl = getOAuthConfig().baseUrl;
+      const [me, procoreCompanyId] = await Promise.all([
+        fetchProcoreMe(tokens.access_token, baseUrl),
+        fetchFirstProcoreCompanyId(tokens.access_token, baseUrl),
+      ]);
+      const adminCompanyIds = await listAdminCompanyIds(req.auth_ctx!.userId);
+      const localCompanyId = adminCompanyIds[0] ?? null;
+      await saveTokens({
+        companyId: localCompanyId,
+        tokens,
+        procoreUser: me,
+        procoreCompanyId,
+        connectedByUserId: req.auth_ctx!.userId,
+      });
+      return res.redirect(`${successRedirect}?procoreConnected=1`);
+    } catch (e) {
+      return res.redirect(
+        failRedirect(e instanceof Error ? e.message : "Unknown error"),
+      );
+    }
+  },
+);
 
 router.post(
   "/admin/projects/:projectId/procore-resync",
@@ -805,6 +928,7 @@ router.post(
     try {
       const result = await syncProcoreProjectById(ctx.project.procoreProjectId, {
         existingProjectId: projectId,
+        callerCompanyId: await callerCompanyId(req),
       });
       return res.json(result);
     } catch (e) {

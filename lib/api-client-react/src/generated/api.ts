@@ -52,6 +52,8 @@ import type {
   ProcoreAvailableProject,
   ProcoreBulkImportResult,
   ProcoreConnectionStatus,
+  ProcoreDisconnectResult,
+  ProcoreOAuthStartResult,
   ProcoreSyncResult,
   ProjectCompanyDetail,
   ProjectCompanyRole,
@@ -3427,6 +3429,146 @@ export function useAdminGetProcoreStatus<TData = Awaited<ReturnType<typeof admin
 
 
 
+
+export const getAdminStartProcoreOAuthUrl = () => {
+
+
+
+
+  return `/api/admin/procore/oauth/start`
+}
+
+/**
+ * @summary Begin Procore OAuth — returns the consent URL the admin should be sent to
+ */
+export const adminStartProcoreOAuth = async ( options?: RequestInit): Promise<ProcoreOAuthStartResult> => {
+
+  return customFetch<ProcoreOAuthStartResult>(getAdminStartProcoreOAuthUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAdminStartProcoreOAuthMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminStartProcoreOAuth>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminStartProcoreOAuth>>, TError,void, TContext> => {
+
+const mutationKey = ['adminStartProcoreOAuth'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminStartProcoreOAuth>>, void> = () => {
+
+
+          return  adminStartProcoreOAuth(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminStartProcoreOAuthMutationResult = NonNullable<Awaited<ReturnType<typeof adminStartProcoreOAuth>>>
+
+    export type AdminStartProcoreOAuthMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Begin Procore OAuth — returns the consent URL the admin should be sent to
+ */
+export const useAdminStartProcoreOAuth = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminStartProcoreOAuth>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminStartProcoreOAuth>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getAdminStartProcoreOAuthMutationOptions(options));
+    }
+
+export const getAdminDisconnectProcoreUrl = () => {
+
+
+
+
+  return `/api/admin/procore/disconnect`
+}
+
+/**
+ * @summary Disconnect the current Procore OAuth connection
+ */
+export const adminDisconnectProcore = async ( options?: RequestInit): Promise<ProcoreDisconnectResult> => {
+
+  return customFetch<ProcoreDisconnectResult>(getAdminDisconnectProcoreUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAdminDisconnectProcoreMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDisconnectProcore>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminDisconnectProcore>>, TError,void, TContext> => {
+
+const mutationKey = ['adminDisconnectProcore'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminDisconnectProcore>>, void> = () => {
+
+
+          return  adminDisconnectProcore(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminDisconnectProcoreMutationResult = NonNullable<Awaited<ReturnType<typeof adminDisconnectProcore>>>
+
+    export type AdminDisconnectProcoreMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Disconnect the current Procore OAuth connection
+ */
+export const useAdminDisconnectProcore = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDisconnectProcore>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminDisconnectProcore>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getAdminDisconnectProcoreMutationOptions(options));
+    }
 
 export const getAdminListProcoreProjectsUrl = () => {
 
