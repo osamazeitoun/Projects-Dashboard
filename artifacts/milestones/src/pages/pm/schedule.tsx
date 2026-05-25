@@ -6,10 +6,12 @@ import {
   useCreateMilestone,
   useDeleteMilestone,
   useSubmitScheduleBaseline,
+  useAcknowledgeBaselineDecision,
   getGetProjectMilestonesQueryKey,
   getGetPmProjectSummaryQueryKey,
   getListBaselineReviewsQueryKey,
   type CreateMilestoneInput,
+  type BaselineDecisionSummary,
   StageCode,
 } from "@workspace/api-client-react";
 import { usePmProjectId } from "@/components/pm-layout";
@@ -40,7 +42,7 @@ import { format, differenceInDays } from "date-fns";
 import { Link } from "wouter";
 import {
   Flag, AlertCircle, CheckCircle2, Clock, PlayCircle, Search,
-  Plus, Send, Lock, FilePenLine, Trash2, Loader2,
+  Plus, Send, Lock, FilePenLine, Trash2, Loader2, XCircle, Inbox,
 } from "lucide-react";
 
 const STATUSES = ["Planned", "OnTrack", "AtRisk", "Delayed", "Completed"] as const;
@@ -68,6 +70,98 @@ function statusBadge(status: string) {
     default:
       return <Badge variant="neutral" withDot>Planned</Badge>;
   }
+}
+
+function ClientDecisionBanner({
+  decision,
+  projectId,
+}: {
+  decision: BaselineDecisionSummary;
+  projectId: number;
+}) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const ack = useAcknowledgeBaselineDecision({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Decision acknowledged" });
+        qc.invalidateQueries({ queryKey: getGetPmProjectSummaryQueryKey(projectId) });
+      },
+      onError: (err) => toast({
+        variant: "destructive",
+        title: "Couldn't acknowledge",
+        description: (err as unknown as { error?: string })?.error ?? "Try again.",
+      }),
+    },
+  });
+
+  const approved = decision.status === "Approved";
+  const tone = approved
+    ? {
+        wrap: "border-emerald-300 bg-emerald-50/70",
+        head: "text-emerald-900",
+        body: "text-emerald-800",
+        Icon: CheckCircle2,
+        iconClr: "text-emerald-700",
+        title: "Client approved your baseline",
+      }
+    : {
+        wrap: "border-rose-300 bg-rose-50/70",
+        head: "text-rose-900",
+        body: "text-rose-800",
+        Icon: XCircle,
+        iconClr: "text-rose-700",
+        title: "Client rejected your baseline",
+      };
+  const isUnread = !decision.acknowledged;
+  const decider = decision.decidedByEmail ?? "the client";
+
+  return (
+    <Card className={`p-4 border ${tone.wrap} ${isUnread ? "ring-1 ring-offset-1 ring-[color:var(--c-gold)]/40 shadow-md" : ""}`}>
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 mt-0.5 relative">
+          <tone.Icon className={`w-5 h-5 ${tone.iconClr}`} />
+          {isUnread && (
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[color:var(--c-gold)] ring-2 ring-white" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`font-semibold ${tone.head}`}>{tone.title}</span>
+            {isUnread ? (
+              <Badge variant="outline" className="bg-[color:var(--c-gold)]/15 text-[color:var(--c-gold)] border-[color:var(--c-gold)]/40 inline-flex items-center gap-1">
+                <Inbox className="w-3 h-3" /> New
+              </Badge>
+            ) : null}
+            <Badge variant="outline" className={`${tone.body} border-current/30 bg-white/60`}>
+              Baseline #{decision.id}
+            </Badge>
+          </div>
+          <p className={`text-sm ${tone.body}`}>
+            {decider} {approved ? "approved" : "rejected"} the {decision.milestoneCount}-milestone
+            baseline on {format(new Date(decision.decidedAt), "MMM d, yyyy 'at' h:mm a")}.
+          </p>
+          {decision.decisionComment ? (
+            <div className={`text-sm rounded-md border bg-white/70 p-3 italic ${tone.body}`}>
+              "{decision.decisionComment}"
+            </div>
+          ) : approved ? null : (
+            <div className={`text-sm ${tone.body} opacity-80`}>No comment was left.</div>
+          )}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-shrink-0"
+          onClick={() => ack.mutate({ projectId, baselineId: decision.id })}
+          disabled={ack.isPending || !isUnread}
+        >
+          {ack.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+          {isUnread ? "Mark as seen" : "Acknowledged"}
+        </Button>
+      </div>
+    </Card>
+  );
 }
 
 function LifecycleBanner({
@@ -534,6 +628,13 @@ export default function PmSchedule() {
           </Button>
         )}
       </header>
+
+      {summary?.latestDecidedBaseline && !summary.latestDecidedBaseline.acknowledged && (
+        <ClientDecisionBanner
+          decision={summary.latestDecidedBaseline}
+          projectId={projectId}
+        />
+      )}
 
       {summary && (
         <LifecycleBanner

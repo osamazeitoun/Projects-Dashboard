@@ -1653,6 +1653,78 @@ export const useSubmitBaselineDecision = <TError = ErrorType<unknown>,
       return useMutation(getSubmitBaselineDecisionMutationOptions(options));
     }
 
+export const getAcknowledgeBaselineDecisionUrl = (projectId: number,
+    baselineId: number,) => {
+
+
+
+
+  return `/api/projects/${projectId}/schedule/baseline/${baselineId}/acknowledge`
+}
+
+/**
+ * @summary PM acknowledges the client's decision on a baseline so the inbox banner is dismissed
+ */
+export const acknowledgeBaselineDecision = async (projectId: number,
+    baselineId: number, options?: RequestInit): Promise<ScheduleBaseline> => {
+
+  return customFetch<ScheduleBaseline>(getAcknowledgeBaselineDecisionUrl(projectId,baselineId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAcknowledgeBaselineDecisionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeBaselineDecision>>, TError,{projectId: number;baselineId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acknowledgeBaselineDecision>>, TError,{projectId: number;baselineId: number}, TContext> => {
+
+const mutationKey = ['acknowledgeBaselineDecision'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acknowledgeBaselineDecision>>, {projectId: number;baselineId: number}> = (props) => {
+          const {projectId,baselineId} = props ?? {};
+
+          return  acknowledgeBaselineDecision(projectId,baselineId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcknowledgeBaselineDecisionMutationResult = NonNullable<Awaited<ReturnType<typeof acknowledgeBaselineDecision>>>
+
+    export type AcknowledgeBaselineDecisionMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary PM acknowledges the client's decision on a baseline so the inbox banner is dismissed
+ */
+export const useAcknowledgeBaselineDecision = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acknowledgeBaselineDecision>>, TError,{projectId: number;baselineId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acknowledgeBaselineDecision>>,
+        TError,
+        {projectId: number;baselineId: number},
+        TContext
+      > => {
+      return useMutation(getAcknowledgeBaselineDecisionMutationOptions(options));
+    }
+
 export const getCreateMilestoneEditRequestUrl = (milestoneId: number,) => {
 
 

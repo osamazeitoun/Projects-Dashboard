@@ -229,8 +229,37 @@ export interface ScheduleBaseline {
   decidedByEmail?: string | null;
   /** @nullable */
   decisionComment?: string | null;
+  /** @nullable */
+  pmAcknowledgedAt?: string | null;
+  /** @nullable */
+  pmAcknowledgedByUserId?: number | null;
   milestoneCount?: number;
   milestones: BaselineMilestoneSnapshot[];
+}
+
+/**
+ * Summary of the most recent decided (Approved or Rejected) baseline on a project, used to surface the client's decision to the PM in-app.
+ */
+export interface BaselineDecisionSummary {
+  id: number;
+  projectId: number;
+  status: ScheduleBaselineStatus;
+  submittedAt: string;
+  /** @nullable */
+  submittedByEmail?: string | null;
+  /** @nullable */
+  submissionNote?: string | null;
+  decidedAt: string;
+  /** @nullable */
+  decidedByUserId?: number | null;
+  /** @nullable */
+  decidedByEmail?: string | null;
+  /** @nullable */
+  decisionComment?: string | null;
+  milestoneCount: number;
+  acknowledged: boolean;
+  /** @nullable */
+  pmAcknowledgedAt?: string | null;
 }
 
 export interface BaselineReviewItem {
@@ -357,6 +386,7 @@ export interface PmProjectSummary {
   keyOutputCount: number;
   stages: StageBreakdown[];
   recentActivity: PmActivityItem[];
+  latestDecidedBaseline?: BaselineDecisionSummary | null;
 }
 
 export interface PmMilestoneCompany {

@@ -490,6 +490,32 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ScheduleBaseline" }
 
+  /projects/{projectId}/schedule/baseline/{baselineId}/acknowledge:
+    post:
+      operationId: acknowledgeBaselineDecision
+      tags: [baselines]
+      summary: PM acknowledges the client's decision on a baseline so the inbox banner is dismissed
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: baselineId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScheduleBaseline" }
+        "400":
+          description: Baseline is still pending or already acknowledged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /milestones/{milestoneId}/edit-requests:
     post:
       operationId: createMilestoneEditRequest
@@ -1288,10 +1314,31 @@ components:
         decidedByUserId: { type: ["integer", "null"] }
         decidedByEmail: { type: ["string", "null"] }
         decisionComment: { type: ["string", "null"] }
+        pmAcknowledgedAt: { type: ["string", "null"], format: date-time }
+        pmAcknowledgedByUserId: { type: ["integer", "null"] }
         milestoneCount: { type: integer }
         milestones:
           type: array
           items: { $ref: "#/components/schemas/BaselineMilestoneSnapshot" }
+
+    BaselineDecisionSummary:
+      type: object
+      description: Summary of the most recent decided (Approved or Rejected) baseline on a project, used to surface the client's decision to the PM in-app.
+      required: [id, projectId, status, submittedAt, decidedAt, milestoneCount, acknowledged]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        status: { $ref: "#/components/schemas/ScheduleBaselineStatus" }
+        submittedAt: { type: string, format: date-time }
+        submittedByEmail: { type: ["string", "null"] }
+        submissionNote: { type: ["string", "null"] }
+        decidedAt: { type: string, format: date-time }
+        decidedByUserId: { type: ["integer", "null"] }
+        decidedByEmail: { type: ["string", "null"] }
+        decisionComment: { type: ["string", "null"] }
+        milestoneCount: { type: integer }
+        acknowledged: { type: boolean }
+        pmAcknowledgedAt: { type: ["string", "null"], format: date-time }
 
     BaselineReviewItem:
       type: object
@@ -1462,6 +1509,10 @@ components:
         recentActivity:
           type: array
           items: { $ref: "#/components/schemas/PmActivityItem" }
+        latestDecidedBaseline:
+          oneOf:
+            - { $ref: "#/components/schemas/BaselineDecisionSummary" }
+            - { type: "null" }
 
     PmMilestoneCompany:
       type: object

@@ -370,7 +370,22 @@ export const GetPmProjectSummaryResponse = zod.object({
   "milestoneCode": zod.string().nullish(),
   "changeEventId": zod.number().nullish(),
   "companyName": zod.string().nullish()
-}))
+})),
+  "latestDecidedBaseline": zod.union([zod.object({
+  "id": zod.number(),
+  "projectId": zod.number(),
+  "status": zod.enum(['Pending', 'Approved', 'Rejected']),
+  "submittedAt": zod.coerce.date(),
+  "submittedByEmail": zod.string().nullish(),
+  "submissionNote": zod.string().nullish(),
+  "decidedAt": zod.coerce.date(),
+  "decidedByUserId": zod.number().nullish(),
+  "decidedByEmail": zod.string().nullish(),
+  "decisionComment": zod.string().nullish(),
+  "milestoneCount": zod.number(),
+  "acknowledged": zod.boolean(),
+  "pmAcknowledgedAt": zod.coerce.date().nullish()
+}).describe('Summary of the most recent decided (Approved or Rejected) baseline on a project, used to surface the client\'s decision to the PM in-app.'),zod.null()]).optional()
 })
 
 
@@ -673,6 +688,8 @@ export const SubmitScheduleBaselineResponse = zod.object({
   "decidedByUserId": zod.number().nullish(),
   "decidedByEmail": zod.string().nullish(),
   "decisionComment": zod.string().nullish(),
+  "pmAcknowledgedAt": zod.coerce.date().nullish(),
+  "pmAcknowledgedByUserId": zod.number().nullish(),
   "milestoneCount": zod.number().optional(),
   "milestones": zod.array(zod.object({
   "milestoneId": zod.number(),
@@ -712,6 +729,8 @@ export const GetProjectScheduleBaselineResponse = zod.union([zod.object({
   "decidedByUserId": zod.number().nullish(),
   "decidedByEmail": zod.string().nullish(),
   "decisionComment": zod.string().nullish(),
+  "pmAcknowledgedAt": zod.coerce.date().nullish(),
+  "pmAcknowledgedByUserId": zod.number().nullish(),
   "milestoneCount": zod.number().optional(),
   "milestones": zod.array(zod.object({
   "milestoneId": zod.number(),
@@ -768,6 +787,8 @@ export const GetBaselineReviewDetailResponse = zod.object({
   "decidedByUserId": zod.number().nullish(),
   "decidedByEmail": zod.string().nullish(),
   "decisionComment": zod.string().nullish(),
+  "pmAcknowledgedAt": zod.coerce.date().nullish(),
+  "pmAcknowledgedByUserId": zod.number().nullish(),
   "milestoneCount": zod.number().optional(),
   "milestones": zod.array(zod.object({
   "milestoneId": zod.number(),
@@ -812,6 +833,50 @@ export const SubmitBaselineDecisionResponse = zod.object({
   "decidedByUserId": zod.number().nullish(),
   "decidedByEmail": zod.string().nullish(),
   "decisionComment": zod.string().nullish(),
+  "pmAcknowledgedAt": zod.coerce.date().nullish(),
+  "pmAcknowledgedByUserId": zod.number().nullish(),
+  "milestoneCount": zod.number().optional(),
+  "milestones": zod.array(zod.object({
+  "milestoneId": zod.number(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageName": zod.string().optional(),
+  "ownerRole": zod.string(),
+  "baselineDate": zod.coerce.date(),
+  "currentDate": zod.coerce.date().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}))
+})
+
+
+/**
+ * @summary PM acknowledges the client's decision on a baseline so the inbox banner is dismissed
+ */
+export const AcknowledgeBaselineDecisionParams = zod.object({
+  "projectId": zod.coerce.number(),
+  "baselineId": zod.coerce.number()
+})
+
+export const AcknowledgeBaselineDecisionResponse = zod.object({
+  "id": zod.number(),
+  "projectId": zod.number(),
+  "projectName": zod.string().optional(),
+  "projectCode": zod.string().optional(),
+  "status": zod.enum(['Pending', 'Approved', 'Rejected']),
+  "submittedAt": zod.coerce.date(),
+  "submittedByUserId": zod.number().nullish(),
+  "submittedByEmail": zod.string().nullish(),
+  "submissionNote": zod.string().nullish(),
+  "decidedAt": zod.coerce.date().nullish(),
+  "decidedByUserId": zod.number().nullish(),
+  "decidedByEmail": zod.string().nullish(),
+  "decisionComment": zod.string().nullish(),
+  "pmAcknowledgedAt": zod.coerce.date().nullish(),
+  "pmAcknowledgedByUserId": zod.number().nullish(),
   "milestoneCount": zod.number().optional(),
   "milestones": zod.array(zod.object({
   "milestoneId": zod.number(),

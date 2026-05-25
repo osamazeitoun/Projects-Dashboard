@@ -29,6 +29,7 @@ import {
   DeleteMilestoneParams,
   SubmitScheduleBaselineBody,
   SubmitScheduleBaselineParams,
+  AcknowledgeBaselineDecisionParams,
   CreateMilestoneEditRequestBody,
   CreateMilestoneEditRequestParams,
 } from "@workspace/api-zod";
@@ -326,6 +327,84 @@ router.get("/projects/:projectId/pm-summary", async (req, res) => {
     .orderBy(desc(scheduleBaselines.submittedAt))
     .limit(1);
 
+  const [latestDecidedRow] = await db
+    .select({
+      id: scheduleBaselines.id,
+      projectId: scheduleBaselines.projectId,
+      status: scheduleBaselines.status,
+      submittedAt: scheduleBaselines.submittedAt,
+      submittedByUserId: scheduleBaselines.submittedByUserId,
+      submissionNote: scheduleBaselines.submissionNote,
+      decidedAt: scheduleBaselines.decidedAt,
+      decidedByUserId: scheduleBaselines.decidedByUserId,
+      decisionComment: scheduleBaselines.decisionComment,
+      pmAcknowledgedAt: scheduleBaselines.pmAcknowledgedAt,
+      snapshot: scheduleBaselines.snapshot,
+    })
+    .from(scheduleBaselines)
+    .where(
+      and(
+        eq(scheduleBaselines.projectId, projectId),
+        sql`${scheduleBaselines.status} IN ('Approved','Rejected')`,
+      ),
+    )
+    .orderBy(desc(scheduleBaselines.decidedAt))
+    .limit(1);
+
+  let latestDecidedBaseline:
+    | {
+        id: number;
+        projectId: number;
+        status: "Approved" | "Rejected";
+        submittedAt: string;
+        submittedByEmail: string | null;
+        submissionNote: string | null;
+        decidedAt: string;
+        decidedByUserId: number | null;
+        decidedByEmail: string | null;
+        decisionComment: string | null;
+        milestoneCount: number;
+        acknowledged: boolean;
+        pmAcknowledgedAt: string | null;
+      }
+    | null = null;
+
+  if (latestDecidedRow && latestDecidedRow.decidedAt) {
+    const userIds = [
+      latestDecidedRow.submittedByUserId,
+      latestDecidedRow.decidedByUserId,
+    ].filter((x): x is number => x !== null);
+    const emailById = new Map<number, string | null>();
+    if (userIds.length > 0) {
+      const userRows = await db
+        .select({ id: users.id, email: users.email })
+        .from(users)
+        .where(inArray(users.id, userIds));
+      for (const u of userRows) emailById.set(u.id, u.email);
+    }
+    const snap = latestDecidedRow.snapshot as unknown;
+    const milestoneCount = Array.isArray(snap) ? snap.length : 0;
+    latestDecidedBaseline = {
+      id: latestDecidedRow.id,
+      projectId: latestDecidedRow.projectId,
+      status: latestDecidedRow.status as "Approved" | "Rejected",
+      submittedAt: latestDecidedRow.submittedAt.toISOString(),
+      submittedByEmail: latestDecidedRow.submittedByUserId
+        ? emailById.get(latestDecidedRow.submittedByUserId) ?? null
+        : null,
+      submissionNote: latestDecidedRow.submissionNote,
+      decidedAt: latestDecidedRow.decidedAt.toISOString(),
+      decidedByUserId: latestDecidedRow.decidedByUserId,
+      decidedByEmail: latestDecidedRow.decidedByUserId
+        ? emailById.get(latestDecidedRow.decidedByUserId) ?? null
+        : null,
+      decisionComment: latestDecidedRow.decisionComment,
+      milestoneCount,
+      acknowledged: latestDecidedRow.pmAcknowledgedAt !== null,
+      pmAcknowledgedAt: isoOrNull(latestDecidedRow.pmAcknowledgedAt),
+    };
+  }
+
   return res.json({
     projectId: project.id,
     projectName: project.name,
@@ -344,6 +423,7 @@ router.get("/projects/:projectId/pm-summary", async (req, res) => {
     keyOutputCount,
     stages,
     recentActivity: activity,
+    latestDecidedBaseline,
   });
 });
 
@@ -1816,6 +1896,8 @@ async function loadBaselineById(baselineId: number) {
       decidedAt: scheduleBaselines.decidedAt,
       decidedByUserId: scheduleBaselines.decidedByUserId,
       decisionComment: scheduleBaselines.decisionComment,
+      pmAcknowledgedAt: scheduleBaselines.pmAcknowledgedAt,
+      pmAcknowledgedByUserId: scheduleBaselines.pmAcknowledgedByUserId,
       snapshot: scheduleBaselines.snapshot,
     })
     .from(scheduleBaselines)
@@ -1852,6 +1934,8 @@ async function loadBaselineById(baselineId: number) {
     decidedByUserId: b.decidedByUserId,
     decidedByEmail: b.decidedByUserId ? emailById.get(b.decidedByUserId) ?? null : null,
     decisionComment: b.decisionComment,
+    pmAcknowledgedAt: isoOrNull(b.pmAcknowledgedAt),
+    pmAcknowledgedByUserId: b.pmAcknowledgedByUserId,
     milestoneCount: ms.length,
     milestones: ms,
     decisionDeliveries,
@@ -1989,6 +2073,42 @@ router.get("/projects/:projectId/schedule/baseline", async (req, res) => {
   const detail = await loadBaselineById(bRow.id);
   return res.json(detail);
 });
+
+router.post(
+  "/projects/:projectId/schedule/baseline/:baselineId/acknowledge",
+  async (req, res) => {
+    const p = AcknowledgeBaselineDecisionParams.safeParse(req.params);
+    if (!p.success) return res.status(400).json({ error: "Invalid params" });
+    const { projectId, baselineId } = p.data;
+    if (!(await requirePmAccess(req, res, projectId))) return;
+
+    const [b] = await db
+      .select()
+      .from(scheduleBaselines)
+      .where(eq(scheduleBaselines.id, baselineId))
+      .limit(1);
+    if (!b) return res.status(404).json({ error: "Baseline not found" });
+    if (b.projectId !== projectId) {
+      return res.status(404).json({ error: "Baseline not found on this project" });
+    }
+    if (b.status !== "Approved" && b.status !== "Rejected") {
+      return res
+        .status(400)
+        .json({ error: "Only decided baselines can be acknowledged." });
+    }
+    if (b.pmAcknowledgedAt === null) {
+      await db
+        .update(scheduleBaselines)
+        .set({
+          pmAcknowledgedAt: new Date(),
+          pmAcknowledgedByUserId: req.auth_ctx!.userId,
+        })
+        .where(eq(scheduleBaselines.id, baselineId));
+    }
+    const detail = await loadBaselineById(baselineId);
+    return res.json(detail);
+  },
+);
 
 router.post("/milestones/:milestoneId/edit-requests", async (req, res) => {
   const p = CreateMilestoneEditRequestParams.safeParse(req.params);

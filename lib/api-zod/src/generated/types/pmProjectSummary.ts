@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { BaselineDecisionSummary } from './baselineDecisionSummary';
 import type { PmActivityItem } from './pmActivityItem';
 import type { ProjectScheduleStatus } from './projectScheduleStatus';
 import type { StageBreakdown } from './stageBreakdown';
@@ -29,4 +30,5 @@ export interface PmProjectSummary {
   keyOutputCount: number;
   stages: StageBreakdown[];
   recentActivity: PmActivityItem[];
+  latestDecidedBaseline?: BaselineDecisionSummary | null;
 }

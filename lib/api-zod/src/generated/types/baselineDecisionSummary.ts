@@ -5,34 +5,29 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { BaselineMilestoneSnapshot } from './baselineMilestoneSnapshot';
 import type { ScheduleBaselineStatus } from './scheduleBaselineStatus';
 
-export interface ScheduleBaseline {
+/**
+ * Summary of the most recent decided (Approved or Rejected) baseline on a project, used to surface the client's decision to the PM in-app.
+ */
+export interface BaselineDecisionSummary {
   id: number;
   projectId: number;
-  projectName?: string;
-  projectCode?: string;
   status: ScheduleBaselineStatus;
   submittedAt: Date;
-  /** @nullable */
-  submittedByUserId?: number | null;
   /** @nullable */
   submittedByEmail?: string | null;
   /** @nullable */
   submissionNote?: string | null;
-  /** @nullable */
-  decidedAt?: Date | null;
+  decidedAt: Date;
   /** @nullable */
   decidedByUserId?: number | null;
   /** @nullable */
   decidedByEmail?: string | null;
   /** @nullable */
   decisionComment?: string | null;
+  milestoneCount: number;
+  acknowledged: boolean;
   /** @nullable */
   pmAcknowledgedAt?: Date | null;
-  /** @nullable */
-  pmAcknowledgedByUserId?: number | null;
-  milestoneCount?: number;
-  milestones: BaselineMilestoneSnapshot[];
 }

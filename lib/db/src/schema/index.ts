@@ -227,6 +227,8 @@ export const scheduleBaselines = pgTable("schedule_baselines", {
   decidedByUserId: integer("decided_by_user_id"),
   decidedAt: timestamp("decided_at", { withTimezone: true }),
   decisionComment: text("decision_comment"),
+  pmAcknowledgedAt: timestamp("pm_acknowledged_at", { withTimezone: true }),
+  pmAcknowledgedByUserId: integer("pm_acknowledged_by_user_id"),
   snapshot: jsonb("snapshot").notNull(),
 });
 
