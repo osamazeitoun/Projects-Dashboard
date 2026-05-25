@@ -118,9 +118,19 @@ export default function AdminProcore() {
   const startOAuth = useAdminStartProcoreOAuth({
     mutation: {
       onSuccess: (r) => {
-        if (typeof window !== "undefined") {
-          window.location.href = r.authorizeUrl;
+        if (typeof window === "undefined") return;
+        // Procore's login page sets X-Frame-Options: DENY, so we have to
+        // break out of any iframe (e.g. the Replit canvas preview).
+        try {
+          if (window.top && window.top !== window.self) {
+            window.top.location.href = r.authorizeUrl;
+            return;
+          }
+        } catch {
+          // Cross-origin top frame — fall through to opening a new tab.
         }
+        const popup = window.open(r.authorizeUrl, "_blank", "noopener");
+        if (!popup) window.location.href = r.authorizeUrl;
       },
       onError: (e: unknown) => {
         toast({
