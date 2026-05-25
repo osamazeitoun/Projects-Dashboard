@@ -8,9 +8,11 @@
 import type { ChangeEventHistoryItem } from './changeEventHistoryItem';
 import type { MilestoneStatus } from './milestoneStatus';
 import type { PmMilestoneCompany } from './pmMilestoneCompany';
+import type { ProjectScheduleStatus } from './projectScheduleStatus';
 import type { StageCode } from './stageCode';
 
 export interface MilestoneDetail {
+  predecessorIds: number[];
   id: number;
   code: string;
   name: string;
@@ -34,4 +36,6 @@ export interface MilestoneDetail {
   contributorCompanies: PmMilestoneCompany[];
   changeEvents: ChangeEventHistoryItem[];
   outstandingCompanies: PmMilestoneCompany[];
+  scheduleStatus: ProjectScheduleStatus;
+  projectId: number;
 }

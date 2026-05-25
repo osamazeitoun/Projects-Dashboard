@@ -1,13 +1,14 @@
 import { Link, useLocation } from "wouter";
 import { ReactNode } from "react";
-import { useListClientReviews } from "@workspace/api-client-react";
+import { useListClientReviews, useListBaselineReviews } from "@workspace/api-client-react";
 import { Inbox, UserCheck } from "lucide-react";
 import PerspectiveSwitcher from "@/components/perspective-switcher";
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { data: reviews } = useListClientReviews();
-  const pendingCount = reviews?.length ?? 0;
+  const { data: baselines } = useListBaselineReviews();
+  const pendingCount = (reviews?.length ?? 0) + (baselines?.length ?? 0);
 
   const navItems = [
     {

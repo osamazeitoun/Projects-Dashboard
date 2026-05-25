@@ -238,8 +238,28 @@ export default function ClientChangeEventDetail() {
     return <div className="p-6 text-destructive">Failed to load change event.</div>;
   }
 
-  const shift = differenceInDays(new Date(data.proposedNewDate), new Date(data.oldDate));
+  const isFieldEdit = data.editKind === "FieldEdit";
+  const shift = !isFieldEdit && data.oldDate && data.proposedNewDate
+    ? differenceInDays(new Date(data.proposedNewDate), new Date(data.oldDate))
+    : 0;
   const canDecide = data.status === "SentForClientReview";
+  const proposedChanges = (data.proposedChanges ?? null) as Record<string, unknown> | null;
+  const changeLines: string[] = [];
+  if (proposedChanges) {
+    if (proposedChanges.name !== undefined) changeLines.push(`Name → "${proposedChanges.name}"`);
+    if (proposedChanges.code !== undefined) changeLines.push(`Code → "${proposedChanges.code}"`);
+    if (proposedChanges.description !== undefined) changeLines.push(`Description updated`);
+    if (proposedChanges.ownerRole !== undefined) changeLines.push(`Owner role → ${proposedChanges.ownerRole}`);
+    if (proposedChanges.criticalFlag !== undefined) changeLines.push(`Critical → ${proposedChanges.criticalFlag ? "yes" : "no"}`);
+    if (proposedChanges.isKeyOutput !== undefined) changeLines.push(`Key output → ${proposedChanges.isKeyOutput ? "yes" : "no"}`);
+    if (proposedChanges.isPaymentTrigger !== undefined) changeLines.push(`Payment trigger → ${proposedChanges.isPaymentTrigger ? "yes" : "no"}`);
+    if (proposedChanges.ownerProjectCompanyIds !== undefined) changeLines.push(`Owner companies updated`);
+    if (proposedChanges.contributorProjectCompanyIds !== undefined) changeLines.push(`Contributor companies updated`);
+    if (proposedChanges.predecessorIds !== undefined) {
+      const arr = proposedChanges.predecessorIds as number[];
+      changeLines.push(`Predecessors → ${arr.length === 0 ? "none" : `${arr.length} milestone${arr.length === 1 ? "" : "s"}`}`);
+    }
+  }
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -271,30 +291,42 @@ export default function ClientChangeEventDetail() {
       </header>
 
       <Card className="shadow-sm">
-        <CardContent className="p-5 flex items-center gap-4 flex-wrap">
-          <div className="text-sm">
+        <CardContent className="p-5 flex items-start gap-4 flex-wrap">
+          <div className="text-sm flex-1 min-w-[260px]">
             <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
-              Proposed shift
+              {isFieldEdit ? "Proposed changes" : "Proposed shift"}
             </div>
-            <div className="flex items-center gap-3">
-              <span className="line-through text-muted-foreground">
-                {format(new Date(data.oldDate), "MMM d, yyyy")}
-              </span>
-              <ArrowRight className="w-4 h-4" />
-              <span className="font-bold">
-                {format(new Date(data.proposedNewDate), "MMM d, yyyy")}
-              </span>
-              <Badge
-                variant="outline"
-                className={
-                  shift > 0
-                    ? "bg-[color-mix(in_srgb,var(--c-danger)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-danger)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-danger)_30%,var(--c-line))]"
-                    : "bg-[color-mix(in_srgb,var(--c-info)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-info)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-info)_30%,var(--c-line))]"
-                }
-              >
-                {shift > 0 ? `+${shift}` : shift} days
-              </Badge>
-            </div>
+            {isFieldEdit ? (
+              changeLines.length === 0 ? (
+                <p className="text-muted-foreground italic">No field changes recorded.</p>
+              ) : (
+                <ul className="space-y-1 list-disc pl-5">
+                  {changeLines.map((line, i) => (<li key={i}>{line}</li>))}
+                </ul>
+              )
+            ) : (
+              data.oldDate && data.proposedNewDate && (
+                <div className="flex items-center gap-3">
+                  <span className="line-through text-muted-foreground">
+                    {format(new Date(data.oldDate), "MMM d, yyyy")}
+                  </span>
+                  <ArrowRight className="w-4 h-4" />
+                  <span className="font-bold">
+                    {format(new Date(data.proposedNewDate), "MMM d, yyyy")}
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={
+                      shift > 0
+                        ? "bg-[color-mix(in_srgb,var(--c-danger)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-danger)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-danger)_30%,var(--c-line))]"
+                        : "bg-[color-mix(in_srgb,var(--c-info)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-info)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-info)_30%,var(--c-line))]"
+                    }
+                  >
+                    {shift > 0 ? `+${shift}` : shift} days
+                  </Badge>
+                </div>
+              )
+            )}
           </div>
           {data.clientComment && (
             <div className="ml-auto text-sm text-muted-foreground italic max-w-md">

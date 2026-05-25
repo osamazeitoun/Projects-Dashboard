@@ -10,6 +10,7 @@ import {
   projects,
   companies,
   notificationDeliveries,
+  scheduleBaselines,
   users,
 } from "@workspace/db";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
@@ -20,7 +21,28 @@ import {
   TransitionChangeEventParams,
   EditChangeEventBody,
   EditChangeEventParams,
+  CreateMilestoneBody,
+  CreateMilestoneParams,
+  UpdateMilestoneBody,
+  UpdateMilestoneParams,
+  DeleteMilestoneParams,
+  SubmitScheduleBaselineBody,
+  SubmitScheduleBaselineParams,
+  CreateMilestoneEditRequestBody,
+  CreateMilestoneEditRequestParams,
 } from "@workspace/api-zod";
+type MilestoneProposedChanges = {
+  name?: string;
+  code?: string;
+  description?: string | null;
+  ownerRole?: string;
+  criticalFlag?: boolean;
+  isKeyOutput?: boolean;
+  isPaymentTrigger?: boolean;
+  ownerProjectCompanyIds?: number[];
+  contributorProjectCompanyIds?: number[];
+  predecessorIds?: number[];
+};
 import { requireAuth } from "../middlewares/auth";
 import {
   getEffectiveProjectAccess,
@@ -291,11 +313,26 @@ router.get("/projects/:projectId/pm-summary", async (req, res) => {
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 10);
 
+  const [pendingBaseline] = await db
+    .select({ id: scheduleBaselines.id })
+    .from(scheduleBaselines)
+    .where(
+      and(
+        eq(scheduleBaselines.projectId, projectId),
+        eq(scheduleBaselines.status, "Pending"),
+      ),
+    )
+    .orderBy(desc(scheduleBaselines.submittedAt))
+    .limit(1);
+
   return res.json({
     projectId: project.id,
     projectName: project.name,
     projectCode: project.code,
     gcCompanyName: gc?.name ?? "General Contractor",
+    scheduleStatus: project.scheduleStatus,
+    baselinedAt: isoOrNull(project.baselinedAt),
+    pendingBaselineId: pendingBaseline?.id ?? null,
     totalMilestones: allMilestones.length,
     atRiskMilestoneCount,
     delayedMilestoneCount,
@@ -336,6 +373,13 @@ router.get("/projects/:projectId/milestones", async (req, res) => {
   const projectId = Number(req.params.projectId);
   if (!Number.isFinite(projectId)) return res.status(400).json({ error: "Invalid projectId" });
   if (!(await requirePmAccess(req, res, projectId))) return;
+
+  const [project] = await db
+    .select({ scheduleStatus: projects.scheduleStatus })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+  if (!project) return res.status(404).json({ error: "Project not found" });
 
   const ms = await db
     .select()
@@ -408,8 +452,10 @@ router.get("/projects/:projectId/milestones", async (req, res) => {
           name,
           role,
         })),
+        predecessorIds: Array.isArray(m.predecessorIds) ? (m.predecessorIds as number[]) : [],
         openChangeEventCount: ceCountMap.get(m.id) ?? 0,
         pendingResponseCount: pendingCountMap.get(m.id) ?? 0,
+        scheduleStatus: project.scheduleStatus,
       };
     }),
   );
@@ -425,6 +471,12 @@ router.get("/milestones/:milestoneId/detail", async (req, res) => {
 
   const [m] = await db.select().from(milestones).where(eq(milestones.id, milestoneId)).limit(1);
   if (!m) return res.status(404).json({ error: "Milestone not found" });
+
+  const [proj] = await db
+    .select({ scheduleStatus: projects.scheduleStatus })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
 
   const companyMap = await getMilestoneCompanies([m.id]);
   const cos = companyMap.get(m.id) ?? [];
@@ -499,6 +551,7 @@ router.get("/milestones/:milestoneId/detail", async (req, res) => {
     isKeyOutput: m.isKeyOutput,
     criticalFlag: m.criticalFlag,
     isPaymentTrigger: m.isPaymentTrigger,
+    predecessorIds: Array.isArray(m.predecessorIds) ? (m.predecessorIds as number[]) : [],
     changeReasonLatest: m.changeReasonLatest,
     owningCompanies: owning.map(({ projectCompanyId, companyId, name, role }) => ({
       projectCompanyId,
@@ -514,9 +567,11 @@ router.get("/milestones/:milestoneId/detail", async (req, res) => {
     })),
     changeEvents: events.map((e) => ({
       id: e.id,
+      editKind: e.editKind,
       initiatedAt: e.initiatedAt.toISOString(),
-      oldDate: e.oldDate.toISOString(),
-      proposedNewDate: e.proposedNewDate.toISOString(),
+      oldDate: isoOrNull(e.oldDate),
+      proposedNewDate: isoOrNull(e.proposedNewDate),
+      proposedChanges: e.proposedChanges ?? null,
       changeReason: e.changeReason,
       status: e.status,
       impacts: impacts
@@ -550,6 +605,8 @@ router.get("/milestones/:milestoneId/detail", async (req, res) => {
       name,
       role,
     })),
+    scheduleStatus: proj?.scheduleStatus ?? "Draft",
+    projectId,
   });
 });
 
@@ -658,6 +715,7 @@ router.get("/projects/:projectId/change-events", async (req, res) => {
   const events = await db
     .select({
       id: changeEvents.id,
+      editKind: changeEvents.editKind,
       milestoneId: changeEvents.milestoneId,
       milestoneCode: milestones.code,
       milestoneName: milestones.name,
@@ -700,14 +758,15 @@ router.get("/projects/:projectId/change-events", async (req, res) => {
       else rollupStatus = "FullyResponded";
       return {
         id: e.id,
+        editKind: e.editKind,
         milestoneId: e.milestoneId,
         milestoneCode: e.milestoneCode,
         milestoneName: e.milestoneName,
         stageCode: e.stageCode,
         stageName: stageNameByCode.get(e.stageCode) ?? e.stageCode,
         initiatedAt: e.initiatedAt.toISOString(),
-        oldDate: e.oldDate.toISOString(),
-        proposedNewDate: e.proposedNewDate.toISOString(),
+        oldDate: isoOrNull(e.oldDate),
+        proposedNewDate: isoOrNull(e.proposedNewDate),
         changeReason: e.changeReason,
         status: e.status,
         impactedCompanyCount: total,
@@ -929,14 +988,16 @@ router.post("/milestones/:milestoneId/change-events", async (req, res) => {
 
   return res.status(201).json({
     id: created.id,
+    editKind: created.editKind,
     milestoneId: m.id,
     milestoneCode: m.code,
     milestoneName: m.name,
     stageCode: m.stageCode,
     stageName: stageNameByCode.get(m.stageCode) ?? m.stageCode,
     initiatedAt: created.initiatedAt.toISOString(),
-    oldDate: created.oldDate.toISOString(),
-    proposedNewDate: created.proposedNewDate.toISOString(),
+    oldDate: isoOrNull(created.oldDate),
+    proposedNewDate: isoOrNull(created.proposedNewDate),
+    proposedChanges: created.proposedChanges ?? null,
     changeReason: created.changeReason,
     status: created.status,
     clientComment: created.clientComment,
@@ -1086,6 +1147,7 @@ async function loadChangeEventDetailResponse(id: number) {
   const [ev] = await db
     .select({
       id: changeEvents.id,
+      editKind: changeEvents.editKind,
       milestoneId: changeEvents.milestoneId,
       milestoneCode: milestones.code,
       milestoneName: milestones.name,
@@ -1094,6 +1156,7 @@ async function loadChangeEventDetailResponse(id: number) {
       initiatedByUserId: changeEvents.initiatedByUserId,
       oldDate: changeEvents.oldDate,
       proposedNewDate: changeEvents.proposedNewDate,
+      proposedChanges: changeEvents.proposedChanges,
       changeReason: changeEvents.changeReason,
       status: changeEvents.status,
       clientComment: changeEvents.clientComment,
@@ -1140,14 +1203,16 @@ async function loadChangeEventDetailResponse(id: number) {
 
   return {
     id: ev.id,
+    editKind: ev.editKind,
     milestoneId: ev.milestoneId,
     milestoneCode: ev.milestoneCode,
     milestoneName: ev.milestoneName,
     stageCode: ev.stageCode,
     stageName: stageNameByCode.get(ev.stageCode) ?? ev.stageCode,
     initiatedAt: ev.initiatedAt.toISOString(),
-    oldDate: ev.oldDate.toISOString(),
-    proposedNewDate: ev.proposedNewDate.toISOString(),
+    oldDate: isoOrNull(ev.oldDate),
+    proposedNewDate: isoOrNull(ev.proposedNewDate),
+    proposedChanges: ev.proposedChanges ?? null,
     changeReason: ev.changeReason,
     status: ev.status,
     clientComment: ev.clientComment,
@@ -1283,14 +1348,23 @@ router.post("/change-events/:changeEventId/transition", async (req, res) => {
     });
 
     if (nextStatus === "PMApproved") {
-      await tx
-        .update(milestones)
-        .set({
-          previousDate: ev.oldDate,
-          currentDate: ev.proposedNewDate,
-          changeReasonLatest: ev.changeReason,
-        })
-        .where(eq(milestones.id, ev.milestoneId));
+      if (ev.editKind === "FieldEdit") {
+        await applyFieldEditToMilestone(
+          tx,
+          ev.milestoneId,
+          ev.proposedChanges as MilestoneProposedChanges | null,
+          ev.changeReason,
+        );
+      } else if (ev.oldDate && ev.proposedNewDate) {
+        await tx
+          .update(milestones)
+          .set({
+            previousDate: ev.oldDate,
+            currentDate: ev.proposedNewDate,
+            changeReasonLatest: ev.changeReason,
+          })
+          .where(eq(milestones.id, ev.milestoneId));
+      }
     }
   });
 
@@ -1370,6 +1444,12 @@ router.patch("/change-events/:changeEventId", async (req, res) => {
     .limit(1);
   if (!m) return res.status(404).json({ error: "Milestone not found" });
 
+  if (ev.editKind === "FieldEdit") {
+    return res
+      .status(400)
+      .json({ error: "Use the milestone edit-request endpoint for non-date edits." });
+  }
+
   const proposedNewDate = new Date(body.proposedNewDate);
   if (Number.isNaN(proposedNewDate.getTime())) {
     return res.status(400).json({ error: "Invalid proposedNewDate" });
@@ -1378,6 +1458,12 @@ router.patch("/change-events/:changeEventId", async (req, res) => {
     return res
       .status(400)
       .json({ error: "Proposed date must differ from current date" });
+  }
+
+  if (body.impactedProjectCompanyIds.length === 0) {
+    return res
+      .status(400)
+      .json({ error: "At least one impacted company is required for a date change." });
   }
 
   const projectPcs = await db
@@ -1423,7 +1509,7 @@ router.patch("/change-events/:changeEventId", async (req, res) => {
           changeEventId,
           milestoneId: ev.milestoneId,
           projectCompanyId: pcId,
-          oldDate: ev.oldDate,
+          oldDate: ev.oldDate as Date,
           newDate: proposedNewDate,
           notifiedAt: now,
           responseStatus: "Pending" as const,
@@ -1445,6 +1531,503 @@ router.patch("/change-events/:changeEventId", async (req, res) => {
   const detail = await loadChangeEventDetailResponse(changeEventId);
   if (!detail) return res.status(404).json({ error: "Change event not found" });
   return res.json(detail);
+});
+
+// ---------------------------------------------------------------------------
+// Editable schedule (Draft) + Baseline lifecycle + FieldEdit requests
+// ---------------------------------------------------------------------------
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function applyFieldEditToMilestone(
+  tx: Tx,
+  milestoneId: number,
+  changes: MilestoneProposedChanges | null,
+  changeReason: string,
+): Promise<void> {
+  if (!changes) return;
+  const update: Record<string, unknown> = { changeReasonLatest: changeReason };
+  if (changes.name !== undefined) update.name = changes.name;
+  if (changes.description !== undefined) update.description = changes.description ?? null;
+  if (changes.code !== undefined) update.code = changes.code;
+  if (changes.ownerRole !== undefined) update.ownerRole = changes.ownerRole;
+  if (changes.criticalFlag !== undefined) update.criticalFlag = changes.criticalFlag;
+  if (changes.isKeyOutput !== undefined) update.isKeyOutput = changes.isKeyOutput;
+  if (changes.isPaymentTrigger !== undefined) update.isPaymentTrigger = changes.isPaymentTrigger;
+  if (changes.predecessorIds !== undefined) update.predecessorIds = changes.predecessorIds;
+  if (Object.keys(update).length > 1) {
+    await tx.update(milestones).set(update).where(eq(milestones.id, milestoneId));
+  }
+  if (
+    changes.ownerProjectCompanyIds !== undefined ||
+    changes.contributorProjectCompanyIds !== undefined
+  ) {
+    await tx
+      .delete(milestoneEntryCompanies)
+      .where(eq(milestoneEntryCompanies.milestoneId, milestoneId));
+    const all = [
+      ...(changes.ownerProjectCompanyIds ?? []),
+      ...(changes.contributorProjectCompanyIds ?? []),
+    ];
+    const unique = Array.from(new Set(all));
+    if (unique.length > 0) {
+      await tx.insert(milestoneEntryCompanies).values(
+        unique.map((pcId) => ({ milestoneId, projectCompanyId: pcId })),
+      );
+    }
+  }
+}
+
+async function loadMilestoneDetailById(milestoneId: number) {
+  const [m] = await db.select().from(milestones).where(eq(milestones.id, milestoneId)).limit(1);
+  if (!m) return null;
+  const companyMap = await getMilestoneCompanies([m.id]);
+  const cos = companyMap.get(m.id) ?? [];
+  const owning = cos.filter((c) => c.role === m.ownerRole);
+  const contributors = cos.filter((c) => c.role !== m.ownerRole);
+  return {
+    id: m.id,
+    code: m.code,
+    name: m.name,
+    description: m.description ?? null,
+    stageCode: m.stageCode,
+    stageName: stageNameByCode.get(m.stageCode) ?? m.stageCode,
+    stageOrder: stageOrderByCode.get(m.stageCode) ?? 0,
+    status: m.status,
+    ownerRole: m.ownerRole,
+    baselineDate: m.baselineDate.toISOString(),
+    currentDate: m.currentDate.toISOString(),
+    previousDate: isoOrNull(m.previousDate),
+    isKeyOutput: m.isKeyOutput,
+    criticalFlag: m.criticalFlag,
+    isPaymentTrigger: m.isPaymentTrigger,
+    predecessorIds: Array.isArray(m.predecessorIds) ? (m.predecessorIds as number[]) : [],
+    changeReasonLatest: m.changeReasonLatest ?? null,
+    owningCompanies: owning.map(({ projectCompanyId, companyId, name, role }) => ({
+      projectCompanyId,
+      companyId,
+      name,
+      role,
+    })),
+    contributorCompanies: contributors.map(({ projectCompanyId, companyId, name, role }) => ({
+      projectCompanyId,
+      companyId,
+      name,
+      role,
+    })),
+  };
+}
+
+async function validateProjectCompanyIds(
+  projectId: number,
+  pcIds: number[],
+): Promise<boolean> {
+  if (pcIds.length === 0) return true;
+  const rows = await db
+    .select({ id: projectCompanies.id })
+    .from(projectCompanies)
+    .where(
+      and(
+        eq(projectCompanies.projectId, projectId),
+        inArray(projectCompanies.id, pcIds),
+      ),
+    );
+  return rows.length === pcIds.length;
+}
+
+router.post("/projects/:projectId/milestones-create", async (req, res) => {
+  const p = CreateMilestoneParams.safeParse(req.params);
+  if (!p.success) return res.status(400).json({ error: "Invalid projectId" });
+  const b = CreateMilestoneBody.safeParse(req.body);
+  if (!b.success) return res.status(400).json({ error: "Invalid body: " + b.error.message });
+  const { projectId } = p.data;
+  if (!(await requirePmAccess(req, res, projectId))) return;
+
+  const [project] = await db
+    .select()
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+  if (!project) return res.status(404).json({ error: "Project not found" });
+  if (project.scheduleStatus !== "Draft") {
+    return res.status(409).json({
+      error: "Milestones can only be created while the schedule is in Draft.",
+    });
+  }
+
+  const owners = b.data.ownerProjectCompanyIds ?? [];
+  const contribs = b.data.contributorProjectCompanyIds ?? [];
+  if (!(await validateProjectCompanyIds(projectId, [...owners, ...contribs]))) {
+    return res.status(400).json({ error: "One or more companies are not on this project" });
+  }
+
+  const predecessorIds = b.data.predecessorIds ?? [];
+  if (predecessorIds.length > 0) {
+    const rows = await db
+      .select({ id: milestones.id })
+      .from(milestones)
+      .where(and(eq(milestones.projectId, projectId), inArray(milestones.id, predecessorIds)));
+    if (rows.length !== predecessorIds.length) {
+      return res.status(400).json({ error: "One or more predecessors are not on this project" });
+    }
+  }
+
+  const baselineDate = new Date(b.data.baselineDate);
+  if (Number.isNaN(baselineDate.getTime())) {
+    return res.status(400).json({ error: "Invalid baselineDate" });
+  }
+
+  const created = await db.transaction(async (tx) => {
+    const [m] = await tx
+      .insert(milestones)
+      .values({
+        projectId,
+        stageCode: b.data.stageCode,
+        code: b.data.code,
+        name: b.data.name,
+        description: b.data.description ?? null,
+        ownerRole: b.data.ownerRole,
+        baselineDate,
+        currentDate: baselineDate,
+        status: "Planned",
+        criticalFlag: b.data.criticalFlag ?? false,
+        isKeyOutput: b.data.isKeyOutput ?? false,
+        isPaymentTrigger: b.data.isPaymentTrigger ?? false,
+        predecessorIds,
+      })
+      .returning();
+    const all = Array.from(new Set([...owners, ...contribs]));
+    if (all.length > 0) {
+      await tx.insert(milestoneEntryCompanies).values(
+        all.map((pcId) => ({ milestoneId: m.id, projectCompanyId: pcId })),
+      );
+    }
+    return m;
+  });
+
+  const detail = await loadMilestoneDetailById(created.id);
+  return res.status(201).json(detail);
+});
+
+router.patch("/milestones/:milestoneId", async (req, res) => {
+  const p = UpdateMilestoneParams.safeParse(req.params);
+  if (!p.success) return res.status(400).json({ error: "Invalid milestoneId" });
+  const b = UpdateMilestoneBody.safeParse(req.body);
+  if (!b.success) return res.status(400).json({ error: "Invalid body: " + b.error.message });
+  const { milestoneId } = p.data;
+
+  const projectId = await getProjectIdForMilestone(milestoneId);
+  if (!projectId) return res.status(404).json({ error: "Milestone not found" });
+  if (!(await requirePmAccess(req, res, projectId))) return;
+
+  const [project] = await db
+    .select({ scheduleStatus: projects.scheduleStatus })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+  if (project?.scheduleStatus !== "Draft") {
+    return res.status(409).json({
+      error: "Direct milestone edits are only allowed while the schedule is in Draft. Open an edit request instead.",
+    });
+  }
+
+  const owners = b.data.ownerProjectCompanyIds;
+  const contribs = b.data.contributorProjectCompanyIds;
+  if (owners !== undefined || contribs !== undefined) {
+    const all = [...(owners ?? []), ...(contribs ?? [])];
+    if (!(await validateProjectCompanyIds(projectId, all))) {
+      return res.status(400).json({ error: "One or more companies are not on this project" });
+    }
+  }
+
+  await db.transaction(async (tx) => {
+    const update: Record<string, unknown> = {};
+    if (b.data.stageCode !== undefined) update.stageCode = b.data.stageCode;
+    if (b.data.code !== undefined) update.code = b.data.code;
+    if (b.data.name !== undefined) update.name = b.data.name;
+    if (b.data.description !== undefined) update.description = b.data.description ?? null;
+    if (b.data.ownerRole !== undefined) update.ownerRole = b.data.ownerRole;
+    if (b.data.baselineDate !== undefined) {
+      const d = new Date(b.data.baselineDate);
+      if (Number.isNaN(d.getTime())) throw new Error("Invalid baselineDate");
+      update.baselineDate = d;
+      update.currentDate = d;
+    }
+    if (b.data.criticalFlag !== undefined) update.criticalFlag = b.data.criticalFlag;
+    if (b.data.isKeyOutput !== undefined) update.isKeyOutput = b.data.isKeyOutput;
+    if (b.data.isPaymentTrigger !== undefined) update.isPaymentTrigger = b.data.isPaymentTrigger;
+    if (b.data.predecessorIds !== undefined) update.predecessorIds = b.data.predecessorIds;
+    if (Object.keys(update).length > 0) {
+      await tx.update(milestones).set(update).where(eq(milestones.id, milestoneId));
+    }
+    if (owners !== undefined || contribs !== undefined) {
+      await tx
+        .delete(milestoneEntryCompanies)
+        .where(eq(milestoneEntryCompanies.milestoneId, milestoneId));
+      const all = Array.from(new Set([...(owners ?? []), ...(contribs ?? [])]));
+      if (all.length > 0) {
+        await tx.insert(milestoneEntryCompanies).values(
+          all.map((pcId) => ({ milestoneId, projectCompanyId: pcId })),
+        );
+      }
+    }
+  });
+
+  const detail = await loadMilestoneDetailById(milestoneId);
+  return res.json(detail);
+});
+
+router.delete("/milestones/:milestoneId", async (req, res) => {
+  const p = DeleteMilestoneParams.safeParse(req.params);
+  if (!p.success) return res.status(400).json({ error: "Invalid milestoneId" });
+  const { milestoneId } = p.data;
+
+  const projectId = await getProjectIdForMilestone(milestoneId);
+  if (!projectId) return res.status(404).json({ error: "Milestone not found" });
+  if (!(await requirePmAccess(req, res, projectId))) return;
+
+  const [project] = await db
+    .select({ scheduleStatus: projects.scheduleStatus })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+  if (project?.scheduleStatus !== "Draft") {
+    return res
+      .status(409)
+      .json({ error: "Milestones can only be deleted while the schedule is in Draft." });
+  }
+
+  await db.delete(milestones).where(eq(milestones.id, milestoneId));
+  return res.status(204).send();
+});
+
+async function loadBaselineById(baselineId: number) {
+  const [b] = await db
+    .select({
+      id: scheduleBaselines.id,
+      projectId: scheduleBaselines.projectId,
+      projectName: projects.name,
+      projectCode: projects.code,
+      status: scheduleBaselines.status,
+      submittedAt: scheduleBaselines.submittedAt,
+      submittedByUserId: scheduleBaselines.submittedByUserId,
+      submissionNote: scheduleBaselines.submissionNote,
+      decidedAt: scheduleBaselines.decidedAt,
+      decidedByUserId: scheduleBaselines.decidedByUserId,
+      decisionComment: scheduleBaselines.decisionComment,
+      snapshot: scheduleBaselines.snapshot,
+    })
+    .from(scheduleBaselines)
+    .innerJoin(projects, eq(projects.id, scheduleBaselines.projectId))
+    .where(eq(scheduleBaselines.id, baselineId))
+    .limit(1);
+  if (!b) return null;
+
+  const userIds = [b.submittedByUserId, b.decidedByUserId].filter(
+    (x): x is number => x !== null,
+  );
+  let emailById = new Map<number, string | null>();
+  if (userIds.length > 0) {
+    const userRows = await db
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(inArray(users.id, userIds));
+    emailById = new Map(userRows.map((u) => [u.id, u.email]));
+  }
+
+  const ms = (b.snapshot as Array<Record<string, unknown>>) ?? [];
+  return {
+    id: b.id,
+    projectId: b.projectId,
+    projectName: b.projectName,
+    projectCode: b.projectCode,
+    status: b.status,
+    submittedAt: b.submittedAt.toISOString(),
+    submittedByUserId: b.submittedByUserId,
+    submittedByEmail: b.submittedByUserId ? emailById.get(b.submittedByUserId) ?? null : null,
+    submissionNote: b.submissionNote,
+    decidedAt: isoOrNull(b.decidedAt),
+    decidedByUserId: b.decidedByUserId,
+    decidedByEmail: b.decidedByUserId ? emailById.get(b.decidedByUserId) ?? null : null,
+    decisionComment: b.decisionComment,
+    milestoneCount: ms.length,
+    milestones: ms,
+  };
+}
+
+router.post("/projects/:projectId/schedule/submit-baseline", async (req, res) => {
+  const p = SubmitScheduleBaselineParams.safeParse(req.params);
+  if (!p.success) return res.status(400).json({ error: "Invalid projectId" });
+  const b = SubmitScheduleBaselineBody.safeParse(req.body ?? {});
+  if (!b.success) return res.status(400).json({ error: "Invalid body: " + b.error.message });
+  const { projectId } = p.data;
+  if (!(await requirePmAccess(req, res, projectId))) return;
+
+  const [project] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
+  if (!project) return res.status(404).json({ error: "Project not found" });
+  if (project.scheduleStatus !== "Draft") {
+    return res
+      .status(409)
+      .json({ error: "Only a Draft schedule can be submitted for baseline." });
+  }
+
+  const ms = await db
+    .select()
+    .from(milestones)
+    .where(eq(milestones.projectId, projectId))
+    .orderBy(asc(milestones.currentDate));
+  if (ms.length === 0) {
+    return res
+      .status(400)
+      .json({ error: "Add at least one milestone before submitting for baseline." });
+  }
+
+  const snapshot = ms.map((m) => ({
+    milestoneId: m.id,
+    code: m.code,
+    name: m.name,
+    stageCode: m.stageCode,
+    stageName: stageNameByCode.get(m.stageCode) ?? m.stageCode,
+    ownerRole: m.ownerRole,
+    baselineDate: m.baselineDate.toISOString(),
+    currentDate: m.currentDate.toISOString(),
+    isKeyOutput: m.isKeyOutput,
+    criticalFlag: m.criticalFlag,
+    isPaymentTrigger: m.isPaymentTrigger,
+    predecessorIds: Array.isArray(m.predecessorIds) ? (m.predecessorIds as number[]) : [],
+  }));
+
+  const created = await db.transaction(async (tx) => {
+    const [bRow] = await tx
+      .insert(scheduleBaselines)
+      .values({
+        projectId,
+        submittedByUserId: req.auth_ctx!.userId,
+        submissionNote: b.data.note ?? null,
+        snapshot,
+        status: "Pending",
+      })
+      .returning();
+    await tx
+      .update(projects)
+      .set({ scheduleStatus: "PendingBaseline" })
+      .where(eq(projects.id, projectId));
+    return bRow;
+  });
+
+  const detail = await loadBaselineById(created.id);
+  return res.status(201).json(detail);
+});
+
+router.get("/projects/:projectId/schedule/baseline", async (req, res) => {
+  const projectId = Number(req.params.projectId);
+  if (!Number.isFinite(projectId)) return res.status(400).json({ error: "Invalid projectId" });
+  if (!(await requirePmAccess(req, res, projectId))) return;
+
+  const [bRow] = await db
+    .select({ id: scheduleBaselines.id })
+    .from(scheduleBaselines)
+    .where(eq(scheduleBaselines.projectId, projectId))
+    .orderBy(desc(scheduleBaselines.submittedAt))
+    .limit(1);
+  if (!bRow) return res.json(null);
+  const detail = await loadBaselineById(bRow.id);
+  return res.json(detail);
+});
+
+router.post("/milestones/:milestoneId/edit-requests", async (req, res) => {
+  const p = CreateMilestoneEditRequestParams.safeParse(req.params);
+  if (!p.success) return res.status(400).json({ error: "Invalid milestoneId" });
+  const b = CreateMilestoneEditRequestBody.safeParse(req.body);
+  if (!b.success) return res.status(400).json({ error: "Invalid body: " + b.error.message });
+  const { milestoneId } = p.data;
+
+  const projectId = await getProjectIdForMilestone(milestoneId);
+  if (!projectId) return res.status(404).json({ error: "Milestone not found" });
+  if (!(await requirePmAccess(req, res, projectId))) return;
+
+  const [project] = await db
+    .select({ scheduleStatus: projects.scheduleStatus })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+  if (project?.scheduleStatus !== "Baselined") {
+    return res.status(409).json({
+      error: "Edit requests can only be opened after the schedule has been baselined.",
+    });
+  }
+
+  const [m] = await db.select().from(milestones).where(eq(milestones.id, milestoneId)).limit(1);
+  if (!m) return res.status(404).json({ error: "Milestone not found" });
+
+  const changes = b.data.proposedChanges;
+  const hasAny =
+    changes.name !== undefined ||
+    changes.description !== undefined ||
+    changes.code !== undefined ||
+    changes.ownerRole !== undefined ||
+    changes.criticalFlag !== undefined ||
+    changes.isKeyOutput !== undefined ||
+    changes.isPaymentTrigger !== undefined ||
+    changes.ownerProjectCompanyIds !== undefined ||
+    changes.contributorProjectCompanyIds !== undefined ||
+    changes.predecessorIds !== undefined;
+  if (!hasAny) {
+    return res.status(400).json({ error: "proposedChanges must contain at least one field." });
+  }
+
+  const impactPcIds = b.data.impactedProjectCompanyIds ?? [];
+  if (impactPcIds.length > 0 && !(await validateProjectCompanyIds(projectId, impactPcIds))) {
+    return res.status(400).json({ error: "One or more companies are not on this project" });
+  }
+
+  const proposedOwners = changes.ownerProjectCompanyIds;
+  const proposedContribs = changes.contributorProjectCompanyIds;
+  if (proposedOwners !== undefined || proposedContribs !== undefined) {
+    const all = [...(proposedOwners ?? []), ...(proposedContribs ?? [])];
+    if (!(await validateProjectCompanyIds(projectId, all))) {
+      return res.status(400).json({
+        error: "One or more proposed companies are not on this project",
+      });
+    }
+  }
+
+  const userId = req.auth_ctx!.userId;
+  const now = new Date();
+
+  const created = await db.transaction(async (tx) => {
+    const [ev] = await tx
+      .insert(changeEvents)
+      .values({
+        milestoneId,
+        initiatedByUserId: userId,
+        editKind: "FieldEdit",
+        oldDate: null,
+        proposedNewDate: null,
+        proposedChanges: changes,
+        changeReason: b.data.changeReason,
+        status: impactPcIds.length > 0 ? "Draft" : "SentForClientReview",
+      })
+      .returning();
+
+    if (impactPcIds.length > 0) {
+      await tx.insert(milestoneImpacts).values(
+        impactPcIds.map((pcId) => ({
+          changeEventId: ev.id,
+          milestoneId,
+          projectCompanyId: pcId,
+          oldDate: m.currentDate,
+          newDate: m.currentDate,
+          notifiedAt: now,
+          responseStatus: "Pending" as const,
+        })),
+      );
+    }
+    return ev;
+  });
+
+  const detail = await loadChangeEventDetailResponse(created.id);
+  return res.status(201).json(detail);
 });
 
 export default router;

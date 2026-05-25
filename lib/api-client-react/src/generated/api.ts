@@ -28,11 +28,15 @@ import type {
   AdminProjectListItem,
   AdminRenameProjectCompanyRoleInput,
   AdminUpsertAssignmentInput,
+  BaselineDecisionInput,
+  BaselineReviewItem,
   ChangeEventDetail,
   ChangeEventSummary,
   ClientDecisionInput,
   ClientReviewItem,
   CreateChangeEventInput,
+  CreateMilestoneEditRequestInput,
+  CreateMilestoneInput,
   EditChangeEventInput,
   ErrorResponse,
   HealthStatus,
@@ -49,9 +53,12 @@ import type {
   ProjectSummary,
   ResendNotificationsInput,
   ResendNotificationsResult,
+  ScheduleBaseline,
   SetActiveWorkspaceInput,
+  SubmitBaselineInput,
   TransitionChangeEventInput,
-  UpcomingMilestone
+  UpcomingMilestone,
+  UpdateMilestoneInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1056,6 +1063,667 @@ export function useGetMilestoneDetail<TData = Awaited<ReturnType<typeof getMiles
 
 
 
+
+export const getCreateMilestoneUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/projects/${projectId}/milestones-create`
+}
+
+/**
+ * @summary PM creates a new milestone (allowed only while schedule is Draft)
+ */
+export const createMilestone = async (projectId: number,
+    createMilestoneInput: CreateMilestoneInput, options?: RequestInit): Promise<MilestoneDetail> => {
+
+  return customFetch<MilestoneDetail>(getCreateMilestoneUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createMilestoneInput,)
+  }
+);}
+
+
+
+
+export const getCreateMilestoneMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMilestone>>, TError,{projectId: number;data: BodyType<CreateMilestoneInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMilestone>>, TError,{projectId: number;data: BodyType<CreateMilestoneInput>}, TContext> => {
+
+const mutationKey = ['createMilestone'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMilestone>>, {projectId: number;data: BodyType<CreateMilestoneInput>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  createMilestone(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMilestoneMutationResult = NonNullable<Awaited<ReturnType<typeof createMilestone>>>
+    export type CreateMilestoneMutationBody = BodyType<CreateMilestoneInput>
+    export type CreateMilestoneMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary PM creates a new milestone (allowed only while schedule is Draft)
+ */
+export const useCreateMilestone = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMilestone>>, TError,{projectId: number;data: BodyType<CreateMilestoneInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMilestone>>,
+        TError,
+        {projectId: number;data: BodyType<CreateMilestoneInput>},
+        TContext
+      > => {
+      return useMutation(getCreateMilestoneMutationOptions(options));
+    }
+
+export const getUpdateMilestoneUrl = (milestoneId: number,) => {
+
+
+
+
+  return `/api/milestones/${milestoneId}`
+}
+
+/**
+ * @summary PM edits a milestone directly (allowed only while schedule is Draft)
+ */
+export const updateMilestone = async (milestoneId: number,
+    updateMilestoneInput: UpdateMilestoneInput, options?: RequestInit): Promise<MilestoneDetail> => {
+
+  return customFetch<MilestoneDetail>(getUpdateMilestoneUrl(milestoneId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateMilestoneInput,)
+  }
+);}
+
+
+
+
+export const getUpdateMilestoneMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMilestone>>, TError,{milestoneId: number;data: BodyType<UpdateMilestoneInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMilestone>>, TError,{milestoneId: number;data: BodyType<UpdateMilestoneInput>}, TContext> => {
+
+const mutationKey = ['updateMilestone'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMilestone>>, {milestoneId: number;data: BodyType<UpdateMilestoneInput>}> = (props) => {
+          const {milestoneId,data} = props ?? {};
+
+          return  updateMilestone(milestoneId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMilestoneMutationResult = NonNullable<Awaited<ReturnType<typeof updateMilestone>>>
+    export type UpdateMilestoneMutationBody = BodyType<UpdateMilestoneInput>
+    export type UpdateMilestoneMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary PM edits a milestone directly (allowed only while schedule is Draft)
+ */
+export const useUpdateMilestone = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMilestone>>, TError,{milestoneId: number;data: BodyType<UpdateMilestoneInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMilestone>>,
+        TError,
+        {milestoneId: number;data: BodyType<UpdateMilestoneInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateMilestoneMutationOptions(options));
+    }
+
+export const getDeleteMilestoneUrl = (milestoneId: number,) => {
+
+
+
+
+  return `/api/milestones/${milestoneId}`
+}
+
+/**
+ * @summary PM deletes a milestone (allowed only while schedule is Draft)
+ */
+export const deleteMilestone = async (milestoneId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteMilestoneUrl(milestoneId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteMilestoneMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMilestone>>, TError,{milestoneId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMilestone>>, TError,{milestoneId: number}, TContext> => {
+
+const mutationKey = ['deleteMilestone'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMilestone>>, {milestoneId: number}> = (props) => {
+          const {milestoneId} = props ?? {};
+
+          return  deleteMilestone(milestoneId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMilestoneMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMilestone>>>
+
+    export type DeleteMilestoneMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary PM deletes a milestone (allowed only while schedule is Draft)
+ */
+export const useDeleteMilestone = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMilestone>>, TError,{milestoneId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMilestone>>,
+        TError,
+        {milestoneId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteMilestoneMutationOptions(options));
+    }
+
+export const getSubmitScheduleBaselineUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/projects/${projectId}/schedule/submit-baseline`
+}
+
+/**
+ * @summary PM submits the current schedule for client baseline approval
+ */
+export const submitScheduleBaseline = async (projectId: number,
+    submitBaselineInput?: SubmitBaselineInput, options?: RequestInit): Promise<ScheduleBaseline> => {
+
+  return customFetch<ScheduleBaseline>(getSubmitScheduleBaselineUrl(projectId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      submitBaselineInput,)
+  }
+);}
+
+
+
+
+export const getSubmitScheduleBaselineMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitScheduleBaseline>>, TError,{projectId: number;data?: BodyType<SubmitBaselineInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitScheduleBaseline>>, TError,{projectId: number;data?: BodyType<SubmitBaselineInput>}, TContext> => {
+
+const mutationKey = ['submitScheduleBaseline'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitScheduleBaseline>>, {projectId: number;data?: BodyType<SubmitBaselineInput>}> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  submitScheduleBaseline(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitScheduleBaselineMutationResult = NonNullable<Awaited<ReturnType<typeof submitScheduleBaseline>>>
+    export type SubmitScheduleBaselineMutationBody = BodyType<SubmitBaselineInput> | undefined
+    export type SubmitScheduleBaselineMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary PM submits the current schedule for client baseline approval
+ */
+export const useSubmitScheduleBaseline = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitScheduleBaseline>>, TError,{projectId: number;data?: BodyType<SubmitBaselineInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitScheduleBaseline>>,
+        TError,
+        {projectId: number;data?: BodyType<SubmitBaselineInput>},
+        TContext
+      > => {
+      return useMutation(getSubmitScheduleBaselineMutationOptions(options));
+    }
+
+export const getGetProjectScheduleBaselineUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/projects/${projectId}/schedule/baseline`
+}
+
+/**
+ * @summary Latest baseline (any status) for the project, if any
+ */
+export const getProjectScheduleBaseline = async (projectId: number, options?: RequestInit): Promise<ScheduleBaseline | null> => {
+
+  return customFetch<ScheduleBaseline | null>(getGetProjectScheduleBaselineUrl(projectId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetProjectScheduleBaselineQueryKey = (projectId: number,) => {
+    return [
+    `/api/projects/${projectId}/schedule/baseline`
+    ] as const;
+    }
+
+
+export const getGetProjectScheduleBaselineQueryOptions = <TData = Awaited<ReturnType<typeof getProjectScheduleBaseline>>, TError = ErrorType<unknown>>(projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectScheduleBaseline>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetProjectScheduleBaselineQueryKey(projectId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getProjectScheduleBaseline>>> = ({ signal }) => getProjectScheduleBaseline(projectId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(projectId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getProjectScheduleBaseline>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetProjectScheduleBaselineQueryResult = NonNullable<Awaited<ReturnType<typeof getProjectScheduleBaseline>>>
+export type GetProjectScheduleBaselineQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Latest baseline (any status) for the project, if any
+ */
+
+export function useGetProjectScheduleBaseline<TData = Awaited<ReturnType<typeof getProjectScheduleBaseline>>, TError = ErrorType<unknown>>(
+ projectId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getProjectScheduleBaseline>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetProjectScheduleBaselineQueryOptions(projectId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListBaselineReviewsUrl = () => {
+
+
+
+
+  return `/api/me/baseline-reviews`
+}
+
+/**
+ * @summary Pending baseline submissions awaiting the client's decision
+ */
+export const listBaselineReviews = async ( options?: RequestInit): Promise<BaselineReviewItem[]> => {
+
+  return customFetch<BaselineReviewItem[]>(getListBaselineReviewsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBaselineReviewsQueryKey = () => {
+    return [
+    `/api/me/baseline-reviews`
+    ] as const;
+    }
+
+
+export const getListBaselineReviewsQueryOptions = <TData = Awaited<ReturnType<typeof listBaselineReviews>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBaselineReviews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBaselineReviewsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBaselineReviews>>> = ({ signal }) => listBaselineReviews({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBaselineReviews>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBaselineReviewsQueryResult = NonNullable<Awaited<ReturnType<typeof listBaselineReviews>>>
+export type ListBaselineReviewsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Pending baseline submissions awaiting the client's decision
+ */
+
+export function useListBaselineReviews<TData = Awaited<ReturnType<typeof listBaselineReviews>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBaselineReviews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBaselineReviewsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetBaselineReviewDetailUrl = (baselineId: number,) => {
+
+
+
+
+  return `/api/me/baseline-reviews/${baselineId}`
+}
+
+/**
+ * @summary Detail of a pending baseline for client review
+ */
+export const getBaselineReviewDetail = async (baselineId: number, options?: RequestInit): Promise<ScheduleBaseline> => {
+
+  return customFetch<ScheduleBaseline>(getGetBaselineReviewDetailUrl(baselineId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBaselineReviewDetailQueryKey = (baselineId: number,) => {
+    return [
+    `/api/me/baseline-reviews/${baselineId}`
+    ] as const;
+    }
+
+
+export const getGetBaselineReviewDetailQueryOptions = <TData = Awaited<ReturnType<typeof getBaselineReviewDetail>>, TError = ErrorType<unknown>>(baselineId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBaselineReviewDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBaselineReviewDetailQueryKey(baselineId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBaselineReviewDetail>>> = ({ signal }) => getBaselineReviewDetail(baselineId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(baselineId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBaselineReviewDetail>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBaselineReviewDetailQueryResult = NonNullable<Awaited<ReturnType<typeof getBaselineReviewDetail>>>
+export type GetBaselineReviewDetailQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Detail of a pending baseline for client review
+ */
+
+export function useGetBaselineReviewDetail<TData = Awaited<ReturnType<typeof getBaselineReviewDetail>>, TError = ErrorType<unknown>>(
+ baselineId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBaselineReviewDetail>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBaselineReviewDetailQueryOptions(baselineId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSubmitBaselineDecisionUrl = (baselineId: number,) => {
+
+
+
+
+  return `/api/me/baseline-reviews/${baselineId}/decision`
+}
+
+/**
+ * @summary Client approves or rejects a baseline submission
+ */
+export const submitBaselineDecision = async (baselineId: number,
+    baselineDecisionInput: BaselineDecisionInput, options?: RequestInit): Promise<ScheduleBaseline> => {
+
+  return customFetch<ScheduleBaseline>(getSubmitBaselineDecisionUrl(baselineId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      baselineDecisionInput,)
+  }
+);}
+
+
+
+
+export const getSubmitBaselineDecisionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitBaselineDecision>>, TError,{baselineId: number;data: BodyType<BaselineDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitBaselineDecision>>, TError,{baselineId: number;data: BodyType<BaselineDecisionInput>}, TContext> => {
+
+const mutationKey = ['submitBaselineDecision'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitBaselineDecision>>, {baselineId: number;data: BodyType<BaselineDecisionInput>}> = (props) => {
+          const {baselineId,data} = props ?? {};
+
+          return  submitBaselineDecision(baselineId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitBaselineDecisionMutationResult = NonNullable<Awaited<ReturnType<typeof submitBaselineDecision>>>
+    export type SubmitBaselineDecisionMutationBody = BodyType<BaselineDecisionInput>
+    export type SubmitBaselineDecisionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Client approves or rejects a baseline submission
+ */
+export const useSubmitBaselineDecision = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitBaselineDecision>>, TError,{baselineId: number;data: BodyType<BaselineDecisionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitBaselineDecision>>,
+        TError,
+        {baselineId: number;data: BodyType<BaselineDecisionInput>},
+        TContext
+      > => {
+      return useMutation(getSubmitBaselineDecisionMutationOptions(options));
+    }
+
+export const getCreateMilestoneEditRequestUrl = (milestoneId: number,) => {
+
+
+
+
+  return `/api/milestones/${milestoneId}/edit-requests`
+}
+
+/**
+ * @summary PM opens a non-date edit request on a baselined milestone
+ */
+export const createMilestoneEditRequest = async (milestoneId: number,
+    createMilestoneEditRequestInput: CreateMilestoneEditRequestInput, options?: RequestInit): Promise<ChangeEventDetail> => {
+
+  return customFetch<ChangeEventDetail>(getCreateMilestoneEditRequestUrl(milestoneId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createMilestoneEditRequestInput,)
+  }
+);}
+
+
+
+
+export const getCreateMilestoneEditRequestMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMilestoneEditRequest>>, TError,{milestoneId: number;data: BodyType<CreateMilestoneEditRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMilestoneEditRequest>>, TError,{milestoneId: number;data: BodyType<CreateMilestoneEditRequestInput>}, TContext> => {
+
+const mutationKey = ['createMilestoneEditRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMilestoneEditRequest>>, {milestoneId: number;data: BodyType<CreateMilestoneEditRequestInput>}> = (props) => {
+          const {milestoneId,data} = props ?? {};
+
+          return  createMilestoneEditRequest(milestoneId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMilestoneEditRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createMilestoneEditRequest>>>
+    export type CreateMilestoneEditRequestMutationBody = BodyType<CreateMilestoneEditRequestInput>
+    export type CreateMilestoneEditRequestMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary PM opens a non-date edit request on a baselined milestone
+ */
+export const useCreateMilestoneEditRequest = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMilestoneEditRequest>>, TError,{milestoneId: number;data: BodyType<CreateMilestoneEditRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMilestoneEditRequest>>,
+        TError,
+        {milestoneId: number;data: BodyType<CreateMilestoneEditRequestInput>},
+        TContext
+      > => {
+      return useMutation(getCreateMilestoneEditRequestMutationOptions(options));
+    }
 
 export const getGetProjectCompaniesUrl = (projectId: number,) => {
 

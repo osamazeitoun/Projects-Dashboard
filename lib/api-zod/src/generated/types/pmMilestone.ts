@@ -7,6 +7,7 @@
  */
 import type { MilestoneStatus } from './milestoneStatus';
 import type { PmMilestoneCompany } from './pmMilestoneCompany';
+import type { ProjectScheduleStatus } from './projectScheduleStatus';
 import type { StageCode } from './stageCode';
 
 export interface PmMilestone {
@@ -27,6 +28,8 @@ export interface PmMilestone {
   isPaymentTrigger: boolean;
   owningCompanies: PmMilestoneCompany[];
   contributorCompanies: PmMilestoneCompany[];
+  predecessorIds?: number[];
   openChangeEventCount: number;
   pendingResponseCount: number;
+  scheduleStatus: ProjectScheduleStatus;
 }

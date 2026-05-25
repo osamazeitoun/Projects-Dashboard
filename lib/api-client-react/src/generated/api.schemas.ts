@@ -85,6 +85,168 @@ export const ChangeEventStatus = {
   Cancelled: 'Cancelled',
 } as const;
 
+export type ChangeEventEditKind = typeof ChangeEventEditKind[keyof typeof ChangeEventEditKind];
+
+
+export const ChangeEventEditKind = {
+  DateChange: 'DateChange',
+  FieldEdit: 'FieldEdit',
+} as const;
+
+export type ProjectScheduleStatus = typeof ProjectScheduleStatus[keyof typeof ProjectScheduleStatus];
+
+
+export const ProjectScheduleStatus = {
+  Draft: 'Draft',
+  PendingBaseline: 'PendingBaseline',
+  Baselined: 'Baselined',
+} as const;
+
+export type ScheduleBaselineStatus = typeof ScheduleBaselineStatus[keyof typeof ScheduleBaselineStatus];
+
+
+export const ScheduleBaselineStatus = {
+  Pending: 'Pending',
+  Approved: 'Approved',
+  Rejected: 'Rejected',
+} as const;
+
+/**
+ * Diff of milestone field edits proposed in a change event (FieldEdit kind).
+ */
+export interface MilestoneProposedChanges {
+  name?: string;
+  /** @nullable */
+  description?: string | null;
+  code?: string;
+  ownerRole?: string;
+  criticalFlag?: boolean;
+  isKeyOutput?: boolean;
+  isPaymentTrigger?: boolean;
+  ownerProjectCompanyIds?: number[];
+  contributorProjectCompanyIds?: number[];
+  predecessorIds?: number[];
+}
+
+export interface CreateMilestoneInput {
+  stageCode: StageCode;
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  name: string;
+  description?: string;
+  /** @minLength 1 */
+  ownerRole: string;
+  baselineDate: string;
+  criticalFlag?: boolean;
+  isKeyOutput?: boolean;
+  isPaymentTrigger?: boolean;
+  ownerProjectCompanyIds?: number[];
+  contributorProjectCompanyIds?: number[];
+  predecessorIds?: number[];
+}
+
+/**
+ * Direct edit, allowed only while schedule is Draft. All fields optional.
+ */
+export interface UpdateMilestoneInput {
+  stageCode?: StageCode;
+  /** @minLength 1 */
+  code?: string;
+  /** @minLength 1 */
+  name?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @minLength 1 */
+  ownerRole?: string;
+  baselineDate?: string;
+  criticalFlag?: boolean;
+  isKeyOutput?: boolean;
+  isPaymentTrigger?: boolean;
+  ownerProjectCompanyIds?: number[];
+  contributorProjectCompanyIds?: number[];
+  predecessorIds?: number[];
+}
+
+export interface CreateMilestoneEditRequestInput {
+  proposedChanges: MilestoneProposedChanges;
+  /** @minLength 1 */
+  changeReason: string;
+  /** Optional contractor companies to notify. Empty means skip contractor assessment. */
+  impactedProjectCompanyIds?: number[];
+}
+
+export interface SubmitBaselineInput {
+  note?: string;
+}
+
+export type BaselineDecisionInputDecision = typeof BaselineDecisionInputDecision[keyof typeof BaselineDecisionInputDecision];
+
+
+export const BaselineDecisionInputDecision = {
+  approve: 'approve',
+  reject: 'reject',
+} as const;
+
+export interface BaselineDecisionInput {
+  decision: BaselineDecisionInputDecision;
+  comment?: string;
+}
+
+export interface BaselineMilestoneSnapshot {
+  milestoneId: number;
+  code: string;
+  name: string;
+  stageCode: StageCode;
+  stageName?: string;
+  ownerRole: string;
+  baselineDate: string;
+  currentDate?: string;
+  isKeyOutput?: boolean;
+  criticalFlag?: boolean;
+  isPaymentTrigger?: boolean;
+  predecessorIds?: number[];
+}
+
+export interface ScheduleBaseline {
+  id: number;
+  projectId: number;
+  projectName?: string;
+  projectCode?: string;
+  status: ScheduleBaselineStatus;
+  submittedAt: string;
+  /** @nullable */
+  submittedByUserId?: number | null;
+  /** @nullable */
+  submittedByEmail?: string | null;
+  /** @nullable */
+  submissionNote?: string | null;
+  /** @nullable */
+  decidedAt?: string | null;
+  /** @nullable */
+  decidedByUserId?: number | null;
+  /** @nullable */
+  decidedByEmail?: string | null;
+  /** @nullable */
+  decisionComment?: string | null;
+  milestoneCount?: number;
+  milestones: BaselineMilestoneSnapshot[];
+}
+
+export interface BaselineReviewItem {
+  id: number;
+  projectId: number;
+  projectName: string;
+  projectCode: string;
+  status: ScheduleBaselineStatus;
+  submittedAt: string;
+  /** @nullable */
+  submittedByEmail?: string | null;
+  /** @nullable */
+  submissionNote?: string | null;
+  milestoneCount: number;
+}
+
 export interface StageInfo {
   stageCode: StageCode;
   name: string;
@@ -180,6 +342,11 @@ export interface PmProjectSummary {
   projectName: string;
   projectCode: string;
   gcCompanyName: string;
+  scheduleStatus: ProjectScheduleStatus;
+  /** @nullable */
+  baselinedAt?: string | null;
+  /** @nullable */
+  pendingBaselineId?: number | null;
   totalMilestones: number;
   atRiskMilestoneCount: number;
   delayedMilestoneCount: number;
@@ -217,8 +384,10 @@ export interface PmMilestone {
   isPaymentTrigger: boolean;
   owningCompanies: PmMilestoneCompany[];
   contributorCompanies: PmMilestoneCompany[];
+  predecessorIds?: number[];
   openChangeEventCount: number;
   pendingResponseCount: number;
+  scheduleStatus: ProjectScheduleStatus;
 }
 
 export interface MilestoneImpactDetail {
@@ -249,15 +418,20 @@ export interface MilestoneImpactDetail {
 
 export interface ChangeEventHistoryItem {
   id: number;
+  editKind: ChangeEventEditKind;
   initiatedAt: string;
-  oldDate: string;
-  proposedNewDate: string;
+  /** @nullable */
+  oldDate?: string | null;
+  /** @nullable */
+  proposedNewDate?: string | null;
+  proposedChanges?: MilestoneProposedChanges | null;
   changeReason: string;
   status: ChangeEventStatus;
   impacts: MilestoneImpactDetail[];
 }
 
 export interface MilestoneDetail {
+  predecessorIds: number[];
   id: number;
   code: string;
   name: string;
@@ -281,6 +455,8 @@ export interface MilestoneDetail {
   contributorCompanies: PmMilestoneCompany[];
   changeEvents: ChangeEventHistoryItem[];
   outstandingCompanies: PmMilestoneCompany[];
+  scheduleStatus: ProjectScheduleStatus;
+  projectId: number;
 }
 
 export type ProjectCompanyDetailResponsiveness = typeof ProjectCompanyDetailResponsiveness[keyof typeof ProjectCompanyDetailResponsiveness];
@@ -323,14 +499,17 @@ export const ChangeEventSummaryRollupStatus = {
 
 export interface ChangeEventSummary {
   id: number;
+  editKind: ChangeEventEditKind;
   milestoneId: number;
   milestoneCode: string;
   milestoneName: string;
   stageCode: StageCode;
   stageName: string;
   initiatedAt: string;
-  oldDate: string;
-  proposedNewDate: string;
+  /** @nullable */
+  oldDate?: string | null;
+  /** @nullable */
+  proposedNewDate?: string | null;
   changeReason: string;
   status: ChangeEventStatus;
   impactedCompanyCount: number;
@@ -365,14 +544,18 @@ export interface ChangeEventTimelineEntry {
 
 export interface ChangeEventDetail {
   id: number;
+  editKind: ChangeEventEditKind;
   milestoneId: number;
   milestoneCode: string;
   milestoneName: string;
   stageCode: StageCode;
   stageName: string;
   initiatedAt: string;
-  oldDate: string;
-  proposedNewDate: string;
+  /** @nullable */
+  oldDate?: string | null;
+  /** @nullable */
+  proposedNewDate?: string | null;
+  proposedChanges?: MilestoneProposedChanges | null;
   changeReason: string;
   status: ChangeEventStatus;
   /** @nullable */
@@ -385,6 +568,7 @@ export interface ChangeEventDetail {
 
 export interface ClientReviewItem {
   id: number;
+  editKind: ChangeEventEditKind;
   projectId: number;
   projectName: string;
   projectCode: string;
@@ -394,8 +578,11 @@ export interface ClientReviewItem {
   stageCode: StageCode;
   stageName: string;
   initiatedAt: string;
-  oldDate: string;
-  proposedNewDate: string;
+  /** @nullable */
+  oldDate?: string | null;
+  /** @nullable */
+  proposedNewDate?: string | null;
+  proposedChanges?: MilestoneProposedChanges | null;
   changeReason: string;
   status: ChangeEventStatus;
 }
@@ -473,7 +660,6 @@ export interface EditChangeEventInput {
   proposedNewDate: string;
   /** @minLength 1 */
   changeReason: string;
-  /** @minItems 1 */
   impactedProjectCompanyIds: number[];
 }
 
@@ -481,7 +667,6 @@ export interface CreateChangeEventInput {
   proposedNewDate: string;
   /** @minLength 1 */
   changeReason: string;
-  /** @minItems 1 */
   impactedProjectCompanyIds: number[];
 }
 

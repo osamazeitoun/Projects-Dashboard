@@ -386,7 +386,8 @@ function EditChangeEventDialog({
   const currentDate = milestone ? new Date(milestone.currentDate) : null;
   const currentDateIso = currentDate ? format(currentDate, "yyyy-MM-dd") : "";
 
-  const [newDate, setNewDate] = useState<string>(format(new Date(ev.proposedNewDate), "yyyy-MM-dd"));
+  const initialDateIso = ev.proposedNewDate ? format(new Date(ev.proposedNewDate), "yyyy-MM-dd") : "";
+  const [newDate, setNewDate] = useState<string>(initialDateIso);
   const [reason, setReason] = useState<string>(ev.changeReason);
   const [selectedPcIds, setSelectedPcIds] = useState<Set<number>>(
     () => new Set(ev.impacts.map((i) => i.projectCompanyId)),
@@ -394,7 +395,7 @@ function EditChangeEventDialog({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   function reset() {
-    setNewDate(format(new Date(ev.proposedNewDate), "yyyy-MM-dd"));
+    setNewDate(initialDateIso);
     setReason(ev.changeReason);
     setSelectedPcIds(new Set(ev.impacts.map((i) => i.projectCompanyId)));
     setErrors({});
@@ -708,7 +709,9 @@ export default function PmChangeEventDetail() {
   }
   if (isError || !data) return <div className="p-6 text-destructive">Failed to load change event.</div>;
 
-  const shift = differenceInDays(new Date(data.proposedNewDate), new Date(data.oldDate));
+  const shift = data.oldDate && data.proposedNewDate
+    ? differenceInDays(new Date(data.proposedNewDate), new Date(data.oldDate))
+    : 0;
   const transitions = getAvailableTransitions(data.status);
   const isTerminal = data.status === "PMApproved" || data.status === "Cancelled";
   const pendingImpactIds = data.impacts
@@ -784,9 +787,9 @@ export default function PmChangeEventDetail() {
           <div className="text-sm">
             <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Proposed shift</div>
             <div className="flex items-center gap-3">
-              <span className="line-through text-muted-foreground">{format(new Date(data.oldDate), "MMM d, yyyy")}</span>
+              <span className="line-through text-muted-foreground">{data.oldDate ? format(new Date(data.oldDate), "MMM d, yyyy") : "—"}</span>
               <ArrowRight className="w-4 h-4" />
-              <span className="font-bold">{format(new Date(data.proposedNewDate), "MMM d, yyyy")}</span>
+              <span className="font-bold">{data.proposedNewDate ? format(new Date(data.proposedNewDate), "MMM d, yyyy") : "—"}</span>
               <Badge variant="outline" className={shift > 0 ? "bg-[color-mix(in_srgb,var(--c-danger)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-danger)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-danger)_30%,var(--c-line))]" : "bg-[color-mix(in_srgb,var(--c-info)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-info)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-info)_30%,var(--c-line))]"}>
                 {shift > 0 ? `+${shift}` : shift} days
               </Badge>

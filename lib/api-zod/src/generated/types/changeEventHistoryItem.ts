@@ -5,14 +5,20 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ChangeEventEditKind } from './changeEventEditKind';
 import type { ChangeEventStatus } from './changeEventStatus';
 import type { MilestoneImpactDetail } from './milestoneImpactDetail';
+import type { MilestoneProposedChanges } from './milestoneProposedChanges';
 
 export interface ChangeEventHistoryItem {
   id: number;
+  editKind: ChangeEventEditKind;
   initiatedAt: Date;
-  oldDate: Date;
-  proposedNewDate: Date;
+  /** @nullable */
+  oldDate?: Date | null;
+  /** @nullable */
+  proposedNewDate?: Date | null;
+  proposedChanges?: MilestoneProposedChanges | null;
   changeReason: string;
   status: ChangeEventStatus;
   impacts: MilestoneImpactDetail[];

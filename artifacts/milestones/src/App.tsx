@@ -28,6 +28,7 @@ import PmChangeEventDetail from "@/pages/pm/change-event-detail";
 import ClientLayout from "@/components/client-layout";
 import ClientInbox from "@/pages/client/inbox";
 import ClientChangeEventDetail from "@/pages/client/change-event-detail";
+import ClientBaselineReview from "@/pages/client/baseline-review";
 
 const queryClient = new QueryClient();
 
@@ -299,6 +300,9 @@ function AppRoutes() {
             </Route>
             <Route path="/client/change-event/:id">
               <ProtectedClientPage><ClientChangeEventDetail /></ProtectedClientPage>
+            </Route>
+            <Route path="/client/baseline-review/:id">
+              <ProtectedClientPage><ClientBaselineReview /></ProtectedClientPage>
             </Route>
             <Route path="/admin">
               <ProtectedAdminPage><AdminProjects /></ProtectedAdminPage>

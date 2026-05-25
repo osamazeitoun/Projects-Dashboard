@@ -154,6 +154,7 @@ export const GetMyPendingImpactsResponse = zod.array(GetMyPendingImpactsResponse
  */
 export const ListClientReviewsResponseItem = zod.object({
   "id": zod.number(),
+  "editKind": zod.enum(['DateChange', 'FieldEdit']),
   "projectId": zod.number(),
   "projectName": zod.string(),
   "projectCode": zod.string(),
@@ -163,8 +164,20 @@ export const ListClientReviewsResponseItem = zod.object({
   "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
   "stageName": zod.string(),
   "initiatedAt": zod.coerce.date(),
-  "oldDate": zod.coerce.date(),
-  "proposedNewDate": zod.coerce.date(),
+  "oldDate": zod.coerce.date().nullish(),
+  "proposedNewDate": zod.coerce.date().nullish(),
+  "proposedChanges": zod.union([zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "code": zod.string().optional(),
+  "ownerRole": zod.string().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "ownerProjectCompanyIds": zod.array(zod.number()).optional(),
+  "contributorProjectCompanyIds": zod.array(zod.number()).optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}).describe('Diff of milestone field edits proposed in a change event (FieldEdit kind).'),zod.null()]).optional(),
   "changeReason": zod.string(),
   "status": zod.enum(['Draft', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled'])
 })
@@ -180,14 +193,27 @@ export const GetClientReviewDetailParams = zod.object({
 
 export const GetClientReviewDetailResponse = zod.object({
   "id": zod.number(),
+  "editKind": zod.enum(['DateChange', 'FieldEdit']),
   "milestoneId": zod.number(),
   "milestoneCode": zod.string(),
   "milestoneName": zod.string(),
   "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
   "stageName": zod.string(),
   "initiatedAt": zod.coerce.date(),
-  "oldDate": zod.coerce.date(),
-  "proposedNewDate": zod.coerce.date(),
+  "oldDate": zod.coerce.date().nullish(),
+  "proposedNewDate": zod.coerce.date().nullish(),
+  "proposedChanges": zod.union([zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "code": zod.string().optional(),
+  "ownerRole": zod.string().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "ownerProjectCompanyIds": zod.array(zod.number()).optional(),
+  "contributorProjectCompanyIds": zod.array(zod.number()).optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}).describe('Diff of milestone field edits proposed in a change event (FieldEdit kind).'),zod.null()]).optional(),
   "changeReason": zod.string(),
   "status": zod.enum(['Draft', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled']),
   "clientComment": zod.string().nullish(),
@@ -203,7 +229,21 @@ export const GetClientReviewDetailResponse = zod.object({
   "impactRiskLevel": zod.union([zod.enum(['None', 'Low', 'Medium', 'High']),zod.null()]).optional(),
   "impactRiskType": zod.union([zod.enum(['Time', 'Cost', 'Quality', 'Scope', 'Resources', 'Authority', 'Other']),zod.null()]).optional(),
   "mainRiskIssue": zod.string().nullish(),
-  "detailedComment": zod.string().nullish()
+  "detailedComment": zod.string().nullish(),
+  "lastDeliveryStatus": zod.union([zod.enum(['Sent', 'Failed']),zod.null()]).optional(),
+  "lastDeliveryChannel": zod.union([zod.enum(['email', 'log']),zod.null()]).optional(),
+  "lastDeliveryAt": zod.coerce.date().nullish(),
+  "lastDeliveryError": zod.string().nullish(),
+  "deliveryAttemptCount": zod.number().optional(),
+  "recipientEmail": zod.string().nullish()
+})),
+  "timeline": zod.array(zod.object({
+  "id": zod.string(),
+  "eventType": zod.enum(['Opened', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled']),
+  "occurredAt": zod.coerce.date(),
+  "actorUserId": zod.number().nullish(),
+  "actorEmail": zod.string().nullish(),
+  "comment": zod.string().nullish()
 }))
 })
 
@@ -222,14 +262,27 @@ export const SubmitClientDecisionBody = zod.object({
 
 export const SubmitClientDecisionResponse = zod.object({
   "id": zod.number(),
+  "editKind": zod.enum(['DateChange', 'FieldEdit']),
   "milestoneId": zod.number(),
   "milestoneCode": zod.string(),
   "milestoneName": zod.string(),
   "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
   "stageName": zod.string(),
   "initiatedAt": zod.coerce.date(),
-  "oldDate": zod.coerce.date(),
-  "proposedNewDate": zod.coerce.date(),
+  "oldDate": zod.coerce.date().nullish(),
+  "proposedNewDate": zod.coerce.date().nullish(),
+  "proposedChanges": zod.union([zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "code": zod.string().optional(),
+  "ownerRole": zod.string().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "ownerProjectCompanyIds": zod.array(zod.number()).optional(),
+  "contributorProjectCompanyIds": zod.array(zod.number()).optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}).describe('Diff of milestone field edits proposed in a change event (FieldEdit kind).'),zod.null()]).optional(),
   "changeReason": zod.string(),
   "status": zod.enum(['Draft', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled']),
   "clientComment": zod.string().nullish(),
@@ -245,7 +298,21 @@ export const SubmitClientDecisionResponse = zod.object({
   "impactRiskLevel": zod.union([zod.enum(['None', 'Low', 'Medium', 'High']),zod.null()]).optional(),
   "impactRiskType": zod.union([zod.enum(['Time', 'Cost', 'Quality', 'Scope', 'Resources', 'Authority', 'Other']),zod.null()]).optional(),
   "mainRiskIssue": zod.string().nullish(),
-  "detailedComment": zod.string().nullish()
+  "detailedComment": zod.string().nullish(),
+  "lastDeliveryStatus": zod.union([zod.enum(['Sent', 'Failed']),zod.null()]).optional(),
+  "lastDeliveryChannel": zod.union([zod.enum(['email', 'log']),zod.null()]).optional(),
+  "lastDeliveryAt": zod.coerce.date().nullish(),
+  "lastDeliveryError": zod.string().nullish(),
+  "deliveryAttemptCount": zod.number().optional(),
+  "recipientEmail": zod.string().nullish()
+})),
+  "timeline": zod.array(zod.object({
+  "id": zod.string(),
+  "eventType": zod.enum(['Opened', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled']),
+  "occurredAt": zod.coerce.date(),
+  "actorUserId": zod.number().nullish(),
+  "actorEmail": zod.string().nullish(),
+  "comment": zod.string().nullish()
 }))
 })
 
@@ -275,6 +342,9 @@ export const GetPmProjectSummaryResponse = zod.object({
   "projectName": zod.string(),
   "projectCode": zod.string(),
   "gcCompanyName": zod.string(),
+  "scheduleStatus": zod.enum(['Draft', 'PendingBaseline', 'Baselined']),
+  "baselinedAt": zod.coerce.date().nullish(),
+  "pendingBaselineId": zod.number().nullish(),
   "totalMilestones": zod.number(),
   "atRiskMilestoneCount": zod.number(),
   "delayedMilestoneCount": zod.number(),
@@ -338,8 +408,10 @@ export const GetProjectMilestonesResponseItem = zod.object({
   "name": zod.string(),
   "role": zod.string()
 })),
+  "predecessorIds": zod.array(zod.number()).optional(),
   "openChangeEventCount": zod.number(),
-  "pendingResponseCount": zod.number()
+  "pendingResponseCount": zod.number(),
+  "scheduleStatus": zod.enum(['Draft', 'PendingBaseline', 'Baselined'])
 })
 export const GetProjectMilestonesResponse = zod.array(GetProjectMilestonesResponseItem)
 
@@ -352,6 +424,7 @@ export const GetMilestoneDetailParams = zod.object({
 })
 
 export const GetMilestoneDetailResponse = zod.object({
+  "predecessorIds": zod.array(zod.number()),
   "id": zod.number(),
   "code": zod.string(),
   "name": zod.string(),
@@ -382,9 +455,22 @@ export const GetMilestoneDetailResponse = zod.object({
 })),
   "changeEvents": zod.array(zod.object({
   "id": zod.number(),
+  "editKind": zod.enum(['DateChange', 'FieldEdit']),
   "initiatedAt": zod.coerce.date(),
-  "oldDate": zod.coerce.date(),
-  "proposedNewDate": zod.coerce.date(),
+  "oldDate": zod.coerce.date().nullish(),
+  "proposedNewDate": zod.coerce.date().nullish(),
+  "proposedChanges": zod.union([zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "code": zod.string().optional(),
+  "ownerRole": zod.string().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "ownerProjectCompanyIds": zod.array(zod.number()).optional(),
+  "contributorProjectCompanyIds": zod.array(zod.number()).optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}).describe('Diff of milestone field edits proposed in a change event (FieldEdit kind).'),zod.null()]).optional(),
   "changeReason": zod.string(),
   "status": zod.enum(['Draft', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled']),
   "impacts": zod.array(zod.object({
@@ -412,7 +498,363 @@ export const GetMilestoneDetailResponse = zod.object({
   "companyId": zod.number(),
   "name": zod.string(),
   "role": zod.string()
+})),
+  "scheduleStatus": zod.enum(['Draft', 'PendingBaseline', 'Baselined']),
+  "projectId": zod.number()
+})
+
+
+/**
+ * @summary PM creates a new milestone (allowed only while schedule is Draft)
+ */
+export const CreateMilestoneParams = zod.object({
+  "projectId": zod.coerce.number()
+})
+
+
+
+
+
+
+export const CreateMilestoneBody = zod.object({
+  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "code": zod.string().min(1),
+  "name": zod.string().min(1),
+  "description": zod.string().optional(),
+  "ownerRole": zod.string().min(1),
+  "baselineDate": zod.coerce.date(),
+  "criticalFlag": zod.boolean().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "ownerProjectCompanyIds": zod.array(zod.number()).optional(),
+  "contributorProjectCompanyIds": zod.array(zod.number()).optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+})
+
+
+/**
+ * @summary PM edits a milestone directly (allowed only while schedule is Draft)
+ */
+export const UpdateMilestoneParams = zod.object({
+  "milestoneId": zod.coerce.number()
+})
+
+
+
+
+
+
+export const UpdateMilestoneBody = zod.object({
+  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']).optional(),
+  "code": zod.string().min(1).optional(),
+  "name": zod.string().min(1).optional(),
+  "description": zod.string().nullish(),
+  "ownerRole": zod.string().min(1).optional(),
+  "baselineDate": zod.coerce.date().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "ownerProjectCompanyIds": zod.array(zod.number()).optional(),
+  "contributorProjectCompanyIds": zod.array(zod.number()).optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}).describe('Direct edit, allowed only while schedule is Draft. All fields optional.')
+
+export const UpdateMilestoneResponse = zod.object({
+  "predecessorIds": zod.array(zod.number()),
+  "id": zod.number(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageName": zod.string(),
+  "stageOrder": zod.number(),
+  "status": zod.enum(['Planned', 'OnTrack', 'AtRisk', 'Delayed', 'Completed']),
+  "ownerRole": zod.string(),
+  "baselineDate": zod.coerce.date(),
+  "currentDate": zod.coerce.date(),
+  "previousDate": zod.coerce.date().nullish(),
+  "isKeyOutput": zod.boolean(),
+  "criticalFlag": zod.boolean(),
+  "isPaymentTrigger": zod.boolean(),
+  "changeReasonLatest": zod.string().nullish(),
+  "owningCompanies": zod.array(zod.object({
+  "projectCompanyId": zod.number(),
+  "companyId": zod.number(),
+  "name": zod.string(),
+  "role": zod.string()
+})),
+  "contributorCompanies": zod.array(zod.object({
+  "projectCompanyId": zod.number(),
+  "companyId": zod.number(),
+  "name": zod.string(),
+  "role": zod.string()
+})),
+  "changeEvents": zod.array(zod.object({
+  "id": zod.number(),
+  "editKind": zod.enum(['DateChange', 'FieldEdit']),
+  "initiatedAt": zod.coerce.date(),
+  "oldDate": zod.coerce.date().nullish(),
+  "proposedNewDate": zod.coerce.date().nullish(),
+  "proposedChanges": zod.union([zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "code": zod.string().optional(),
+  "ownerRole": zod.string().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "ownerProjectCompanyIds": zod.array(zod.number()).optional(),
+  "contributorProjectCompanyIds": zod.array(zod.number()).optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}).describe('Diff of milestone field edits proposed in a change event (FieldEdit kind).'),zod.null()]).optional(),
+  "changeReason": zod.string(),
+  "status": zod.enum(['Draft', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled']),
+  "impacts": zod.array(zod.object({
+  "id": zod.number(),
+  "projectCompanyId": zod.number(),
+  "companyName": zod.string(),
+  "companyRole": zod.string(),
+  "responseStatus": zod.enum(['Pending', 'Submitted', 'Reviewed', 'Closed']),
+  "notifiedAt": zod.coerce.date(),
+  "respondedAt": zod.coerce.date().nullish(),
+  "impactRiskLevel": zod.union([zod.enum(['None', 'Low', 'Medium', 'High']),zod.null()]).optional(),
+  "impactRiskType": zod.union([zod.enum(['Time', 'Cost', 'Quality', 'Scope', 'Resources', 'Authority', 'Other']),zod.null()]).optional(),
+  "mainRiskIssue": zod.string().nullish(),
+  "detailedComment": zod.string().nullish(),
+  "lastDeliveryStatus": zod.union([zod.enum(['Sent', 'Failed']),zod.null()]).optional(),
+  "lastDeliveryChannel": zod.union([zod.enum(['email', 'log']),zod.null()]).optional(),
+  "lastDeliveryAt": zod.coerce.date().nullish(),
+  "lastDeliveryError": zod.string().nullish(),
+  "deliveryAttemptCount": zod.number().optional(),
+  "recipientEmail": zod.string().nullish()
 }))
+})),
+  "outstandingCompanies": zod.array(zod.object({
+  "projectCompanyId": zod.number(),
+  "companyId": zod.number(),
+  "name": zod.string(),
+  "role": zod.string()
+})),
+  "scheduleStatus": zod.enum(['Draft', 'PendingBaseline', 'Baselined']),
+  "projectId": zod.number()
+})
+
+
+/**
+ * @summary PM deletes a milestone (allowed only while schedule is Draft)
+ */
+export const DeleteMilestoneParams = zod.object({
+  "milestoneId": zod.coerce.number()
+})
+
+
+/**
+ * @summary PM submits the current schedule for client baseline approval
+ */
+export const SubmitScheduleBaselineParams = zod.object({
+  "projectId": zod.coerce.number()
+})
+
+export const SubmitScheduleBaselineBody = zod.object({
+  "note": zod.string().optional()
+})
+
+export const SubmitScheduleBaselineResponse = zod.object({
+  "id": zod.number(),
+  "projectId": zod.number(),
+  "projectName": zod.string().optional(),
+  "projectCode": zod.string().optional(),
+  "status": zod.enum(['Pending', 'Approved', 'Rejected']),
+  "submittedAt": zod.coerce.date(),
+  "submittedByUserId": zod.number().nullish(),
+  "submittedByEmail": zod.string().nullish(),
+  "submissionNote": zod.string().nullish(),
+  "decidedAt": zod.coerce.date().nullish(),
+  "decidedByUserId": zod.number().nullish(),
+  "decidedByEmail": zod.string().nullish(),
+  "decisionComment": zod.string().nullish(),
+  "milestoneCount": zod.number().optional(),
+  "milestones": zod.array(zod.object({
+  "milestoneId": zod.number(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageName": zod.string().optional(),
+  "ownerRole": zod.string(),
+  "baselineDate": zod.coerce.date(),
+  "currentDate": zod.coerce.date().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}))
+})
+
+
+/**
+ * @summary Latest baseline (any status) for the project, if any
+ */
+export const GetProjectScheduleBaselineParams = zod.object({
+  "projectId": zod.coerce.number()
+})
+
+export const GetProjectScheduleBaselineResponse = zod.union([zod.object({
+  "id": zod.number(),
+  "projectId": zod.number(),
+  "projectName": zod.string().optional(),
+  "projectCode": zod.string().optional(),
+  "status": zod.enum(['Pending', 'Approved', 'Rejected']),
+  "submittedAt": zod.coerce.date(),
+  "submittedByUserId": zod.number().nullish(),
+  "submittedByEmail": zod.string().nullish(),
+  "submissionNote": zod.string().nullish(),
+  "decidedAt": zod.coerce.date().nullish(),
+  "decidedByUserId": zod.number().nullish(),
+  "decidedByEmail": zod.string().nullish(),
+  "decisionComment": zod.string().nullish(),
+  "milestoneCount": zod.number().optional(),
+  "milestones": zod.array(zod.object({
+  "milestoneId": zod.number(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageName": zod.string().optional(),
+  "ownerRole": zod.string(),
+  "baselineDate": zod.coerce.date(),
+  "currentDate": zod.coerce.date().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}))
+}),zod.null()])
+
+
+/**
+ * @summary Pending baseline submissions awaiting the client's decision
+ */
+export const ListBaselineReviewsResponseItem = zod.object({
+  "id": zod.number(),
+  "projectId": zod.number(),
+  "projectName": zod.string(),
+  "projectCode": zod.string(),
+  "status": zod.enum(['Pending', 'Approved', 'Rejected']),
+  "submittedAt": zod.coerce.date(),
+  "submittedByEmail": zod.string().nullish(),
+  "submissionNote": zod.string().nullish(),
+  "milestoneCount": zod.number()
+})
+export const ListBaselineReviewsResponse = zod.array(ListBaselineReviewsResponseItem)
+
+
+/**
+ * @summary Detail of a pending baseline for client review
+ */
+export const GetBaselineReviewDetailParams = zod.object({
+  "baselineId": zod.coerce.number()
+})
+
+export const GetBaselineReviewDetailResponse = zod.object({
+  "id": zod.number(),
+  "projectId": zod.number(),
+  "projectName": zod.string().optional(),
+  "projectCode": zod.string().optional(),
+  "status": zod.enum(['Pending', 'Approved', 'Rejected']),
+  "submittedAt": zod.coerce.date(),
+  "submittedByUserId": zod.number().nullish(),
+  "submittedByEmail": zod.string().nullish(),
+  "submissionNote": zod.string().nullish(),
+  "decidedAt": zod.coerce.date().nullish(),
+  "decidedByUserId": zod.number().nullish(),
+  "decidedByEmail": zod.string().nullish(),
+  "decisionComment": zod.string().nullish(),
+  "milestoneCount": zod.number().optional(),
+  "milestones": zod.array(zod.object({
+  "milestoneId": zod.number(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageName": zod.string().optional(),
+  "ownerRole": zod.string(),
+  "baselineDate": zod.coerce.date(),
+  "currentDate": zod.coerce.date().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}))
+})
+
+
+/**
+ * @summary Client approves or rejects a baseline submission
+ */
+export const SubmitBaselineDecisionParams = zod.object({
+  "baselineId": zod.coerce.number()
+})
+
+export const SubmitBaselineDecisionBody = zod.object({
+  "decision": zod.enum(['approve', 'reject']),
+  "comment": zod.string().optional()
+})
+
+export const SubmitBaselineDecisionResponse = zod.object({
+  "id": zod.number(),
+  "projectId": zod.number(),
+  "projectName": zod.string().optional(),
+  "projectCode": zod.string().optional(),
+  "status": zod.enum(['Pending', 'Approved', 'Rejected']),
+  "submittedAt": zod.coerce.date(),
+  "submittedByUserId": zod.number().nullish(),
+  "submittedByEmail": zod.string().nullish(),
+  "submissionNote": zod.string().nullish(),
+  "decidedAt": zod.coerce.date().nullish(),
+  "decidedByUserId": zod.number().nullish(),
+  "decidedByEmail": zod.string().nullish(),
+  "decisionComment": zod.string().nullish(),
+  "milestoneCount": zod.number().optional(),
+  "milestones": zod.array(zod.object({
+  "milestoneId": zod.number(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
+  "stageName": zod.string().optional(),
+  "ownerRole": zod.string(),
+  "baselineDate": zod.coerce.date(),
+  "currentDate": zod.coerce.date().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}))
+})
+
+
+/**
+ * @summary PM opens a non-date edit request on a baselined milestone
+ */
+export const CreateMilestoneEditRequestParams = zod.object({
+  "milestoneId": zod.coerce.number()
+})
+
+
+
+
+export const CreateMilestoneEditRequestBody = zod.object({
+  "proposedChanges": zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "code": zod.string().optional(),
+  "ownerRole": zod.string().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "ownerProjectCompanyIds": zod.array(zod.number()).optional(),
+  "contributorProjectCompanyIds": zod.array(zod.number()).optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}).describe('Diff of milestone field edits proposed in a change event (FieldEdit kind).'),
+  "changeReason": zod.string().min(1),
+  "impactedProjectCompanyIds": zod.array(zod.number()).optional().describe('Optional contractor companies to notify. Empty means skip contractor assessment.')
 })
 
 
@@ -452,14 +894,15 @@ export const GetProjectChangeEventsParams = zod.object({
 
 export const GetProjectChangeEventsResponseItem = zod.object({
   "id": zod.number(),
+  "editKind": zod.enum(['DateChange', 'FieldEdit']),
   "milestoneId": zod.number(),
   "milestoneCode": zod.string(),
   "milestoneName": zod.string(),
   "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
   "stageName": zod.string(),
   "initiatedAt": zod.coerce.date(),
-  "oldDate": zod.coerce.date(),
-  "proposedNewDate": zod.coerce.date(),
+  "oldDate": zod.coerce.date().nullish(),
+  "proposedNewDate": zod.coerce.date().nullish(),
   "changeReason": zod.string(),
   "status": zod.enum(['Draft', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled']),
   "impactedCompanyCount": zod.number(),
@@ -480,11 +923,10 @@ export const CreateChangeEventParams = zod.object({
 
 
 
-
 export const CreateChangeEventBody = zod.object({
   "proposedNewDate": zod.coerce.date(),
   "changeReason": zod.string().min(1),
-  "impactedProjectCompanyIds": zod.array(zod.number()).min(1)
+  "impactedProjectCompanyIds": zod.array(zod.number())
 })
 
 
@@ -525,14 +967,27 @@ export const GetChangeEventDetailParams = zod.object({
 
 export const GetChangeEventDetailResponse = zod.object({
   "id": zod.number(),
+  "editKind": zod.enum(['DateChange', 'FieldEdit']),
   "milestoneId": zod.number(),
   "milestoneCode": zod.string(),
   "milestoneName": zod.string(),
   "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
   "stageName": zod.string(),
   "initiatedAt": zod.coerce.date(),
-  "oldDate": zod.coerce.date(),
-  "proposedNewDate": zod.coerce.date(),
+  "oldDate": zod.coerce.date().nullish(),
+  "proposedNewDate": zod.coerce.date().nullish(),
+  "proposedChanges": zod.union([zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "code": zod.string().optional(),
+  "ownerRole": zod.string().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "ownerProjectCompanyIds": zod.array(zod.number()).optional(),
+  "contributorProjectCompanyIds": zod.array(zod.number()).optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}).describe('Diff of milestone field edits proposed in a change event (FieldEdit kind).'),zod.null()]).optional(),
   "changeReason": zod.string(),
   "status": zod.enum(['Draft', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled']),
   "clientComment": zod.string().nullish(),
@@ -577,23 +1032,35 @@ export const EditChangeEventParams = zod.object({
 
 
 
-
 export const EditChangeEventBody = zod.object({
   "proposedNewDate": zod.coerce.date(),
   "changeReason": zod.string().min(1),
-  "impactedProjectCompanyIds": zod.array(zod.number()).min(1)
+  "impactedProjectCompanyIds": zod.array(zod.number())
 })
 
 export const EditChangeEventResponse = zod.object({
   "id": zod.number(),
+  "editKind": zod.enum(['DateChange', 'FieldEdit']),
   "milestoneId": zod.number(),
   "milestoneCode": zod.string(),
   "milestoneName": zod.string(),
   "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
   "stageName": zod.string(),
   "initiatedAt": zod.coerce.date(),
-  "oldDate": zod.coerce.date(),
-  "proposedNewDate": zod.coerce.date(),
+  "oldDate": zod.coerce.date().nullish(),
+  "proposedNewDate": zod.coerce.date().nullish(),
+  "proposedChanges": zod.union([zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "code": zod.string().optional(),
+  "ownerRole": zod.string().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "ownerProjectCompanyIds": zod.array(zod.number()).optional(),
+  "contributorProjectCompanyIds": zod.array(zod.number()).optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}).describe('Diff of milestone field edits proposed in a change event (FieldEdit kind).'),zod.null()]).optional(),
   "changeReason": zod.string(),
   "status": zod.enum(['Draft', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled']),
   "clientComment": zod.string().nullish(),
@@ -616,6 +1083,14 @@ export const EditChangeEventResponse = zod.object({
   "lastDeliveryError": zod.string().nullish(),
   "deliveryAttemptCount": zod.number().optional(),
   "recipientEmail": zod.string().nullish()
+})),
+  "timeline": zod.array(zod.object({
+  "id": zod.string(),
+  "eventType": zod.enum(['Opened', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled']),
+  "occurredAt": zod.coerce.date(),
+  "actorUserId": zod.number().nullish(),
+  "actorEmail": zod.string().nullish(),
+  "comment": zod.string().nullish()
 }))
 })
 
@@ -634,14 +1109,27 @@ export const TransitionChangeEventBody = zod.object({
 
 export const TransitionChangeEventResponse = zod.object({
   "id": zod.number(),
+  "editKind": zod.enum(['DateChange', 'FieldEdit']),
   "milestoneId": zod.number(),
   "milestoneCode": zod.string(),
   "milestoneName": zod.string(),
   "stageCode": zod.enum(['ST1_PRE_DESIGN_CONCEPT', 'ST2_DESIGN_DEVELOPMENT', 'ST3_AUTHORITY_APPROVALS', 'ST4_DETAILED_DESIGN_TENDER', 'ST5_CONSTRUCTION_SHELL_CORE', 'ST6_CONSTRUCTION_MEP_BLOCKWORK', 'ST7_INTERIOR_FITOUT', 'ST8_EXTERNAL_WORKS_FINAL_MEP', 'ST9_COMPLETION_SNAGGING_HANDOVER', 'ST10_CLIENT_HANDOVER_DLP']),
   "stageName": zod.string(),
   "initiatedAt": zod.coerce.date(),
-  "oldDate": zod.coerce.date(),
-  "proposedNewDate": zod.coerce.date(),
+  "oldDate": zod.coerce.date().nullish(),
+  "proposedNewDate": zod.coerce.date().nullish(),
+  "proposedChanges": zod.union([zod.object({
+  "name": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "code": zod.string().optional(),
+  "ownerRole": zod.string().optional(),
+  "criticalFlag": zod.boolean().optional(),
+  "isKeyOutput": zod.boolean().optional(),
+  "isPaymentTrigger": zod.boolean().optional(),
+  "ownerProjectCompanyIds": zod.array(zod.number()).optional(),
+  "contributorProjectCompanyIds": zod.array(zod.number()).optional(),
+  "predecessorIds": zod.array(zod.number()).optional()
+}).describe('Diff of milestone field edits proposed in a change event (FieldEdit kind).'),zod.null()]).optional(),
   "changeReason": zod.string(),
   "status": zod.enum(['Draft', 'SentForClientReview', 'ClientApproved', 'ClientRejected', 'PMApproved', 'Cancelled']),
   "clientComment": zod.string().nullish(),

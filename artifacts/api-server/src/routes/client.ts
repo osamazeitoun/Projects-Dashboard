@@ -7,12 +7,17 @@ import {
   changeEvents,
   projects,
   companies,
+  scheduleBaselines,
+  users,
 } from "@workspace/db";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import {
   GetClientReviewDetailParams,
   SubmitClientDecisionBody,
   SubmitClientDecisionParams,
+  GetBaselineReviewDetailParams,
+  SubmitBaselineDecisionParams,
+  SubmitBaselineDecisionBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import {
@@ -48,6 +53,7 @@ async function loadChangeEventDetailResponse(id: number) {
   const [ev] = await db
     .select({
       id: changeEvents.id,
+      editKind: changeEvents.editKind,
       milestoneId: changeEvents.milestoneId,
       milestoneCode: milestones.code,
       milestoneName: milestones.name,
@@ -55,6 +61,7 @@ async function loadChangeEventDetailResponse(id: number) {
       initiatedAt: changeEvents.initiatedAt,
       oldDate: changeEvents.oldDate,
       proposedNewDate: changeEvents.proposedNewDate,
+      proposedChanges: changeEvents.proposedChanges,
       changeReason: changeEvents.changeReason,
       status: changeEvents.status,
       clientComment: changeEvents.clientComment,
@@ -88,14 +95,16 @@ async function loadChangeEventDetailResponse(id: number) {
 
   return {
     id: ev.id,
+    editKind: ev.editKind,
     milestoneId: ev.milestoneId,
     milestoneCode: ev.milestoneCode,
     milestoneName: ev.milestoneName,
     stageCode: ev.stageCode,
     stageName: stageNameByCode.get(ev.stageCode) ?? ev.stageCode,
     initiatedAt: ev.initiatedAt.toISOString(),
-    oldDate: ev.oldDate.toISOString(),
-    proposedNewDate: ev.proposedNewDate.toISOString(),
+    oldDate: isoOrNull(ev.oldDate),
+    proposedNewDate: isoOrNull(ev.proposedNewDate),
+    proposedChanges: ev.proposedChanges ?? null,
     changeReason: ev.changeReason,
     status: ev.status,
     clientComment: ev.clientComment,
@@ -124,6 +133,7 @@ router.get("/me/client-reviews", async (req: Request, res: Response) => {
   const rows = await db
     .select({
       id: changeEvents.id,
+      editKind: changeEvents.editKind,
       projectId: projects.id,
       projectName: projects.name,
       projectCode: projects.code,
@@ -134,6 +144,7 @@ router.get("/me/client-reviews", async (req: Request, res: Response) => {
       initiatedAt: changeEvents.initiatedAt,
       oldDate: changeEvents.oldDate,
       proposedNewDate: changeEvents.proposedNewDate,
+      proposedChanges: changeEvents.proposedChanges,
       changeReason: changeEvents.changeReason,
       status: changeEvents.status,
     })
@@ -153,8 +164,9 @@ router.get("/me/client-reviews", async (req: Request, res: Response) => {
       ...r,
       stageName: stageNameByCode.get(r.stageCode) ?? r.stageCode,
       initiatedAt: r.initiatedAt.toISOString(),
-      oldDate: r.oldDate.toISOString(),
-      proposedNewDate: r.proposedNewDate.toISOString(),
+      oldDate: isoOrNull(r.oldDate),
+      proposedNewDate: isoOrNull(r.proposedNewDate),
+      proposedChanges: r.proposedChanges ?? null,
     })),
   );
 });
@@ -237,6 +249,195 @@ router.post(
 
     const detail = await loadChangeEventDetailResponse(changeEventId);
     if (!detail) return res.status(404).json({ error: "Change event not found" });
+    return res.json(detail);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Baseline review (client-facing)
+// ---------------------------------------------------------------------------
+
+async function loadBaselineDetail(baselineId: number) {
+  const [b] = await db
+    .select({
+      id: scheduleBaselines.id,
+      projectId: scheduleBaselines.projectId,
+      projectName: projects.name,
+      projectCode: projects.code,
+      status: scheduleBaselines.status,
+      submittedAt: scheduleBaselines.submittedAt,
+      submittedByUserId: scheduleBaselines.submittedByUserId,
+      submissionNote: scheduleBaselines.submissionNote,
+      decidedAt: scheduleBaselines.decidedAt,
+      decidedByUserId: scheduleBaselines.decidedByUserId,
+      decisionComment: scheduleBaselines.decisionComment,
+      snapshot: scheduleBaselines.snapshot,
+    })
+    .from(scheduleBaselines)
+    .innerJoin(projects, eq(projects.id, scheduleBaselines.projectId))
+    .where(eq(scheduleBaselines.id, baselineId))
+    .limit(1);
+  if (!b) return null;
+  const userIds = [b.submittedByUserId, b.decidedByUserId].filter(
+    (x): x is number => x !== null,
+  );
+  let emailById = new Map<number, string | null>();
+  if (userIds.length > 0) {
+    const userRows = await db
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(inArray(users.id, userIds));
+    emailById = new Map(userRows.map((u) => [u.id, u.email]));
+  }
+  const ms = (b.snapshot as Array<Record<string, unknown>>) ?? [];
+  return {
+    id: b.id,
+    projectId: b.projectId,
+    projectName: b.projectName,
+    projectCode: b.projectCode,
+    status: b.status,
+    submittedAt: b.submittedAt.toISOString(),
+    submittedByUserId: b.submittedByUserId,
+    submittedByEmail: b.submittedByUserId ? emailById.get(b.submittedByUserId) ?? null : null,
+    submissionNote: b.submissionNote,
+    decidedAt: isoOrNull(b.decidedAt),
+    decidedByUserId: b.decidedByUserId,
+    decidedByEmail: b.decidedByUserId ? emailById.get(b.decidedByUserId) ?? null : null,
+    decisionComment: b.decisionComment,
+    milestoneCount: ms.length,
+    milestones: ms,
+  };
+}
+
+router.get("/me/baseline-reviews", async (req: Request, res: Response) => {
+  const ctx = req.auth_ctx!;
+  const projectIds = await listClientProjectIds(ctx.userId);
+  if (projectIds.length === 0) return res.json([]);
+
+  const rows = await db
+    .select({
+      id: scheduleBaselines.id,
+      projectId: scheduleBaselines.projectId,
+      projectName: projects.name,
+      projectCode: projects.code,
+      status: scheduleBaselines.status,
+      submittedAt: scheduleBaselines.submittedAt,
+      submittedByUserId: scheduleBaselines.submittedByUserId,
+      submissionNote: scheduleBaselines.submissionNote,
+      snapshot: scheduleBaselines.snapshot,
+    })
+    .from(scheduleBaselines)
+    .innerJoin(projects, eq(projects.id, scheduleBaselines.projectId))
+    .where(
+      and(
+        eq(scheduleBaselines.status, "Pending"),
+        inArray(scheduleBaselines.projectId, projectIds),
+      ),
+    )
+    .orderBy(desc(scheduleBaselines.submittedAt));
+
+  const submitterIds = rows
+    .map((r) => r.submittedByUserId)
+    .filter((x): x is number => x !== null);
+  let emailById = new Map<number, string | null>();
+  if (submitterIds.length > 0) {
+    const userRows = await db
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(inArray(users.id, submitterIds));
+    emailById = new Map(userRows.map((u) => [u.id, u.email]));
+  }
+
+  return res.json(
+    rows.map((r) => ({
+      id: r.id,
+      projectId: r.projectId,
+      projectName: r.projectName,
+      projectCode: r.projectCode,
+      status: r.status,
+      submittedAt: r.submittedAt.toISOString(),
+      submittedByEmail: r.submittedByUserId ? emailById.get(r.submittedByUserId) ?? null : null,
+      submissionNote: r.submissionNote,
+      milestoneCount: Array.isArray(r.snapshot) ? r.snapshot.length : 0,
+    })),
+  );
+});
+
+router.get("/me/baseline-reviews/:baselineId", async (req: Request, res: Response) => {
+  const parsed = GetBaselineReviewDetailParams.safeParse(req.params);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid baselineId" });
+  const { baselineId } = parsed.data;
+  const [b] = await db
+    .select({ projectId: scheduleBaselines.projectId })
+    .from(scheduleBaselines)
+    .where(eq(scheduleBaselines.id, baselineId))
+    .limit(1);
+  if (!b) return res.status(404).json({ error: "Baseline not found" });
+  if (!(await requireClientAccess(req, res, b.projectId))) return;
+  const detail = await loadBaselineDetail(baselineId);
+  if (!detail) return res.status(404).json({ error: "Baseline not found" });
+  return res.json(detail);
+});
+
+router.post(
+  "/me/baseline-reviews/:baselineId/decision",
+  async (req: Request, res: Response) => {
+    const p = SubmitBaselineDecisionParams.safeParse(req.params);
+    if (!p.success) return res.status(400).json({ error: "Invalid baselineId" });
+    const body = SubmitBaselineDecisionBody.safeParse(req.body);
+    if (!body.success) {
+      return res.status(400).json({ error: "Invalid body: " + body.error.message });
+    }
+    const { baselineId } = p.data;
+    const { decision, comment } = body.data;
+
+    const [b] = await db
+      .select()
+      .from(scheduleBaselines)
+      .where(eq(scheduleBaselines.id, baselineId))
+      .limit(1);
+    if (!b) return res.status(404).json({ error: "Baseline not found" });
+    if (!(await requireClientAccess(req, res, b.projectId))) return;
+    if (b.status !== "Pending") {
+      return res.status(400).json({
+        error: `Cannot decide on a baseline in status ${b.status}.`,
+      });
+    }
+    const trimmed = comment?.trim();
+    if (decision === "reject" && (!trimmed || trimmed.length === 0)) {
+      return res
+        .status(400)
+        .json({ error: "A comment is required when rejecting a baseline." });
+    }
+
+    const now = new Date();
+    const nextStatus = decision === "approve" ? "Approved" : "Rejected";
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(scheduleBaselines)
+        .set({
+          status: nextStatus,
+          decidedAt: now,
+          decidedByUserId: req.auth_ctx!.userId,
+          decisionComment: trimmed && trimmed.length > 0 ? trimmed : null,
+        })
+        .where(eq(scheduleBaselines.id, baselineId));
+      if (decision === "approve") {
+        await tx
+          .update(projects)
+          .set({ scheduleStatus: "Baselined", baselinedAt: now })
+          .where(eq(projects.id, b.projectId));
+      } else {
+        await tx
+          .update(projects)
+          .set({ scheduleStatus: "Draft" })
+          .where(eq(projects.id, b.projectId));
+      }
+    });
+
+    const detail = await loadBaselineDetail(baselineId);
+    if (!detail) return res.status(404).json({ error: "Baseline not found" });
     return res.json(detail);
   },
 );

@@ -10,6 +10,5 @@ export interface CreateChangeEventInput {
   proposedNewDate: Date;
   /** @minLength 1 */
   changeReason: string;
-  /** @minItems 1 */
   impactedProjectCompanyIds: number[];
 }

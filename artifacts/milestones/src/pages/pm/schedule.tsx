@@ -1,17 +1,59 @@
 import { useState, useMemo } from "react";
-import { useGetProjectMilestones, useGetProjectCompanies } from "@workspace/api-client-react";
+import {
+  useGetProjectMilestones,
+  useGetProjectCompanies,
+  useGetPmProjectSummary,
+  useCreateMilestone,
+  useDeleteMilestone,
+  useSubmitScheduleBaseline,
+  getGetProjectMilestonesQueryKey,
+  getGetPmProjectSummaryQueryKey,
+  getListBaselineReviewsQueryKey,
+  type CreateMilestoneInput,
+  StageCode,
+} from "@workspace/api-client-react";
 import { usePmProjectId } from "@/components/pm-layout";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { format, differenceInDays } from "date-fns";
 import { Link } from "wouter";
-import { Flag, AlertCircle, CheckCircle2, Clock, PlayCircle, Search } from "lucide-react";
+import {
+  Flag, AlertCircle, CheckCircle2, Clock, PlayCircle, Search,
+  Plus, Send, Lock, FilePenLine, Trash2, Loader2,
+} from "lucide-react";
 
 const STATUSES = ["Planned", "OnTrack", "AtRisk", "Delayed", "Completed"] as const;
+
+const STAGE_OPTIONS: Array<{ code: StageCode; label: string }> = [
+  { code: "S1_FEASIBILITY" as StageCode, label: "S1 Feasibility" },
+  { code: "S2_CONCEPT_DESIGN" as StageCode, label: "S2 Concept Design" },
+  { code: "S3_DETAILED_DESIGN" as StageCode, label: "S3 Detailed Design" },
+  { code: "S4_PROCUREMENT" as StageCode, label: "S4 Procurement" },
+  { code: "S5_CONSTRUCTION" as StageCode, label: "S5 Construction" },
+  { code: "S6_COMMISSIONING" as StageCode, label: "S6 Commissioning" },
+  { code: "S7_HANDOVER" as StageCode, label: "S7 Handover" },
+];
 
 function statusBadge(status: string) {
   switch (status) {
@@ -28,16 +70,417 @@ function statusBadge(status: string) {
   }
 }
 
+function LifecycleBanner({
+  status,
+  baselinedAt,
+  pendingBaselineId,
+  projectId,
+  milestoneCount,
+}: {
+  status: "Draft" | "PendingBaseline" | "Baselined";
+  baselinedAt: string | null | undefined;
+  pendingBaselineId: number | null | undefined;
+  projectId: number;
+  milestoneCount: number;
+}) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [note, setNote] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const submit = useSubmitScheduleBaseline({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Submitted for baseline approval" });
+        qc.invalidateQueries({ queryKey: getGetPmProjectSummaryQueryKey(projectId) });
+        qc.invalidateQueries({ queryKey: getGetProjectMilestonesQueryKey(projectId) });
+        qc.invalidateQueries({ queryKey: getListBaselineReviewsQueryKey() });
+        setOpen(false);
+        setNote("");
+      },
+      onError: (err) => toast({
+        variant: "destructive",
+        title: "Submission failed",
+        description: (err as unknown as { error?: string })?.error ?? "Try again.",
+      }),
+    },
+  });
+
+  if (status === "Draft") {
+    return (
+      <>
+        <Card className="p-4 border-amber-200 bg-amber-50/50 flex items-start gap-4">
+          <FilePenLine className="w-5 h-5 text-amber-700 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-amber-900">Schedule is in Draft</div>
+            <p className="text-sm text-amber-800 mt-0.5">
+              Add, edit, or remove milestones freely. Once you're ready, submit the schedule for client baseline approval. After approval, all edits will route through change events.
+            </p>
+          </div>
+          <Button
+            onClick={() => setOpen(true)}
+            disabled={milestoneCount === 0}
+            className="flex-shrink-0"
+          >
+            <Send className="w-4 h-4 mr-1" /> Submit for Baseline
+          </Button>
+        </Card>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Submit schedule for baseline approval</DialogTitle>
+              <DialogDescription>
+                This sends the current {milestoneCount} milestone{milestoneCount === 1 ? "" : "s"} to the client for approval. The schedule will be locked until they decide.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5">
+              <Label htmlFor="baseline-note">Note to client (optional)</Label>
+              <Textarea
+                id="baseline-note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Anything you want to call out to the client about this schedule..."
+                className="h-24 resize-none"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)} disabled={submit.isPending}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => submit.mutate({ projectId, data: { note: note.trim() || undefined } })}
+                disabled={submit.isPending}
+              >
+                {submit.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                Submit for approval
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+
+  if (status === "PendingBaseline") {
+    return (
+      <Card className="p-4 border-blue-200 bg-blue-50/50 flex items-start gap-4">
+        <Clock className="w-5 h-5 text-blue-700 mt-0.5 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-blue-900">Awaiting client baseline approval</div>
+          <p className="text-sm text-blue-800 mt-0.5">
+            The schedule is locked while the client reviews it. You'll be notified when they approve or reject.
+          </p>
+        </div>
+        {pendingBaselineId && (
+          <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 flex-shrink-0">
+            Baseline #{pendingBaselineId}
+          </Badge>
+        )}
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-4 border-emerald-200 bg-emerald-50/50 flex items-start gap-4">
+      <Lock className="w-5 h-5 text-emerald-700 mt-0.5 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-emerald-900">Schedule is Baselined</div>
+        <p className="text-sm text-emerald-800 mt-0.5">
+          {baselinedAt ? `Baselined on ${format(new Date(baselinedAt), "MMM d, yyyy")}. ` : ""}
+          Any further changes must go through a change event opened from the milestone page.
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+function AddMilestoneDialog({
+  open,
+  onOpenChange,
+  projectId,
+  companies,
+  siblings,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  projectId: number;
+  companies: Array<{ projectCompanyId: number; name: string; roleOnProject: string }>;
+  siblings: Array<{ id: number; code: string; name: string }>;
+}) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [stageCode, setStageCode] = useState<string>(STAGE_OPTIONS[0].code);
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [ownerRole, setOwnerRole] = useState("");
+  const [baselineDate, setBaselineDate] = useState("");
+  const [isKeyOutput, setIsKeyOutput] = useState(false);
+  const [critical, setCritical] = useState(false);
+  const [isPayment, setIsPayment] = useState(false);
+  const [ownerPcIds, setOwnerPcIds] = useState<Set<number>>(new Set());
+  const [contribPcIds, setContribPcIds] = useState<Set<number>>(new Set());
+  const [predIds, setPredIds] = useState<Set<number>>(new Set());
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function reset() {
+    setStageCode(STAGE_OPTIONS[0].code);
+    setCode(""); setName(""); setDescription(""); setOwnerRole(""); setBaselineDate("");
+    setIsKeyOutput(false); setCritical(false); setIsPayment(false);
+    setOwnerPcIds(new Set()); setContribPcIds(new Set()); setPredIds(new Set()); setErrors({});
+  }
+
+  const create = useCreateMilestone({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Milestone added" });
+        qc.invalidateQueries({ queryKey: getGetProjectMilestonesQueryKey(projectId) });
+        qc.invalidateQueries({ queryKey: getGetPmProjectSummaryQueryKey(projectId) });
+        onOpenChange(false);
+        reset();
+      },
+      onError: (err) => toast({
+        variant: "destructive",
+        title: "Could not add milestone",
+        description: (err as unknown as { error?: string })?.error ?? "Try again.",
+      }),
+    },
+  });
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const errs: Record<string, string> = {};
+    if (!code.trim()) errs.code = "Code is required.";
+    if (!name.trim()) errs.name = "Name is required.";
+    if (!ownerRole.trim()) errs.ownerRole = "Owner role is required.";
+    if (!baselineDate) errs.baselineDate = "Date is required.";
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+    const data: CreateMilestoneInput = {
+      stageCode: stageCode as StageCode,
+      code: code.trim(),
+      name: name.trim(),
+      description: description.trim() || undefined,
+      ownerRole: ownerRole.trim(),
+      baselineDate: new Date(baselineDate).toISOString(),
+      criticalFlag: critical,
+      isKeyOutput,
+      isPaymentTrigger: isPayment,
+      ownerProjectCompanyIds: Array.from(ownerPcIds),
+      contributorProjectCompanyIds: Array.from(contribPcIds),
+      predecessorIds: Array.from(predIds),
+    };
+    create.mutate({ projectId, data });
+  }
+
+  function togglePc(set: Set<number>, setFn: (s: Set<number>) => void, id: number) {
+    const next = new Set(set);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setFn(next);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
+      <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add milestone</DialogTitle>
+          <DialogDescription>Create a new milestone on the master schedule.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5 col-span-2">
+              <Label>Stage</Label>
+              <Select value={stageCode} onValueChange={setStageCode}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {STAGE_OPTIONS.map((s) => (
+                    <SelectItem key={s.code} value={s.code}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="code">Code</Label>
+              <Input id="code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="e.g. M-101" />
+              {errors.code && <p className="text-xs text-destructive">{errors.code}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="baselineDate">Target date</Label>
+              <Input id="baselineDate" type="date" value={baselineDate} onChange={(e) => setBaselineDate(e.target.value)} />
+              {errors.baselineDate && <p className="text-xs text-destructive">{errors.baselineDate}</p>}
+            </div>
+            <div className="space-y-1.5 col-span-2">
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+              {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+            </div>
+            <div className="space-y-1.5 col-span-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="h-20 resize-none" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ownerRole">Owner role</Label>
+              <Input id="ownerRole" value={ownerRole} onChange={(e) => setOwnerRole(e.target.value)} placeholder="e.g. Architect" />
+              {errors.ownerRole && <p className="text-xs text-destructive">{errors.ownerRole}</p>}
+            </div>
+            <div className="space-y-2 pt-6">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={isKeyOutput} onCheckedChange={(c) => setIsKeyOutput(c === true)} /> Key output
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={critical} onCheckedChange={(c) => setCritical(c === true)} /> Critical
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={isPayment} onCheckedChange={(c) => setIsPayment(c === true)} /> Payment trigger
+              </label>
+            </div>
+          </div>
+
+          {companies.length > 0 && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Owner companies</Label>
+                <div className="border rounded-md divide-y max-h-40 overflow-y-auto">
+                  {companies.map((c) => (
+                    <label key={c.projectCompanyId} className="flex items-center gap-2 p-2 text-sm cursor-pointer hover:bg-muted/40">
+                      <Checkbox
+                        checked={ownerPcIds.has(c.projectCompanyId)}
+                        onCheckedChange={() => togglePc(ownerPcIds, setOwnerPcIds, c.projectCompanyId)}
+                      />
+                      <span className="flex-1 truncate">{c.name}</span>
+                      <span className="text-xs text-muted-foreground">{c.roleOnProject}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Contributor companies</Label>
+                <div className="border rounded-md divide-y max-h-40 overflow-y-auto">
+                  {companies.map((c) => (
+                    <label key={c.projectCompanyId} className="flex items-center gap-2 p-2 text-sm cursor-pointer hover:bg-muted/40">
+                      <Checkbox
+                        checked={contribPcIds.has(c.projectCompanyId)}
+                        onCheckedChange={() => togglePc(contribPcIds, setContribPcIds, c.projectCompanyId)}
+                      />
+                      <span className="flex-1 truncate">{c.name}</span>
+                      <span className="text-xs text-muted-foreground">{c.roleOnProject}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {siblings.length > 0 && (
+            <div className="space-y-2">
+              <Label>Predecessors (optional)</Label>
+              <div className="border rounded-md divide-y max-h-32 overflow-y-auto">
+                {siblings.map((s) => (
+                  <label key={s.id} className="flex items-center gap-2 p-2 text-sm cursor-pointer hover:bg-muted/40">
+                    <Checkbox
+                      checked={predIds.has(s.id)}
+                      onCheckedChange={() => togglePc(predIds, setPredIds, s.id)}
+                    />
+                    <span className="font-mono text-xs text-muted-foreground">{s.code}</span>
+                    <span className="flex-1 truncate">{s.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={create.isPending}>Cancel</Button>
+            <Button type="submit" disabled={create.isPending}>
+              {create.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              Add milestone
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeleteMilestoneButton({
+  milestoneId,
+  milestoneName,
+  projectId,
+}: {
+  milestoneId: number;
+  milestoneName: string;
+  projectId: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const del = useDeleteMilestone({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Milestone deleted" });
+        qc.invalidateQueries({ queryKey: getGetProjectMilestonesQueryKey(projectId) });
+        qc.invalidateQueries({ queryKey: getGetPmProjectSummaryQueryKey(projectId) });
+        setOpen(false);
+      },
+      onError: (err) => toast({
+        variant: "destructive",
+        title: "Could not delete",
+        description: (err as unknown as { error?: string })?.error ?? "Try again.",
+      }),
+    },
+  });
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(true); }}
+        title="Delete milestone"
+      >
+        <Trash2 className="w-4 h-4" />
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this milestone?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {milestoneName} will be permanently removed from the draft schedule.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={del.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => del.mutate({ milestoneId })}
+              disabled={del.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {del.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
 export default function PmSchedule() {
   const [projectId] = usePmProjectId();
   const { data: milestones, isLoading } = useGetProjectMilestones(projectId);
   const { data: companies } = useGetProjectCompanies(projectId);
+  const { data: summary } = useGetPmProjectSummary(projectId);
 
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [companyFilter, setCompanyFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [riskOnly, setRiskOnly] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+
+  const scheduleStatus = summary?.scheduleStatus ?? "Draft";
+  const isDraft = scheduleStatus === "Draft";
 
   const stageOptions = useMemo(() => {
     if (!milestones) return [];
@@ -78,23 +521,35 @@ export default function PmSchedule() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <header>
-        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">Master Schedule</h1>
-        <p className="text-muted-foreground mt-1">
-          Every milestone in the project, across every company.
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">Master Schedule</h1>
+          <p className="text-muted-foreground mt-1">
+            Every milestone in the project, across every company.
+          </p>
+        </div>
+        {isDraft && (
+          <Button onClick={() => setAddOpen(true)} className="flex-shrink-0">
+            <Plus className="w-4 h-4 mr-1" /> Add Milestone
+          </Button>
+        )}
       </header>
+
+      {summary && (
+        <LifecycleBanner
+          status={scheduleStatus}
+          baselinedAt={summary.baselinedAt}
+          pendingBaselineId={summary.pendingBaselineId}
+          projectId={projectId}
+          milestoneCount={milestones?.length ?? 0}
+        />
+      )}
 
       <Card className="p-4 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <div className="relative md:col-span-2">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search milestone name or code..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
+            <Input placeholder="Search milestone name or code..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
           <Select value={stageFilter} onValueChange={setStageFilter}>
             <SelectTrigger><SelectValue placeholder="Stage" /></SelectTrigger>
@@ -145,13 +600,17 @@ export default function PmSchedule() {
               <TableHead>Contributors</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Changes</TableHead>
+              <TableHead className="text-right">{isDraft ? "Actions" : "Changes"}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center h-32 text-muted-foreground">No milestones match the filters.</TableCell>
+                <TableCell colSpan={7} className="text-center h-32 text-muted-foreground">
+                  {milestones?.length === 0 && isDraft
+                    ? "No milestones yet — click \"Add Milestone\" above to start building the schedule."
+                    : "No milestones match the filters."}
+                </TableCell>
               </TableRow>
             ) : filtered.map((m) => {
               const shift = m.previousDate ? differenceInDays(new Date(m.currentDate), new Date(m.previousDate)) : 0;
@@ -192,11 +651,28 @@ export default function PmSchedule() {
                   </TableCell>
                   <TableCell>{statusBadge(m.status)}</TableCell>
                   <TableCell className="text-right text-xs">
-                    {m.openChangeEventCount > 0 && (
-                      <Badge variant="outline" className="bg-[color-mix(in_srgb,var(--c-warn)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-warn)_30%,var(--c-line))]">{m.openChangeEventCount} open</Badge>
-                    )}
-                    {m.pendingResponseCount > 0 && (
-                      <div className="text-[10px] text-muted-foreground mt-0.5">{m.pendingResponseCount} awaiting</div>
+                    {isDraft ? (
+                      <div className="flex items-center justify-end gap-1">
+                        <Link href={`/pm/milestone/${m.id}`}>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Edit">
+                            <FilePenLine className="w-4 h-4" />
+                          </Button>
+                        </Link>
+                        <DeleteMilestoneButton
+                          milestoneId={m.id}
+                          milestoneName={m.name}
+                          projectId={projectId}
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        {m.openChangeEventCount > 0 && (
+                          <Badge variant="outline" className="bg-[color-mix(in_srgb,var(--c-warn)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-warn)_30%,var(--c-line))]">{m.openChangeEventCount} open</Badge>
+                        )}
+                        {m.pendingResponseCount > 0 && (
+                          <div className="text-[10px] text-muted-foreground mt-0.5">{m.pendingResponseCount} awaiting</div>
+                        )}
+                      </>
                     )}
                   </TableCell>
                 </TableRow>
@@ -205,6 +681,14 @@ export default function PmSchedule() {
           </TableBody>
         </Table>
       </Card>
+
+      <AddMilestoneDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        projectId={projectId}
+        companies={companies ?? []}
+        siblings={(milestones ?? []).map((m) => ({ id: m.id, code: m.code, name: m.name }))}
+      />
     </div>
   );
 }

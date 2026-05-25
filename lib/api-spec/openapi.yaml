@@ -309,6 +309,214 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /projects/{projectId}/milestones-create:
+    post:
+      operationId: createMilestone
+      tags: [milestones]
+      summary: PM creates a new milestone (allowed only while schedule is Draft)
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateMilestoneInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MilestoneDetail" }
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden or schedule no longer Draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /milestones/{milestoneId}:
+    patch:
+      operationId: updateMilestone
+      tags: [milestones]
+      summary: PM edits a milestone directly (allowed only while schedule is Draft)
+      parameters:
+        - in: path
+          name: milestoneId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateMilestoneInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MilestoneDetail" }
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Schedule is no longer Draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    delete:
+      operationId: deleteMilestone
+      tags: [milestones]
+      summary: PM deletes a milestone (allowed only while schedule is Draft)
+      parameters:
+        - in: path
+          name: milestoneId
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Removed
+        "403":
+          description: Schedule is no longer Draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /projects/{projectId}/schedule/submit-baseline:
+    post:
+      operationId: submitScheduleBaseline
+      tags: [baselines]
+      summary: PM submits the current schedule for client baseline approval
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmitBaselineInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScheduleBaseline" }
+        "400":
+          description: Invalid state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /projects/{projectId}/schedule/baseline:
+    get:
+      operationId: getProjectScheduleBaseline
+      tags: [baselines]
+      summary: Latest baseline (any status) for the project, if any
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK or null
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: "#/components/schemas/ScheduleBaseline" }
+                  - { type: "null" }
+
+  /me/baseline-reviews:
+    get:
+      operationId: listBaselineReviews
+      tags: [baselines]
+      summary: Pending baseline submissions awaiting the client's decision
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BaselineReviewItem" }
+
+  /me/baseline-reviews/{baselineId}:
+    get:
+      operationId: getBaselineReviewDetail
+      tags: [baselines]
+      summary: Detail of a pending baseline for client review
+      parameters:
+        - in: path
+          name: baselineId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScheduleBaseline" }
+
+  /me/baseline-reviews/{baselineId}/decision:
+    post:
+      operationId: submitBaselineDecision
+      tags: [baselines]
+      summary: Client approves or rejects a baseline submission
+      parameters:
+        - in: path
+          name: baselineId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BaselineDecisionInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScheduleBaseline" }
+
+  /milestones/{milestoneId}/edit-requests:
+    post:
+      operationId: createMilestoneEditRequest
+      tags: [impacts]
+      summary: PM opens a non-date edit request on a baselined milestone
+      parameters:
+        - in: path
+          name: milestoneId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateMilestoneEditRequestInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ChangeEventDetail" }
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /projects/{projectId}/companies:
     get:
       operationId: getProjectCompanies
@@ -942,6 +1150,163 @@ components:
         - PMApproved
         - Cancelled
 
+    ChangeEventEditKind:
+      type: string
+      enum: [DateChange, FieldEdit]
+
+    ProjectScheduleStatus:
+      type: string
+      enum: [Draft, PendingBaseline, Baselined]
+
+    ScheduleBaselineStatus:
+      type: string
+      enum: [Pending, Approved, Rejected]
+
+    MilestoneProposedChanges:
+      type: object
+      description: Diff of milestone field edits proposed in a change event (FieldEdit kind).
+      properties:
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        code: { type: string }
+        ownerRole: { type: string }
+        criticalFlag: { type: boolean }
+        isKeyOutput: { type: boolean }
+        isPaymentTrigger: { type: boolean }
+        ownerProjectCompanyIds:
+          type: array
+          items: { type: integer }
+        contributorProjectCompanyIds:
+          type: array
+          items: { type: integer }
+        predecessorIds:
+          type: array
+          items: { type: integer }
+
+    CreateMilestoneInput:
+      type: object
+      required: [stageCode, code, name, ownerRole, baselineDate]
+      properties:
+        stageCode: { $ref: "#/components/schemas/StageCode" }
+        code: { type: string, minLength: 1 }
+        name: { type: string, minLength: 1 }
+        description: { type: string }
+        ownerRole: { type: string, minLength: 1 }
+        baselineDate: { type: string, format: date-time }
+        criticalFlag: { type: boolean }
+        isKeyOutput: { type: boolean }
+        isPaymentTrigger: { type: boolean }
+        ownerProjectCompanyIds:
+          type: array
+          items: { type: integer }
+        contributorProjectCompanyIds:
+          type: array
+          items: { type: integer }
+        predecessorIds:
+          type: array
+          items: { type: integer }
+
+    UpdateMilestoneInput:
+      type: object
+      description: Direct edit, allowed only while schedule is Draft. All fields optional.
+      properties:
+        stageCode: { $ref: "#/components/schemas/StageCode" }
+        code: { type: string, minLength: 1 }
+        name: { type: string, minLength: 1 }
+        description: { type: ["string", "null"] }
+        ownerRole: { type: string, minLength: 1 }
+        baselineDate: { type: string, format: date-time }
+        criticalFlag: { type: boolean }
+        isKeyOutput: { type: boolean }
+        isPaymentTrigger: { type: boolean }
+        ownerProjectCompanyIds:
+          type: array
+          items: { type: integer }
+        contributorProjectCompanyIds:
+          type: array
+          items: { type: integer }
+        predecessorIds:
+          type: array
+          items: { type: integer }
+
+    CreateMilestoneEditRequestInput:
+      type: object
+      required: [proposedChanges, changeReason]
+      properties:
+        proposedChanges: { $ref: "#/components/schemas/MilestoneProposedChanges" }
+        changeReason: { type: string, minLength: 1 }
+        impactedProjectCompanyIds:
+          type: array
+          items: { type: integer }
+          description: Optional contractor companies to notify. Empty means skip contractor assessment.
+
+    SubmitBaselineInput:
+      type: object
+      properties:
+        note: { type: string }
+
+    BaselineDecisionInput:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [approve, reject] }
+        comment: { type: string }
+
+    BaselineMilestoneSnapshot:
+      type: object
+      required: [milestoneId, code, name, stageCode, baselineDate, ownerRole]
+      properties:
+        milestoneId: { type: integer }
+        code: { type: string }
+        name: { type: string }
+        stageCode: { $ref: "#/components/schemas/StageCode" }
+        stageName: { type: string }
+        ownerRole: { type: string }
+        baselineDate: { type: string, format: date-time }
+        currentDate: { type: string, format: date-time }
+        isKeyOutput: { type: boolean }
+        criticalFlag: { type: boolean }
+        isPaymentTrigger: { type: boolean }
+        predecessorIds:
+          type: array
+          items: { type: integer }
+
+    ScheduleBaseline:
+      type: object
+      required: [id, projectId, status, submittedAt, milestones]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        projectName: { type: string }
+        projectCode: { type: string }
+        status: { $ref: "#/components/schemas/ScheduleBaselineStatus" }
+        submittedAt: { type: string, format: date-time }
+        submittedByUserId: { type: ["integer", "null"] }
+        submittedByEmail: { type: ["string", "null"] }
+        submissionNote: { type: ["string", "null"] }
+        decidedAt: { type: ["string", "null"], format: date-time }
+        decidedByUserId: { type: ["integer", "null"] }
+        decidedByEmail: { type: ["string", "null"] }
+        decisionComment: { type: ["string", "null"] }
+        milestoneCount: { type: integer }
+        milestones:
+          type: array
+          items: { $ref: "#/components/schemas/BaselineMilestoneSnapshot" }
+
+    BaselineReviewItem:
+      type: object
+      required: [id, projectId, projectName, projectCode, status, submittedAt, milestoneCount]
+      properties:
+        id: { type: integer }
+        projectId: { type: integer }
+        projectName: { type: string }
+        projectCode: { type: string }
+        status: { $ref: "#/components/schemas/ScheduleBaselineStatus" }
+        submittedAt: { type: string, format: date-time }
+        submittedByEmail: { type: ["string", "null"] }
+        submissionNote: { type: ["string", "null"] }
+        milestoneCount: { type: integer }
+
     StageInfo:
       type: object
       required: [stageCode, name, order, milestoneCount, keyOutputCount, companyMilestoneCount]
@@ -1064,6 +1429,7 @@ components:
         - projectName
         - projectCode
         - gcCompanyName
+        - scheduleStatus
         - totalMilestones
         - atRiskMilestoneCount
         - delayedMilestoneCount
@@ -1079,6 +1445,9 @@ components:
         projectName: { type: string }
         projectCode: { type: string }
         gcCompanyName: { type: string }
+        scheduleStatus: { $ref: "#/components/schemas/ProjectScheduleStatus" }
+        baselinedAt: { type: ["string", "null"], format: date-time }
+        pendingBaselineId: { type: ["integer", "null"] }
         totalMilestones: { type: integer }
         atRiskMilestoneCount: { type: integer }
         delayedMilestoneCount: { type: integer }
@@ -1123,6 +1492,7 @@ components:
         - contributorCompanies
         - openChangeEventCount
         - pendingResponseCount
+        - scheduleStatus
       properties:
         id: { type: integer }
         code: { type: string }
@@ -1144,8 +1514,12 @@ components:
         contributorCompanies:
           type: array
           items: { $ref: "#/components/schemas/PmMilestoneCompany" }
+        predecessorIds:
+          type: array
+          items: { type: integer }
         openChangeEventCount: { type: integer }
         pendingResponseCount: { type: integer }
+        scheduleStatus: { $ref: "#/components/schemas/ProjectScheduleStatus" }
 
     MilestoneImpactDetail:
       type: object
@@ -1183,12 +1557,17 @@ components:
 
     ChangeEventHistoryItem:
       type: object
-      required: [id, initiatedAt, oldDate, proposedNewDate, changeReason, status, impacts]
+      required: [id, editKind, initiatedAt, changeReason, status, impacts]
       properties:
         id: { type: integer }
+        editKind: { $ref: "#/components/schemas/ChangeEventEditKind" }
         initiatedAt: { type: string, format: date-time }
-        oldDate: { type: string, format: date-time }
-        proposedNewDate: { type: string, format: date-time }
+        oldDate: { type: ["string", "null"], format: date-time }
+        proposedNewDate: { type: ["string", "null"], format: date-time }
+        proposedChanges:
+          oneOf:
+            - { $ref: "#/components/schemas/MilestoneProposedChanges" }
+            - { type: "null" }
         changeReason: { type: string }
         status: { $ref: "#/components/schemas/ChangeEventStatus" }
         impacts:
@@ -1215,7 +1594,13 @@ components:
         - contributorCompanies
         - changeEvents
         - outstandingCompanies
+        - scheduleStatus
+        - projectId
+        - predecessorIds
       properties:
+        predecessorIds:
+          type: array
+          items: { type: integer }
         id: { type: integer }
         code: { type: string }
         name: { type: string }
@@ -1244,6 +1629,8 @@ components:
         outstandingCompanies:
           type: array
           items: { $ref: "#/components/schemas/PmMilestoneCompany" }
+        scheduleStatus: { $ref: "#/components/schemas/ProjectScheduleStatus" }
+        projectId: { type: integer }
 
     ProjectCompanyDetail:
       type: object
@@ -1285,14 +1672,13 @@ components:
       type: object
       required:
         - id
+        - editKind
         - milestoneId
         - milestoneCode
         - milestoneName
         - stageCode
         - stageName
         - initiatedAt
-        - oldDate
-        - proposedNewDate
         - changeReason
         - status
         - impactedCompanyCount
@@ -1301,14 +1687,15 @@ components:
         - rollupStatus
       properties:
         id: { type: integer }
+        editKind: { $ref: "#/components/schemas/ChangeEventEditKind" }
         milestoneId: { type: integer }
         milestoneCode: { type: string }
         milestoneName: { type: string }
         stageCode: { $ref: "#/components/schemas/StageCode" }
         stageName: { type: string }
         initiatedAt: { type: string, format: date-time }
-        oldDate: { type: string, format: date-time }
-        proposedNewDate: { type: string, format: date-time }
+        oldDate: { type: ["string", "null"], format: date-time }
+        proposedNewDate: { type: ["string", "null"], format: date-time }
         changeReason: { type: string }
         status: { $ref: "#/components/schemas/ChangeEventStatus" }
         impactedCompanyCount: { type: integer }
@@ -1322,28 +1709,32 @@ components:
       type: object
       required:
         - id
+        - editKind
         - milestoneId
         - milestoneCode
         - milestoneName
         - stageCode
         - stageName
         - initiatedAt
-        - oldDate
-        - proposedNewDate
         - changeReason
         - status
         - impacts
         - timeline
       properties:
         id: { type: integer }
+        editKind: { $ref: "#/components/schemas/ChangeEventEditKind" }
         milestoneId: { type: integer }
         milestoneCode: { type: string }
         milestoneName: { type: string }
         stageCode: { $ref: "#/components/schemas/StageCode" }
         stageName: { type: string }
         initiatedAt: { type: string, format: date-time }
-        oldDate: { type: string, format: date-time }
-        proposedNewDate: { type: string, format: date-time }
+        oldDate: { type: ["string", "null"], format: date-time }
+        proposedNewDate: { type: ["string", "null"], format: date-time }
+        proposedChanges:
+          oneOf:
+            - { $ref: "#/components/schemas/MilestoneProposedChanges" }
+            - { type: "null" }
         changeReason: { type: string }
         status: { $ref: "#/components/schemas/ChangeEventStatus" }
         clientComment: { type: ["string", "null"] }
@@ -1377,6 +1768,7 @@ components:
       type: object
       required:
         - id
+        - editKind
         - projectId
         - projectName
         - projectCode
@@ -1386,12 +1778,11 @@ components:
         - stageCode
         - stageName
         - initiatedAt
-        - oldDate
-        - proposedNewDate
         - changeReason
         - status
       properties:
         id: { type: integer }
+        editKind: { $ref: "#/components/schemas/ChangeEventEditKind" }
         projectId: { type: integer }
         projectName: { type: string }
         projectCode: { type: string }
@@ -1401,8 +1792,12 @@ components:
         stageCode: { $ref: "#/components/schemas/StageCode" }
         stageName: { type: string }
         initiatedAt: { type: string, format: date-time }
-        oldDate: { type: string, format: date-time }
-        proposedNewDate: { type: string, format: date-time }
+        oldDate: { type: ["string", "null"], format: date-time }
+        proposedNewDate: { type: ["string", "null"], format: date-time }
+        proposedChanges:
+          oneOf:
+            - { $ref: "#/components/schemas/MilestoneProposedChanges" }
+            - { type: "null" }
         changeReason: { type: string }
         status: { $ref: "#/components/schemas/ChangeEventStatus" }
 
@@ -1470,7 +1865,6 @@ components:
         changeReason: { type: string, minLength: 1 }
         impactedProjectCompanyIds:
           type: array
-          minItems: 1
           items: { type: integer }
 
     CreateChangeEventInput:
@@ -1481,7 +1875,6 @@ components:
         changeReason: { type: string, minLength: 1 }
         impactedProjectCompanyIds:
           type: array
-          minItems: 1
           items: { type: integer }
 
     ImpactResponseInput:

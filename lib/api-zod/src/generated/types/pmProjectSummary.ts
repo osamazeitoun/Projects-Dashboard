@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PmActivityItem } from './pmActivityItem';
+import type { ProjectScheduleStatus } from './projectScheduleStatus';
 import type { StageBreakdown } from './stageBreakdown';
 
 export interface PmProjectSummary {
@@ -13,6 +14,11 @@ export interface PmProjectSummary {
   projectName: string;
   projectCode: string;
   gcCompanyName: string;
+  scheduleStatus: ProjectScheduleStatus;
+  /** @nullable */
+  baselinedAt?: Date | null;
+  /** @nullable */
+  pendingBaselineId?: number | null;
   totalMilestones: number;
   atRiskMilestoneCount: number;
   delayedMilestoneCount: number;

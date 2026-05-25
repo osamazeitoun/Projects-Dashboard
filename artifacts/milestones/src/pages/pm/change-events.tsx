@@ -47,7 +47,9 @@ export default function PmChangeEvents() {
       ) : (
         <div className="space-y-3">
           {data.map((ev) => {
-            const shift = differenceInDays(new Date(ev.proposedNewDate), new Date(ev.oldDate));
+            const shift = ev.oldDate && ev.proposedNewDate
+              ? differenceInDays(new Date(ev.proposedNewDate), new Date(ev.oldDate))
+              : 0;
             return (
               <Link key={ev.id} href={`/pm/change-event/${ev.id}`}>
                 <Card className="p-4 shadow-sm hover:border-primary/40 transition-colors cursor-pointer">
@@ -61,14 +63,18 @@ export default function PmChangeEvents() {
                       </div>
                       <div className="font-semibold">{ev.milestoneName}</div>
                       <p className="text-sm text-muted-foreground italic">"{ev.changeReason}"</p>
-                      <div className="flex items-center gap-3 text-sm">
-                        <span className="line-through text-muted-foreground">{format(new Date(ev.oldDate), "MMM d, yyyy")}</span>
-                        <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-bold">{format(new Date(ev.proposedNewDate), "MMM d, yyyy")}</span>
-                        <Badge variant="outline" className={shift > 0 ? "bg-[color-mix(in_srgb,var(--c-danger)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-danger)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-danger)_30%,var(--c-line))]" : "bg-[color-mix(in_srgb,var(--c-info)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-info)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-info)_30%,var(--c-line))]"}>
-                          {shift > 0 ? `+${shift}` : shift} days
-                        </Badge>
-                      </div>
+                      {ev.oldDate && ev.proposedNewDate ? (
+                        <div className="flex items-center gap-3 text-sm">
+                          <span className="line-through text-muted-foreground">{format(new Date(ev.oldDate), "MMM d, yyyy")}</span>
+                          <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-bold">{format(new Date(ev.proposedNewDate), "MMM d, yyyy")}</span>
+                          <Badge variant="outline" className={shift > 0 ? "bg-[color-mix(in_srgb,var(--c-danger)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-danger)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-danger)_30%,var(--c-line))]" : "bg-[color-mix(in_srgb,var(--c-info)_14%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-info)_70%,var(--c-ink))] border-[color-mix(in_srgb,var(--c-info)_30%,var(--c-line))]"}>
+                            {shift > 0 ? `+${shift}` : shift} days
+                          </Badge>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground italic">Field edit (no date change)</div>
+                      )}
                     </div>
                     <div className="flex flex-col items-end gap-2 flex-shrink-0">
                       {rollupBadge(ev.rollupStatus)}

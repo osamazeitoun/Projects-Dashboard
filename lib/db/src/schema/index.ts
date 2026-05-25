@@ -40,6 +40,23 @@ export const companyTypeEnum = pgEnum("company_type", [
   "Internal",
 ]);
 
+export const projectScheduleStatusEnum = pgEnum("project_schedule_status", [
+  "Draft",
+  "PendingBaseline",
+  "Baselined",
+]);
+
+export const scheduleBaselineStatusEnum = pgEnum("schedule_baseline_status", [
+  "Pending",
+  "Approved",
+  "Rejected",
+]);
+
+export const changeEventEditKindEnum = pgEnum("change_event_edit_kind", [
+  "DateChange",
+  "FieldEdit",
+]);
+
 export const changeEventStatusEnum = pgEnum("change_event_status", [
   "Draft",
   "SentForClientReview",
@@ -99,6 +116,10 @@ export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   code: text("code").notNull(),
+  scheduleStatus: projectScheduleStatusEnum("schedule_status")
+    .notNull()
+    .default("Draft"),
+  baselinedAt: timestamp("baselined_at", { withTimezone: true }),
 });
 
 export const companies = pgTable("companies", {
@@ -181,14 +202,35 @@ export const changeEvents = pgTable("change_events", {
   initiatedAt: timestamp("initiated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-  oldDate: timestamp("old_date", { withTimezone: true }).notNull(),
-  proposedNewDate: timestamp("proposed_new_date", { withTimezone: true }).notNull(),
+  editKind: changeEventEditKindEnum("edit_kind").notNull().default("DateChange"),
+  oldDate: timestamp("old_date", { withTimezone: true }),
+  proposedNewDate: timestamp("proposed_new_date", { withTimezone: true }),
+  proposedChanges: jsonb("proposed_changes"),
   changeReason: text("change_reason").notNull(),
   status: changeEventStatusEnum("status").notNull().default("Draft"),
   clientUserId: integer("client_user_id"),
   clientDecisionAt: timestamp("client_decision_at", { withTimezone: true }),
   clientComment: text("client_comment"),
 });
+
+export const scheduleBaselines = pgTable("schedule_baselines", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id")
+    .notNull()
+    .references(() => projects.id, { onDelete: "cascade" }),
+  status: scheduleBaselineStatusEnum("status").notNull().default("Pending"),
+  submittedByUserId: integer("submitted_by_user_id"),
+  submittedAt: timestamp("submitted_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  submissionNote: text("submission_note"),
+  decidedByUserId: integer("decided_by_user_id"),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  decisionComment: text("decision_comment"),
+  snapshot: jsonb("snapshot").notNull(),
+});
+
+export type ScheduleBaseline = typeof scheduleBaselines.$inferSelect;
 
 export const changeEventEvents = pgTable("change_event_events", {
   id: serial("id").primaryKey(),
