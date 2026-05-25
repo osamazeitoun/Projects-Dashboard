@@ -5,8 +5,11 @@ import {
   milestoneImpacts,
   milestones,
   notificationDeliveries,
+  projectAssignments,
   projectCompanies,
   projects,
+  scheduleBaselines,
+  users,
 } from "@workspace/db";
 import { and, eq, inArray } from "drizzle-orm";
 import nodemailer, { type Transporter } from "nodemailer";
@@ -312,6 +315,221 @@ export async function sendChangeEventCancellationNotices(opts: {
       channel,
       errorMessage,
       deliveryId: delivery.id,
+    });
+  }
+
+  return results;
+}
+
+export type BaselineDecisionDeliveryResult = {
+  userId: number;
+  recipientEmail: string;
+  status: "Sent" | "Skipped" | "Failed";
+  channel: "email" | "log";
+  errorMessage: string | null;
+};
+
+function buildBaselineDecisionEmail(args: {
+  recipientEmail: string;
+  projectName: string;
+  projectCode: string;
+  decision: "Approved" | "Rejected";
+  deciderEmail: string;
+  decidedAt: Date;
+  comment: string | null;
+  submitterEmail: string | null;
+  submittedAt: Date;
+  milestoneCount: number;
+}): EmailEnvelope {
+  const verb = args.decision === "Approved" ? "approved" : "rejected";
+  const subject = `[${args.projectCode}] Schedule baseline ${verb} by client`;
+
+  const commentLines = args.comment
+    ? [`Client comment:`, args.comment, ``]
+    : [`Client comment: (none)`, ``];
+
+  const text = [
+    `The schedule baseline for ${args.projectName} (${args.projectCode}) has been ${verb}.`,
+    ``,
+    `Decision: ${args.decision}`,
+    `Decided by: ${args.deciderEmail}`,
+    `Decided at: ${fmtDate(args.decidedAt)}`,
+    ``,
+    ...commentLines,
+    `Originally submitted by: ${args.submitterEmail ?? "(unknown)"}`,
+    `Submitted at: ${fmtDate(args.submittedAt)}`,
+    `Milestones in baseline: ${args.milestoneCount}`,
+    ``,
+    `Construction Milestones`,
+  ].join("\n");
+
+  const commentHtml = args.comment
+    ? `<tr><td style="padding:4px 8px;color:#666">Client comment</td><td style="padding:4px 8px">${args.comment}</td></tr>`
+    : `<tr><td style="padding:4px 8px;color:#666">Client comment</td><td style="padding:4px 8px;color:#888">(none)</td></tr>`;
+
+  const html = `
+    <div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:560px">
+      <p>The schedule baseline for <strong>${args.projectName}</strong> (${args.projectCode}) has been <strong>${verb}</strong>.</p>
+      <table style="border-collapse:collapse;margin:12px 0">
+        <tr><td style="padding:4px 8px;color:#666">Decision</td><td style="padding:4px 8px"><strong>${args.decision}</strong></td></tr>
+        <tr><td style="padding:4px 8px;color:#666">Decided by</td><td style="padding:4px 8px">${args.deciderEmail}</td></tr>
+        <tr><td style="padding:4px 8px;color:#666">Decided at</td><td style="padding:4px 8px">${fmtDate(args.decidedAt)}</td></tr>
+        ${commentHtml}
+        <tr><td style="padding:4px 8px;color:#666">Submitted by</td><td style="padding:4px 8px">${args.submitterEmail ?? "(unknown)"}</td></tr>
+        <tr><td style="padding:4px 8px;color:#666">Submitted at</td><td style="padding:4px 8px">${fmtDate(args.submittedAt)}</td></tr>
+        <tr><td style="padding:4px 8px;color:#666">Milestones</td><td style="padding:4px 8px">${args.milestoneCount}</td></tr>
+      </table>
+      <p style="color:#888;font-size:12px">Construction Milestones</p>
+    </div>
+  `.trim();
+
+  return { to: args.recipientEmail, subject, text, html };
+}
+
+export async function sendBaselineDecisionNotifications(opts: {
+  baselineId: number;
+  deciderUserId: number;
+}): Promise<BaselineDecisionDeliveryResult[]> {
+  const { baselineId, deciderUserId } = opts;
+
+  const [b] = await db
+    .select({
+      id: scheduleBaselines.id,
+      projectId: scheduleBaselines.projectId,
+      projectName: projects.name,
+      projectCode: projects.code,
+      status: scheduleBaselines.status,
+      submittedByUserId: scheduleBaselines.submittedByUserId,
+      submittedAt: scheduleBaselines.submittedAt,
+      decidedAt: scheduleBaselines.decidedAt,
+      decisionComment: scheduleBaselines.decisionComment,
+      snapshot: scheduleBaselines.snapshot,
+    })
+    .from(scheduleBaselines)
+    .innerJoin(projects, eq(projects.id, scheduleBaselines.projectId))
+    .where(eq(scheduleBaselines.id, baselineId))
+    .limit(1);
+
+  if (!b) {
+    throw new Error(`Baseline ${baselineId} not found`);
+  }
+  if (b.status !== "Approved" && b.status !== "Rejected") {
+    logger.warn(
+      { baselineId, status: b.status },
+      "notifications: skipping baseline decision notice — baseline not in a decided state",
+    );
+    return [];
+  }
+
+  const decision = b.status as "Approved" | "Rejected";
+  const decidedAt = b.decidedAt ?? new Date();
+  const milestoneCount = Array.isArray(b.snapshot) ? b.snapshot.length : 0;
+
+  const pmRows = await db
+    .select({ userId: projectAssignments.userId })
+    .from(projectAssignments)
+    .where(
+      and(
+        eq(projectAssignments.projectId, b.projectId),
+        inArray(projectAssignments.role, ["pm", "admin"] as const),
+      ),
+    );
+  const recipientUserIds = new Set<number>(pmRows.map((r) => r.userId));
+  if (b.submittedByUserId !== null) recipientUserIds.add(b.submittedByUserId);
+
+  if (recipientUserIds.size === 0) {
+    logger.warn(
+      { baselineId, projectId: b.projectId },
+      "notifications: no PM recipients found for baseline decision",
+    );
+    return [];
+  }
+
+  const userRows = await db
+    .select({ id: users.id, email: users.email })
+    .from(users)
+    .where(inArray(users.id, Array.from(recipientUserIds)));
+  const emailById = new Map(userRows.map((u) => [u.id, u.email] as const));
+
+  let resolvedDeciderEmail = emailById.get(deciderUserId) ?? null;
+  if (!resolvedDeciderEmail) {
+    const [d] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.id, deciderUserId))
+      .limit(1);
+    resolvedDeciderEmail = d?.email ?? null;
+  }
+  const submitterEmail = b.submittedByUserId
+    ? emailById.get(b.submittedByUserId) ?? null
+    : null;
+
+  const { transporter, channel } = getTransport();
+  const fromAddress =
+    process.env.SMTP_FROM ?? "notifications@construction-milestones.local";
+
+  const results: BaselineDecisionDeliveryResult[] = [];
+
+  for (const userId of recipientUserIds) {
+    const email = emailById.get(userId) ?? null;
+    if (!email) {
+      logger.warn(
+        { baselineId, userId },
+        "notifications: skipping baseline decision recipient — no email on file",
+      );
+      results.push({
+        userId,
+        recipientEmail: "",
+        status: "Skipped",
+        channel,
+        errorMessage: "no email on file",
+      });
+      continue;
+    }
+
+    const envelope = buildBaselineDecisionEmail({
+      recipientEmail: email,
+      projectName: b.projectName,
+      projectCode: b.projectCode,
+      decision,
+      deciderEmail: resolvedDeciderEmail ?? `user#${deciderUserId}`,
+      decidedAt,
+      comment: b.decisionComment ?? null,
+      submitterEmail,
+      submittedAt: b.submittedAt,
+      milestoneCount,
+    });
+
+    let status: "Sent" | "Failed" = "Sent";
+    let errorMessage: string | null = null;
+
+    try {
+      await transporter.sendMail({
+        from: fromAddress,
+        to: email,
+        subject: envelope.subject,
+        text: envelope.text,
+        html: envelope.html,
+      });
+      logger.info(
+        { baselineId, userId, to: email, channel, decision },
+        "notifications: delivered baseline decision notice",
+      );
+    } catch (err) {
+      status = "Failed";
+      errorMessage = err instanceof Error ? err.message : String(err);
+      logger.error(
+        { baselineId, userId, to: email, channel, decision, err: errorMessage },
+        "notifications: baseline decision delivery failed",
+      );
+    }
+
+    results.push({
+      userId,
+      recipientEmail: email,
+      status,
+      channel,
+      errorMessage,
     });
   }
 

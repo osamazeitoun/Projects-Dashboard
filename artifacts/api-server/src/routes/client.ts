@@ -25,6 +25,8 @@ import {
   listClientProjectIds,
   requireClientAccess,
 } from "../middlewares/permissions";
+import { sendBaselineDecisionNotifications } from "../services/notifications";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -435,6 +437,18 @@ router.post(
           .where(eq(projects.id, b.projectId));
       }
     });
+
+    try {
+      await sendBaselineDecisionNotifications({
+        baselineId,
+        deciderUserId: req.auth_ctx!.userId,
+      });
+    } catch (err) {
+      logger.error(
+        { err, baselineId },
+        "baseline-decision: failed to enqueue PM notifications",
+      );
+    }
 
     const detail = await loadBaselineDetail(baselineId);
     if (!detail) return res.status(404).json({ error: "Baseline not found" });
