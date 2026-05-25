@@ -808,10 +808,11 @@ export default function PmMilestoneDetail() {
                             </div>
                           )}
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             );
           })
         )}

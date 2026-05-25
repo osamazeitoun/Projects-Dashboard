@@ -40,3 +40,6 @@ externalPort = 3000
 [userenv.shared]
 DEV_AUTH_ENABLED = "1"
 VITE_DEV_AUTH = "1"
+
+[nix]
+channel = "stable-25_05"
