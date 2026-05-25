@@ -11,6 +11,7 @@ import {
   useAdminCreateProjectCompanyRole,
   useAdminRenameProjectCompanyRole,
   useAdminDeleteProjectCompanyRole,
+  useAdminResyncProjectFromProcore,
   getAdminGetProjectDetailQueryKey,
   getAdminListProjectsQueryKey,
   getAdminListProjectCompanyRolesQueryKey,
@@ -46,11 +47,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  AlertTriangle,
   ArrowLeft,
   Briefcase,
   Building2,
   Check,
+  Link2,
   Pencil,
+  RefreshCw,
   ShieldCheck,
   Trash2,
   UserPlus,
@@ -98,6 +102,32 @@ export default function AdminProjectDetail() {
       onError: (e: unknown) => {
         toast({
           title: "Failed to save assignment",
+          description: (e as { data?: { error?: string } } | null)?.data?.error,
+          variant: "destructive",
+        });
+      },
+    },
+  });
+  const resyncProcore = useAdminResyncProjectFromProcore({
+    mutation: {
+      onSuccess: (r) => {
+        invalidate();
+        if (r.status === "ok") {
+          toast({
+            title: "Re-synced from Procore",
+            description: `${r.companiesUpserted} companies, ${r.usersUpserted} people refreshed.`,
+          });
+        } else {
+          toast({
+            title: "Procore re-sync failed",
+            description: r.error ?? "Unknown error",
+            variant: "destructive",
+          });
+        }
+      },
+      onError: (e: unknown) => {
+        toast({
+          title: "Procore re-sync failed",
           description: (e as { data?: { error?: string } } | null)?.data?.error,
           variant: "destructive",
         });
@@ -333,11 +363,48 @@ export default function AdminProjectDetail() {
           <ArrowLeft className="h-4 w-4 mr-1" /> All projects
         </Link>
       </div>
-      <header>
-        <div className="text-[11px] uppercase tracking-wide font-mono text-muted-foreground">
-          {data.projectCode}
+      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <div className="text-[11px] uppercase tracking-wide font-mono text-muted-foreground">
+            {data.projectCode}
+          </div>
+          <h1 className="font-serif text-4xl font-normal tracking-tight text-ink flex items-center gap-3 flex-wrap">
+            {data.projectName}
+            {data.procoreProjectId ? (
+              <Badge variant="outline" className="gap-1 text-xs">
+                <Link2 className="h-3 w-3" />
+                Procore
+              </Badge>
+            ) : null}
+          </h1>
+          {data.procoreProjectId ? (
+            <div className="text-xs text-muted-foreground mt-1">
+              Procore ID <span className="font-mono">{data.procoreProjectId}</span>
+              {data.procoreLastSyncedAt
+                ? ` · last synced ${new Date(data.procoreLastSyncedAt).toLocaleString()}`
+                : " · not yet synced"}
+            </div>
+          ) : null}
+          {data.procoreLastSyncError ? (
+            <div className="text-xs text-[color:var(--c-danger,red)] mt-1 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              {data.procoreLastSyncError}
+            </div>
+          ) : null}
         </div>
-        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">{data.projectName}</h1>
+        {data.procoreProjectId ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={resyncProcore.isPending}
+            onClick={() => resyncProcore.mutate({ projectId })}
+          >
+            <RefreshCw
+              className={`h-4 w-4 mr-1 ${resyncProcore.isPending ? "animate-spin" : ""}`}
+            />
+            Re-sync from Procore
+          </Button>
+        ) : null}
       </header>
 
       <Card className="p-5 space-y-4">

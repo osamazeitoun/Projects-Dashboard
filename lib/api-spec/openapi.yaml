@@ -1166,6 +1166,173 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /admin/procore/status:
+    get:
+      operationId: adminGetProcoreStatus
+      tags: [admin]
+      summary: Procore connection status (shared, app-level credential)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProcoreConnectionStatus" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/procore/projects:
+    get:
+      operationId: adminListProcoreProjects
+      tags: [admin]
+      summary: List Procore projects available for import (with link state)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProcoreAvailableProject" }
+        "400":
+          description: Procore not connected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "502":
+          description: Procore API error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/procore/projects/{procoreProjectId}/import:
+    post:
+      operationId: adminImportProcoreProject
+      tags: [admin]
+      summary: Import (or re-link & sync) a single Procore project
+      parameters:
+        - in: path
+          name: procoreProjectId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProcoreSyncResult" }
+        "400":
+          description: Procore not connected or invalid id
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "502":
+          description: Procore API error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/procore/import-all:
+    post:
+      operationId: adminImportAllProcoreProjects
+      tags: [admin]
+      summary: Bulk-import every Procore project visible to the connected account
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProcoreBulkImportResult" }
+        "400":
+          description: Procore not connected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "502":
+          description: Procore API error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /admin/projects/{projectId}/procore-resync:
+    post:
+      operationId: adminResyncProjectFromProcore
+      tags: [admin]
+      summary: Re-sync a linked project from Procore
+      parameters:
+        - in: path
+          name: projectId
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProcoreSyncResult" }
+        "400":
+          description: Project not linked, or Procore not connected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "502":
+          description: Procore API error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /admin/projects/{projectId}/contractors:
     post:
       operationId: adminAddContractorCompany
@@ -2255,6 +2422,56 @@ components:
         pmCount: { type: integer }
         contractorCompanyCount: { type: integer }
         memberCount: { type: integer }
+        procoreProjectId: { type: ["string", "null"] }
+        procoreProjectName: { type: ["string", "null"] }
+        procoreLastSyncedAt: { type: ["string", "null"], format: "date-time" }
+        procoreLastSyncError: { type: ["string", "null"] }
+
+    ProcoreConnectionStatus:
+      type: object
+      required: [connected, demoMode, baseUrl, companyId, error, resyncIntervalMinutes]
+      properties:
+        connected: { type: boolean }
+        demoMode: { type: boolean }
+        baseUrl: { type: string }
+        companyId: { type: ["string", "null"] }
+        error: { type: ["string", "null"] }
+        resyncIntervalMinutes: { type: integer }
+
+    ProcoreAvailableProject:
+      type: object
+      required:
+        [procoreProjectId, procoreProjectName, procoreProjectCode, linkedProjectId, lastSyncedAt, lastSyncError]
+      properties:
+        procoreProjectId: { type: string }
+        procoreProjectName: { type: string }
+        procoreProjectCode: { type: ["string", "null"] }
+        linkedProjectId: { type: ["integer", "null"] }
+        lastSyncedAt: { type: ["string", "null"], format: "date-time" }
+        lastSyncError: { type: ["string", "null"] }
+
+    ProcoreSyncResult:
+      type: object
+      required:
+        [projectId, procoreProjectId, status, error, createdProject, companiesUpserted, companiesRemoved, usersUpserted, usersRemoved]
+      properties:
+        projectId: { type: integer }
+        procoreProjectId: { type: string }
+        status: { type: string, enum: [ok, error] }
+        error: { type: ["string", "null"] }
+        createdProject: { type: boolean }
+        companiesUpserted: { type: integer }
+        companiesRemoved: { type: integer }
+        usersUpserted: { type: integer }
+        usersRemoved: { type: integer }
+
+    ProcoreBulkImportResult:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/ProcoreSyncResult" }
 
     AdminCompanyUser:
       type: object
@@ -2322,6 +2539,10 @@ components:
         availableUsers:
           type: array
           items: { $ref: "#/components/schemas/AdminCompanyUser" }
+        procoreProjectId: { type: ["string", "null"] }
+        procoreProjectName: { type: ["string", "null"] }
+        procoreLastSyncedAt: { type: ["string", "null"], format: "date-time" }
+        procoreLastSyncError: { type: ["string", "null"] }
 
     AdminUpsertAssignmentInput:
       type: object

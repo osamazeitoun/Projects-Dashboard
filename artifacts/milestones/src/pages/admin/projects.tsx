@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { FolderKanban, ChevronRight } from "lucide-react";
+import { FolderKanban, ChevronRight, Link2, AlertTriangle } from "lucide-react";
 
 export default function AdminProjects() {
   const { data, isLoading, isError, error } = useAdminListProjects();
@@ -89,7 +89,26 @@ export default function AdminProjects() {
                       <span className="text-[10px] uppercase font-mono tracking-wide text-muted-foreground">
                         {p.projectCode}
                       </span>
-                      <span className="font-medium">{p.projectName}</span>
+                      <span className="font-medium flex items-center gap-2">
+                        {p.projectName}
+                        {p.procoreProjectId ? (
+                          <Badge variant="outline" className="gap-1 text-[10px]">
+                            <Link2 className="h-3 w-3" />
+                            Procore
+                          </Badge>
+                        ) : null}
+                        {p.procoreLastSyncError ? (
+                          <AlertTriangle
+                            className="h-3.5 w-3.5 text-[color:var(--c-danger,red)]"
+                            aria-label={`Procore sync error: ${p.procoreLastSyncError}`}
+                          />
+                        ) : null}
+                      </span>
+                      {p.procoreLastSyncedAt ? (
+                        <span className="text-[10px] text-muted-foreground mt-0.5">
+                          Synced {new Date(p.procoreLastSyncedAt).toLocaleString()}
+                        </span>
+                      ) : null}
                     </Link>
                   </TableCell>
                   <TableCell className="text-right">

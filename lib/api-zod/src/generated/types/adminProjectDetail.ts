@@ -18,4 +18,12 @@ export interface AdminProjectDetail {
   contractorCompanies: AdminProjectContractorCompany[];
   availableCompanies: AdminCompanyOption[];
   availableUsers: AdminCompanyUser[];
+  /** @nullable */
+  procoreProjectId?: string | null;
+  /** @nullable */
+  procoreProjectName?: string | null;
+  /** @nullable */
+  procoreLastSyncedAt?: Date | null;
+  /** @nullable */
+  procoreLastSyncError?: string | null;
 }

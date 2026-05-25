@@ -1,5 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { getProcoreConfig, getConnectionStatus } from "./services/procore";
+import { resyncAllLinkedProjects } from "./services/procore-sync";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +24,41 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Background Procore re-sync: periodically refresh every linked project so
+  // changes in Procore drift back into our app without an admin clicking.
+  const cfg = getProcoreConfig();
+  const status = getConnectionStatus();
+  if (status.connected && cfg.resyncIntervalMinutes > 0) {
+    const intervalMs = cfg.resyncIntervalMinutes * 60_000;
+    logger.info(
+      { intervalMinutes: cfg.resyncIntervalMinutes, demoMode: cfg.demoMode },
+      "Procore background re-sync scheduled",
+    );
+    let running = false;
+    const tick = async () => {
+      if (running) return;
+      running = true;
+      try {
+        const results = await resyncAllLinkedProjects();
+        if (results.length > 0) {
+          const failed = results.filter((r) => r.status === "error").length;
+          logger.info(
+            { count: results.length, failed },
+            "Procore background re-sync completed",
+          );
+        }
+      } catch (e) {
+        logger.warn({ err: e }, "Procore background re-sync failed");
+      } finally {
+        running = false;
+      }
+    };
+    setInterval(tick, intervalMs).unref();
+  } else if (!status.connected) {
+    logger.info(
+      { reason: status.error },
+      "Procore not connected; background re-sync disabled",
+    );
+  }
 });

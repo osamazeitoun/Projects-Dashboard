@@ -9,7 +9,7 @@ import {
   userCompanies,
   users,
 } from "@workspace/db";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   requireAuth,
@@ -18,6 +18,15 @@ import {
   requireCompanyAdmin,
   listAdminCompanyIds,
 } from "../middlewares/permissions";
+import {
+  getConnectionStatus,
+  listProcoreProjects,
+  ProcoreNotConnectedError,
+} from "../services/procore";
+import {
+  syncProcoreProjectById,
+  syncAllProcoreProjects,
+} from "../services/procore-sync";
 
 const router: IRouter = Router();
 
@@ -72,7 +81,15 @@ router.get("/admin/projects", async (req: Request, res: Response) => {
   if (adminCompanyIds.length === 0) return res.json([]);
 
   const projectRows = await db
-    .selectDistinct({ id: projects.id, name: projects.name, code: projects.code })
+    .selectDistinct({
+      id: projects.id,
+      name: projects.name,
+      code: projects.code,
+      procoreProjectId: projects.procoreProjectId,
+      procoreProjectName: projects.procoreProjectName,
+      procoreLastSyncedAt: projects.procoreLastSyncedAt,
+      procoreLastSyncError: projects.procoreLastSyncError,
+    })
     .from(projects)
     .innerJoin(projectCompanies, eq(projectCompanies.projectId, projects.id))
     .where(inArray(projectCompanies.companyId, adminCompanyIds))
@@ -121,6 +138,10 @@ router.get("/admin/projects", async (req: Request, res: Response) => {
       pmCount: pmCountMap.get(p.id) ?? 0,
       contractorCompanyCount: contractorMap.get(p.id) ?? 0,
       memberCount: memberSetMap.get(p.id)?.size ?? 0,
+      procoreProjectId: p.procoreProjectId,
+      procoreProjectName: p.procoreProjectName,
+      procoreLastSyncedAt: p.procoreLastSyncedAt,
+      procoreLastSyncError: p.procoreLastSyncError,
     })),
   );
 });
@@ -242,6 +263,10 @@ router.get(
       contractorCompanies,
       availableCompanies,
       availableUsers,
+      procoreProjectId: project.procoreProjectId,
+      procoreProjectName: project.procoreProjectName,
+      procoreLastSyncedAt: project.procoreLastSyncedAt,
+      procoreLastSyncError: project.procoreLastSyncError,
     });
   },
 );
@@ -675,6 +700,121 @@ router.delete(
       return res.status(404).json({ error: "Project company not found" });
     }
     return res.status(204).send();
+  },
+);
+
+/* -------------------------------- Procore --------------------------------- */
+
+router.get("/admin/procore/status", async (_req: Request, res: Response) => {
+  return res.json(getConnectionStatus());
+});
+
+router.get("/admin/procore/projects", async (_req: Request, res: Response) => {
+  const status = getConnectionStatus();
+  if (!status.connected) {
+    return res.status(400).json({
+      error: status.error ?? "Procore is not connected",
+      connectionStatus: status,
+    });
+  }
+  try {
+    const remote = await listProcoreProjects();
+    const linkedRows = await db
+      .select({
+        projectId: projects.id,
+        procoreProjectId: projects.procoreProjectId,
+        procoreLastSyncedAt: projects.procoreLastSyncedAt,
+        procoreLastSyncError: projects.procoreLastSyncError,
+      })
+      .from(projects)
+      .where(isNotNull(projects.procoreProjectId));
+    const linkedByPcId = new Map(
+      linkedRows
+        .filter((r) => r.procoreProjectId != null)
+        .map((r) => [r.procoreProjectId as string, r]),
+    );
+    return res.json(
+      remote.map((p) => {
+        const link = linkedByPcId.get(p.procoreProjectId);
+        return {
+          procoreProjectId: p.procoreProjectId,
+          procoreProjectName: p.name,
+          procoreProjectCode: p.code,
+          linkedProjectId: link?.projectId ?? null,
+          lastSyncedAt: link?.procoreLastSyncedAt ?? null,
+          lastSyncError: link?.procoreLastSyncError ?? null,
+        };
+      }),
+    );
+  } catch (e) {
+    return res.status(502).json({
+      error: e instanceof Error ? e.message : "Failed to list Procore projects",
+    });
+  }
+});
+
+router.post(
+  "/admin/procore/projects/:procoreProjectId/import",
+  async (req: Request, res: Response) => {
+    const procoreProjectId = String(req.params.procoreProjectId);
+    if (!procoreProjectId) {
+      return res.status(400).json({ error: "Invalid procoreProjectId" });
+    }
+    try {
+      const result = await syncProcoreProjectById(procoreProjectId);
+      return res.json(result);
+    } catch (e) {
+      if (e instanceof ProcoreNotConnectedError) {
+        return res.status(400).json({ error: e.message });
+      }
+      return res.status(502).json({
+        error: e instanceof Error ? e.message : "Procore import failed",
+      });
+    }
+  },
+);
+
+router.post("/admin/procore/import-all", async (_req: Request, res: Response) => {
+  try {
+    const results = await syncAllProcoreProjects();
+    return res.json({ results });
+  } catch (e) {
+    if (e instanceof ProcoreNotConnectedError) {
+      return res.status(400).json({ error: e.message });
+    }
+    return res.status(502).json({
+      error: e instanceof Error ? e.message : "Procore bulk import failed",
+    });
+  }
+});
+
+router.post(
+  "/admin/projects/:projectId/procore-resync",
+  async (req: Request, res: Response) => {
+    const projectId = Number(req.params.projectId);
+    if (!Number.isFinite(projectId)) {
+      return res.status(400).json({ error: "Invalid projectId" });
+    }
+    const ctx = await loadProjectIfAdmin(req, res, projectId);
+    if (!ctx) return;
+    if (!ctx.project.procoreProjectId) {
+      return res
+        .status(400)
+        .json({ error: "Project is not linked to a Procore project" });
+    }
+    try {
+      const result = await syncProcoreProjectById(ctx.project.procoreProjectId, {
+        existingProjectId: projectId,
+      });
+      return res.json(result);
+    } catch (e) {
+      if (e instanceof ProcoreNotConnectedError) {
+        return res.status(400).json({ error: e.message });
+      }
+      return res.status(502).json({
+        error: e instanceof Error ? e.message : "Procore re-sync failed",
+      });
+    }
   },
 );
 

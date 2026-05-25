@@ -1261,7 +1261,11 @@ export const AdminListProjectsResponseItem = zod.object({
   "projectCode": zod.string(),
   "pmCount": zod.number(),
   "contractorCompanyCount": zod.number(),
-  "memberCount": zod.number()
+  "memberCount": zod.number(),
+  "procoreProjectId": zod.string().nullish(),
+  "procoreProjectName": zod.string().nullish(),
+  "procoreLastSyncedAt": zod.coerce.date().nullish(),
+  "procoreLastSyncError": zod.string().nullish()
 })
 export const AdminListProjectsResponse = zod.array(AdminListProjectsResponseItem)
 
@@ -1302,7 +1306,11 @@ export const AdminGetProjectDetailResponse = zod.object({
   "companyRole": zod.enum(['admin', 'member']),
   "companyId": zod.number(),
   "companyName": zod.string()
-}))
+})),
+  "procoreProjectId": zod.string().nullish(),
+  "procoreProjectName": zod.string().nullish(),
+  "procoreLastSyncedAt": zod.coerce.date().nullish(),
+  "procoreLastSyncError": zod.string().nullish()
 })
 
 
@@ -1486,6 +1494,91 @@ export const RenameStageResponse = zod.object({
  */
 export const DeleteStageParams = zod.object({
   "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Procore connection status (shared, app-level credential)
+ */
+export const AdminGetProcoreStatusResponse = zod.object({
+  "connected": zod.boolean(),
+  "demoMode": zod.boolean(),
+  "baseUrl": zod.string(),
+  "companyId": zod.string().nullable(),
+  "error": zod.string().nullable(),
+  "resyncIntervalMinutes": zod.number()
+})
+
+
+/**
+ * @summary List Procore projects available for import (with link state)
+ */
+export const AdminListProcoreProjectsResponseItem = zod.object({
+  "procoreProjectId": zod.string(),
+  "procoreProjectName": zod.string(),
+  "procoreProjectCode": zod.string().nullable(),
+  "linkedProjectId": zod.number().nullable(),
+  "lastSyncedAt": zod.coerce.date().nullable(),
+  "lastSyncError": zod.string().nullable()
+})
+export const AdminListProcoreProjectsResponse = zod.array(AdminListProcoreProjectsResponseItem)
+
+
+/**
+ * @summary Import (or re-link & sync) a single Procore project
+ */
+export const AdminImportProcoreProjectParams = zod.object({
+  "procoreProjectId": zod.coerce.string()
+})
+
+export const AdminImportProcoreProjectResponse = zod.object({
+  "projectId": zod.number(),
+  "procoreProjectId": zod.string(),
+  "status": zod.enum(['ok', 'error']),
+  "error": zod.string().nullable(),
+  "createdProject": zod.boolean(),
+  "companiesUpserted": zod.number(),
+  "companiesRemoved": zod.number(),
+  "usersUpserted": zod.number(),
+  "usersRemoved": zod.number()
+})
+
+
+/**
+ * @summary Bulk-import every Procore project visible to the connected account
+ */
+export const AdminImportAllProcoreProjectsResponse = zod.object({
+  "results": zod.array(zod.object({
+  "projectId": zod.number(),
+  "procoreProjectId": zod.string(),
+  "status": zod.enum(['ok', 'error']),
+  "error": zod.string().nullable(),
+  "createdProject": zod.boolean(),
+  "companiesUpserted": zod.number(),
+  "companiesRemoved": zod.number(),
+  "usersUpserted": zod.number(),
+  "usersRemoved": zod.number()
+}))
+})
+
+
+/**
+ * @summary Re-sync a linked project from Procore
+ */
+export const AdminResyncProjectFromProcoreParams = zod.object({
+  "projectId": zod.coerce.number()
+})
+
+export const AdminResyncProjectFromProcoreResponse = zod.object({
+  "projectId": zod.number(),
+  "procoreProjectId": zod.string(),
+  "status": zod.enum(['ok', 'error']),
+  "error": zod.string().nullable(),
+  "createdProject": zod.boolean(),
+  "companiesUpserted": zod.number(),
+  "companiesRemoved": zod.number(),
+  "usersUpserted": zod.number(),
+  "usersRemoved": zod.number()
 })
 
 

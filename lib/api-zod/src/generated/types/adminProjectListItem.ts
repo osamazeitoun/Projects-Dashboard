@@ -13,4 +13,12 @@ export interface AdminProjectListItem {
   pmCount: number;
   contractorCompanyCount: number;
   memberCount: number;
+  /** @nullable */
+  procoreProjectId?: string | null;
+  /** @nullable */
+  procoreProjectName?: string | null;
+  /** @nullable */
+  procoreLastSyncedAt?: Date | null;
+  /** @nullable */
+  procoreLastSyncError?: string | null;
 }

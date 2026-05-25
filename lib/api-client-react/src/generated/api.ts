@@ -49,6 +49,10 @@ import type {
   PendingImpact,
   PmMilestone,
   PmProjectSummary,
+  ProcoreAvailableProject,
+  ProcoreBulkImportResult,
+  ProcoreConnectionStatus,
+  ProcoreSyncResult,
   ProjectCompanyDetail,
   ProjectCompanyRole,
   ProjectListItem,
@@ -3345,6 +3349,370 @@ export const useDeleteStage = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getDeleteStageMutationOptions(options));
+    }
+
+export const getAdminGetProcoreStatusUrl = () => {
+
+
+
+
+  return `/api/admin/procore/status`
+}
+
+/**
+ * @summary Procore connection status (shared, app-level credential)
+ */
+export const adminGetProcoreStatus = async ( options?: RequestInit): Promise<ProcoreConnectionStatus> => {
+
+  return customFetch<ProcoreConnectionStatus>(getAdminGetProcoreStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetProcoreStatusQueryKey = () => {
+    return [
+    `/api/admin/procore/status`
+    ] as const;
+    }
+
+
+export const getAdminGetProcoreStatusQueryOptions = <TData = Awaited<ReturnType<typeof adminGetProcoreStatus>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetProcoreStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetProcoreStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetProcoreStatus>>> = ({ signal }) => adminGetProcoreStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetProcoreStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetProcoreStatusQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetProcoreStatus>>>
+export type AdminGetProcoreStatusQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Procore connection status (shared, app-level credential)
+ */
+
+export function useAdminGetProcoreStatus<TData = Awaited<ReturnType<typeof adminGetProcoreStatus>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetProcoreStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetProcoreStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminListProcoreProjectsUrl = () => {
+
+
+
+
+  return `/api/admin/procore/projects`
+}
+
+/**
+ * @summary List Procore projects available for import (with link state)
+ */
+export const adminListProcoreProjects = async ( options?: RequestInit): Promise<ProcoreAvailableProject[]> => {
+
+  return customFetch<ProcoreAvailableProject[]>(getAdminListProcoreProjectsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListProcoreProjectsQueryKey = () => {
+    return [
+    `/api/admin/procore/projects`
+    ] as const;
+    }
+
+
+export const getAdminListProcoreProjectsQueryOptions = <TData = Awaited<ReturnType<typeof adminListProcoreProjects>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListProcoreProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListProcoreProjectsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListProcoreProjects>>> = ({ signal }) => adminListProcoreProjects({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListProcoreProjects>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListProcoreProjectsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListProcoreProjects>>>
+export type AdminListProcoreProjectsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List Procore projects available for import (with link state)
+ */
+
+export function useAdminListProcoreProjects<TData = Awaited<ReturnType<typeof adminListProcoreProjects>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListProcoreProjects>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListProcoreProjectsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminImportProcoreProjectUrl = (procoreProjectId: string,) => {
+
+
+
+
+  return `/api/admin/procore/projects/${procoreProjectId}/import`
+}
+
+/**
+ * @summary Import (or re-link & sync) a single Procore project
+ */
+export const adminImportProcoreProject = async (procoreProjectId: string, options?: RequestInit): Promise<ProcoreSyncResult> => {
+
+  return customFetch<ProcoreSyncResult>(getAdminImportProcoreProjectUrl(procoreProjectId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAdminImportProcoreProjectMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminImportProcoreProject>>, TError,{procoreProjectId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminImportProcoreProject>>, TError,{procoreProjectId: string}, TContext> => {
+
+const mutationKey = ['adminImportProcoreProject'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminImportProcoreProject>>, {procoreProjectId: string}> = (props) => {
+          const {procoreProjectId} = props ?? {};
+
+          return  adminImportProcoreProject(procoreProjectId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminImportProcoreProjectMutationResult = NonNullable<Awaited<ReturnType<typeof adminImportProcoreProject>>>
+
+    export type AdminImportProcoreProjectMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Import (or re-link & sync) a single Procore project
+ */
+export const useAdminImportProcoreProject = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminImportProcoreProject>>, TError,{procoreProjectId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminImportProcoreProject>>,
+        TError,
+        {procoreProjectId: string},
+        TContext
+      > => {
+      return useMutation(getAdminImportProcoreProjectMutationOptions(options));
+    }
+
+export const getAdminImportAllProcoreProjectsUrl = () => {
+
+
+
+
+  return `/api/admin/procore/import-all`
+}
+
+/**
+ * @summary Bulk-import every Procore project visible to the connected account
+ */
+export const adminImportAllProcoreProjects = async ( options?: RequestInit): Promise<ProcoreBulkImportResult> => {
+
+  return customFetch<ProcoreBulkImportResult>(getAdminImportAllProcoreProjectsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAdminImportAllProcoreProjectsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminImportAllProcoreProjects>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminImportAllProcoreProjects>>, TError,void, TContext> => {
+
+const mutationKey = ['adminImportAllProcoreProjects'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminImportAllProcoreProjects>>, void> = () => {
+
+
+          return  adminImportAllProcoreProjects(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminImportAllProcoreProjectsMutationResult = NonNullable<Awaited<ReturnType<typeof adminImportAllProcoreProjects>>>
+
+    export type AdminImportAllProcoreProjectsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Bulk-import every Procore project visible to the connected account
+ */
+export const useAdminImportAllProcoreProjects = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminImportAllProcoreProjects>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminImportAllProcoreProjects>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getAdminImportAllProcoreProjectsMutationOptions(options));
+    }
+
+export const getAdminResyncProjectFromProcoreUrl = (projectId: number,) => {
+
+
+
+
+  return `/api/admin/projects/${projectId}/procore-resync`
+}
+
+/**
+ * @summary Re-sync a linked project from Procore
+ */
+export const adminResyncProjectFromProcore = async (projectId: number, options?: RequestInit): Promise<ProcoreSyncResult> => {
+
+  return customFetch<ProcoreSyncResult>(getAdminResyncProjectFromProcoreUrl(projectId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAdminResyncProjectFromProcoreMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminResyncProjectFromProcore>>, TError,{projectId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminResyncProjectFromProcore>>, TError,{projectId: number}, TContext> => {
+
+const mutationKey = ['adminResyncProjectFromProcore'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminResyncProjectFromProcore>>, {projectId: number}> = (props) => {
+          const {projectId} = props ?? {};
+
+          return  adminResyncProjectFromProcore(projectId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminResyncProjectFromProcoreMutationResult = NonNullable<Awaited<ReturnType<typeof adminResyncProjectFromProcore>>>
+
+    export type AdminResyncProjectFromProcoreMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Re-sync a linked project from Procore
+ */
+export const useAdminResyncProjectFromProcore = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminResyncProjectFromProcore>>, TError,{projectId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminResyncProjectFromProcore>>,
+        TError,
+        {projectId: number},
+        TContext
+      > => {
+      return useMutation(getAdminResyncProjectFromProcoreMutationOptions(options));
     }
 
 export const getAdminAddContractorCompanyUrl = (projectId: number,) => {

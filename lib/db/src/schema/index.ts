@@ -123,21 +123,36 @@ export const projectAssignmentRoleEnum = pgEnum("project_assignment_role", [
   "viewer",
 ]);
 
-export const projects = pgTable("projects", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  code: text("code").notNull(),
-  scheduleStatus: projectScheduleStatusEnum("schedule_status")
-    .notNull()
-    .default("Draft"),
-  baselinedAt: timestamp("baselined_at", { withTimezone: true }),
-});
+export const projects = pgTable(
+  "projects",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    code: text("code").notNull(),
+    scheduleStatus: projectScheduleStatusEnum("schedule_status")
+      .notNull()
+      .default("Draft"),
+    baselinedAt: timestamp("baselined_at", { withTimezone: true }),
+    procoreProjectId: text("procore_project_id"),
+    procoreProjectName: text("procore_project_name"),
+    procoreLastSyncedAt: timestamp("procore_last_synced_at", {
+      withTimezone: true,
+    }),
+    procoreLastSyncError: text("procore_last_sync_error"),
+  },
+  (t) => ({
+    projectsProcoreIdUnique: uniqueIndex("projects_procore_project_id_unique").on(
+      t.procoreProjectId,
+    ),
+  }),
+);
 
 export const companies = pgTable("companies", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   type: companyTypeEnum("type").notNull(),
   defaultRole: text("default_role"),
+  procoreCompanyId: text("procore_company_id"),
 });
 
 export const projectCompanies = pgTable("project_companies", {
@@ -149,6 +164,10 @@ export const projectCompanies = pgTable("project_companies", {
     .notNull()
     .references(() => companies.id, { onDelete: "cascade" }),
   roleOnProject: text("role_on_project").notNull(),
+  procoreSourced: boolean("procore_sourced").notNull().default(false),
+  procoreLastSyncedAt: timestamp("procore_last_synced_at", {
+    withTimezone: true,
+  }),
 });
 
 export const projectCompanyRoles = pgTable(
@@ -292,6 +311,7 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
+  procoreUserId: text("procore_user_id"),
 });
 
 export const userCompanies = pgTable("user_companies", {
@@ -324,6 +344,10 @@ export const projectAssignments = pgTable(
       .defaultNow(),
     createdByUserId: integer("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
+    }),
+    procoreSourced: boolean("procore_sourced").notNull().default(false),
+    procoreLastSyncedAt: timestamp("procore_last_synced_at", {
+      withTimezone: true,
     }),
   },
   (t) => ({

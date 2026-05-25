@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { ReactNode } from "react";
 import { useClerk, useUser } from "@clerk/react";
 import { useGetMe } from "@workspace/api-client-react";
-import { ShieldCheck, FolderKanban, LogOut, ArrowLeft } from "lucide-react";
+import { ShieldCheck, FolderKanban, LogOut, ArrowLeft, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -19,6 +19,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       href: "/admin",
       icon: FolderKanban,
       match: (l: string) => l === "/admin" || l.startsWith("/admin/projects"),
+    },
+    {
+      name: "Procore",
+      href: "/admin/procore",
+      icon: Link2,
+      match: (l: string) => l.startsWith("/admin/procore"),
     },
   ];
 

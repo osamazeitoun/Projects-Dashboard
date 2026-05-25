@@ -19,6 +19,7 @@ import NoAccessGate from "@/components/no-access-notice";
 import { useGetMe } from "@workspace/api-client-react";
 import AdminProjects from "@/pages/admin/projects";
 import AdminProjectDetail from "@/pages/admin/project-detail";
+import AdminProcore from "@/pages/admin/procore";
 import PmDashboard from "@/pages/pm/dashboard";
 import PmSchedule from "@/pages/pm/schedule";
 import PmMilestoneDetail from "@/pages/pm/milestone-detail";
@@ -320,6 +321,9 @@ function AppRoutes() {
             </Route>
             <Route path="/admin/projects/:id">
               <ProtectedAdminPage><AdminProjectDetail /></ProtectedAdminPage>
+            </Route>
+            <Route path="/admin/procore">
+              <ProtectedAdminPage><AdminProcore /></ProtectedAdminPage>
             </Route>
             <Route component={NotFound} />
           </Switch>

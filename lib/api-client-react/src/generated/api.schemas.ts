@@ -821,6 +821,63 @@ export interface AdminProjectListItem {
   pmCount: number;
   contractorCompanyCount: number;
   memberCount: number;
+  /** @nullable */
+  procoreProjectId?: string | null;
+  /** @nullable */
+  procoreProjectName?: string | null;
+  /** @nullable */
+  procoreLastSyncedAt?: string | null;
+  /** @nullable */
+  procoreLastSyncError?: string | null;
+}
+
+export interface ProcoreConnectionStatus {
+  connected: boolean;
+  demoMode: boolean;
+  baseUrl: string;
+  /** @nullable */
+  companyId: string | null;
+  /** @nullable */
+  error: string | null;
+  resyncIntervalMinutes: number;
+}
+
+export interface ProcoreAvailableProject {
+  procoreProjectId: string;
+  procoreProjectName: string;
+  /** @nullable */
+  procoreProjectCode: string | null;
+  /** @nullable */
+  linkedProjectId: number | null;
+  /** @nullable */
+  lastSyncedAt: string | null;
+  /** @nullable */
+  lastSyncError: string | null;
+}
+
+export type ProcoreSyncResultStatus = typeof ProcoreSyncResultStatus[keyof typeof ProcoreSyncResultStatus];
+
+
+export const ProcoreSyncResultStatus = {
+  ok: 'ok',
+  error: 'error',
+} as const;
+
+export interface ProcoreSyncResult {
+  projectId: number;
+  procoreProjectId: string;
+  status: ProcoreSyncResultStatus;
+  /** @nullable */
+  error: string | null;
+  createdProject: boolean;
+  companiesUpserted: number;
+  companiesRemoved: number;
+  usersUpserted: number;
+  usersRemoved: number;
+}
+
+export interface ProcoreBulkImportResult {
+  results: ProcoreSyncResult[];
 }
 
 export type AdminCompanyUserCompanyRole = typeof AdminCompanyUserCompanyRole[keyof typeof AdminCompanyUserCompanyRole];
@@ -884,6 +941,14 @@ export interface AdminProjectDetail {
   contractorCompanies: AdminProjectContractorCompany[];
   availableCompanies: AdminCompanyOption[];
   availableUsers: AdminCompanyUser[];
+  /** @nullable */
+  procoreProjectId?: string | null;
+  /** @nullable */
+  procoreProjectName?: string | null;
+  /** @nullable */
+  procoreLastSyncedAt?: string | null;
+  /** @nullable */
+  procoreLastSyncError?: string | null;
 }
 
 export type AdminUpsertAssignmentInputRole = typeof AdminUpsertAssignmentInputRole[keyof typeof AdminUpsertAssignmentInputRole];
