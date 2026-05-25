@@ -27,6 +27,8 @@ import PmChangeEvents from "@/pages/pm/change-events";
 import PmChangeEventDetail from "@/pages/pm/change-event-detail";
 import ClientLayout from "@/components/client-layout";
 import ClientInbox from "@/pages/client/inbox";
+import ClientPortfolio from "@/pages/client/portfolio";
+import ClientProjectDetail from "@/pages/client/project-detail";
 import ClientChangeEventDetail from "@/pages/client/change-event-detail";
 import ClientBaselineReview from "@/pages/client/baseline-review";
 
@@ -109,7 +111,7 @@ function SmartHomeRedirect() {
   if ((me.pmProjectIds?.length ?? 0) > 0) return <Redirect to="/pm" />;
   if ((me.contractorProjectIds?.length ?? 0) > 0)
     return <Redirect to="/dashboard" />;
-  if ((me.clientProjectIds?.length ?? 0) > 0) return <Redirect to="/client" />;
+  if ((me.clientProjectIds?.length ?? 0) > 0) return <Redirect to="/client/portfolio" />;
   return <NoAccessGate perspective="contractor"><div /></NoAccessGate>;
 }
 
@@ -296,6 +298,15 @@ function AppRoutes() {
               <ProtectedPmPage><PmChangeEventDetail /></ProtectedPmPage>
             </Route>
             <Route path="/client">
+              <ProtectedClientPage><ClientPortfolio /></ProtectedClientPage>
+            </Route>
+            <Route path="/client/portfolio">
+              <ProtectedClientPage><ClientPortfolio /></ProtectedClientPage>
+            </Route>
+            <Route path="/client/portfolio/:id">
+              <ProtectedClientPage><ClientProjectDetail /></ProtectedClientPage>
+            </Route>
+            <Route path="/client/inbox">
               <ProtectedClientPage><ClientInbox /></ProtectedClientPage>
             </Route>
             <Route path="/client/change-event/:id">

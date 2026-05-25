@@ -265,7 +265,7 @@ export default function ClientChangeEventDetail() {
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div>
         <Link
-          href="/client"
+          href="/client/inbox"
           className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
         >
           <ArrowLeft className="w-3 h-3" /> Back to review inbox

@@ -45,7 +45,7 @@ export default function ClientBaselineReview() {
         qc.invalidateQueries({ queryKey: getGetBaselineReviewDetailQueryKey(id) });
         setDecision(null);
         setComment("");
-        navigate("/client");
+        navigate("/client/inbox");
       },
       onError: (err) => toast({
         variant: "destructive",
@@ -73,7 +73,7 @@ export default function ClientBaselineReview() {
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div>
-        <Link href="/client" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+        <Link href="/client/inbox" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
           <ArrowLeft className="w-3 h-3" /> Back to inbox
         </Link>
       </div>

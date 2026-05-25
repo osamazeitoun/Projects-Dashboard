@@ -33,6 +33,7 @@ import type {
   ChangeEventDetail,
   ChangeEventSummary,
   ClientDecisionInput,
+  ClientPortfolioProject,
   ClientReviewItem,
   CreateChangeEventInput,
   CreateMilestoneEditRequestInput,
@@ -518,6 +519,83 @@ export function useGetMyPendingImpacts<TData = Awaited<ReturnType<typeof getMyPe
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetMyPendingImpactsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetClientPortfolioUrl = () => {
+
+
+
+
+  return `/api/me/portfolio`
+}
+
+/**
+ * @summary Portfolio of projects the signed-in client can see, with per-company entry/exit dates
+ */
+export const getClientPortfolio = async ( options?: RequestInit): Promise<ClientPortfolioProject[]> => {
+
+  return customFetch<ClientPortfolioProject[]>(getGetClientPortfolioUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientPortfolioQueryKey = () => {
+    return [
+    `/api/me/portfolio`
+    ] as const;
+    }
+
+
+export const getGetClientPortfolioQueryOptions = <TData = Awaited<ReturnType<typeof getClientPortfolio>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientPortfolio>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientPortfolioQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientPortfolio>>> = ({ signal }) => getClientPortfolio({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientPortfolio>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetClientPortfolioQueryResult = NonNullable<Awaited<ReturnType<typeof getClientPortfolio>>>
+export type GetClientPortfolioQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Portfolio of projects the signed-in client can see, with per-company entry/exit dates
+ */
+
+export function useGetClientPortfolio<TData = Awaited<ReturnType<typeof getClientPortfolio>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientPortfolio>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetClientPortfolioQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

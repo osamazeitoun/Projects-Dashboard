@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import {
   milestones,
   milestoneImpacts,
+  milestoneEntryCompanies,
   projectCompanies,
   changeEvents,
   projects,
@@ -127,6 +128,141 @@ async function loadChangeEventDetailResponse(id: number) {
     })),
   };
 }
+
+router.get("/me/portfolio", async (req: Request, res: Response) => {
+  const ctx = req.auth_ctx!;
+  const projectIds = await listClientProjectIds(ctx.userId);
+  if (projectIds.length === 0) return res.json([]);
+
+  const projectRows = await db
+    .select({
+      id: projects.id,
+      name: projects.name,
+      code: projects.code,
+      scheduleStatus: projects.scheduleStatus,
+    })
+    .from(projects)
+    .where(inArray(projects.id, projectIds))
+    .orderBy(asc(projects.name));
+
+  const milestoneRows = await db
+    .select({
+      id: milestones.id,
+      projectId: milestones.projectId,
+      currentDate: milestones.currentDate,
+    })
+    .from(milestones)
+    .where(inArray(milestones.projectId, projectIds));
+
+  const milestoneIds = milestoneRows.map((m) => m.id);
+  const milestoneById = new Map(milestoneRows.map((m) => [m.id, m]));
+
+  type CompanyOnMilestone = {
+    milestoneId: number;
+    projectCompanyId: number;
+    companyId: number;
+    name: string;
+    role: string;
+  };
+  let companyRows: CompanyOnMilestone[] = [];
+  if (milestoneIds.length > 0) {
+    companyRows = await db
+      .select({
+        milestoneId: milestoneEntryCompanies.milestoneId,
+        projectCompanyId: projectCompanies.id,
+        companyId: companies.id,
+        name: companies.name,
+        role: projectCompanies.roleOnProject,
+      })
+      .from(milestoneEntryCompanies)
+      .innerJoin(
+        projectCompanies,
+        eq(projectCompanies.id, milestoneEntryCompanies.projectCompanyId),
+      )
+      .innerJoin(companies, eq(companies.id, projectCompanies.companyId))
+      .where(inArray(milestoneEntryCompanies.milestoneId, milestoneIds));
+  }
+
+  type Bucket = {
+    projectId: number;
+    startDate: Date | null;
+    endDate: Date | null;
+    companies: Map<
+      number,
+      {
+        projectCompanyId: number;
+        companyId: number;
+        name: string;
+        role: string;
+        entry: Date;
+        exit: Date;
+      }
+    >;
+    milestoneCount: number;
+  };
+  const buckets = new Map<number, Bucket>();
+  for (const p of projectRows) {
+    buckets.set(p.id, {
+      projectId: p.id,
+      startDate: null,
+      endDate: null,
+      companies: new Map(),
+      milestoneCount: 0,
+    });
+  }
+  for (const m of milestoneRows) {
+    const b = buckets.get(m.projectId);
+    if (!b) continue;
+    b.milestoneCount += 1;
+    if (!b.startDate || m.currentDate < b.startDate) b.startDate = m.currentDate;
+    if (!b.endDate || m.currentDate > b.endDate) b.endDate = m.currentDate;
+  }
+  for (const c of companyRows) {
+    const m = milestoneById.get(c.milestoneId);
+    if (!m) continue;
+    const b = buckets.get(m.projectId);
+    if (!b) continue;
+    const existing = b.companies.get(c.projectCompanyId);
+    if (!existing) {
+      b.companies.set(c.projectCompanyId, {
+        projectCompanyId: c.projectCompanyId,
+        companyId: c.companyId,
+        name: c.name,
+        role: c.role,
+        entry: m.currentDate,
+        exit: m.currentDate,
+      });
+    } else {
+      if (m.currentDate < existing.entry) existing.entry = m.currentDate;
+      if (m.currentDate > existing.exit) existing.exit = m.currentDate;
+    }
+  }
+
+  return res.json(
+    projectRows.map((p) => {
+      const b = buckets.get(p.id)!;
+      return {
+        id: p.id,
+        name: p.name,
+        code: p.code,
+        scheduleStatus: p.scheduleStatus,
+        startDate: isoOrNull(b.startDate),
+        endDate: isoOrNull(b.endDate),
+        milestoneCount: b.milestoneCount,
+        companies: Array.from(b.companies.values())
+          .sort((a, z) => a.entry.getTime() - z.entry.getTime())
+          .map((c) => ({
+            projectCompanyId: c.projectCompanyId,
+            companyId: c.companyId,
+            name: c.name,
+            role: c.role,
+            entryDate: c.entry.toISOString(),
+            exitDate: c.exit.toISOString(),
+          })),
+      };
+    }),
+  );
+});
 
 router.get("/me/client-reviews", async (req: Request, res: Response) => {
   const ctx = req.auth_ctx!;

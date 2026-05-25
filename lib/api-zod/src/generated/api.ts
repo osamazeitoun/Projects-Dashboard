@@ -150,6 +150,29 @@ export const GetMyPendingImpactsResponse = zod.array(GetMyPendingImpactsResponse
 
 
 /**
+ * @summary Portfolio of projects the signed-in client can see, with per-company entry/exit dates
+ */
+export const GetClientPortfolioResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "code": zod.string(),
+  "scheduleStatus": zod.enum(['Draft', 'PendingBaseline', 'Baselined']),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "milestoneCount": zod.number(),
+  "companies": zod.array(zod.object({
+  "projectCompanyId": zod.number(),
+  "companyId": zod.number(),
+  "name": zod.string(),
+  "role": zod.string(),
+  "entryDate": zod.coerce.date(),
+  "exitDate": zod.coerce.date()
+}))
+})
+export const GetClientPortfolioResponse = zod.array(GetClientPortfolioResponseItem)
+
+
+/**
  * @summary Change events awaiting the signed-in user's client-side decision
  */
 export const ListClientReviewsResponseItem = zod.object({

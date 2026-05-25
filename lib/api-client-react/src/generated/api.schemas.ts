@@ -596,6 +596,28 @@ export interface ChangeEventDetail {
   timeline: ChangeEventTimelineEntry[];
 }
 
+export interface ClientPortfolioCompany {
+  projectCompanyId: number;
+  companyId: number;
+  name: string;
+  role: string;
+  entryDate: string;
+  exitDate: string;
+}
+
+export interface ClientPortfolioProject {
+  id: number;
+  name: string;
+  code: string;
+  scheduleStatus: ProjectScheduleStatus;
+  /** @nullable */
+  startDate?: string | null;
+  /** @nullable */
+  endDate?: string | null;
+  milestoneCount: number;
+  companies: ClientPortfolioCompany[];
+}
+
 export interface ClientReviewItem {
   id: number;
   editKind: ChangeEventEditKind;

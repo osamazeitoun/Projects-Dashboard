@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { ReactNode } from "react";
 import { useListClientReviews, useListBaselineReviews } from "@workspace/api-client-react";
-import { Inbox, UserCheck } from "lucide-react";
+import { Inbox, UserCheck, LayoutDashboard } from "lucide-react";
 import PerspectiveSwitcher from "@/components/perspective-switcher";
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
@@ -12,10 +12,23 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
 
   const navItems = [
     {
+      name: "Portfolio",
+      href: "/client/portfolio",
+      icon: LayoutDashboard,
+      match: (l: string) =>
+        l === "/client" ||
+        l === "/client/portfolio" ||
+        l.startsWith("/client/portfolio/"),
+      count: undefined as number | undefined,
+    },
+    {
       name: "Review Inbox",
-      href: "/client",
+      href: "/client/inbox",
       icon: Inbox,
-      match: (l: string) => l === "/client" || l.startsWith("/client/change-event"),
+      match: (l: string) =>
+        l === "/client/inbox" ||
+        l.startsWith("/client/change-event") ||
+        l.startsWith("/client/baseline-review"),
       count: pendingCount,
     },
   ];

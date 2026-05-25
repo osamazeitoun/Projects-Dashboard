@@ -154,6 +154,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /me/portfolio:
+    get:
+      operationId: getClientPortfolio
+      tags: [client]
+      summary: Portfolio of projects the signed-in client can see, with per-company entry/exit dates
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ClientPortfolioProject" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /me/client-reviews:
     get:
       operationId: listClientReviews
@@ -1814,6 +1833,38 @@ components:
         actorUserId: { type: ["integer", "null"] }
         actorEmail: { type: ["string", "null"] }
         comment: { type: ["string", "null"] }
+
+    ClientPortfolioCompany:
+      type: object
+      required: [projectCompanyId, companyId, name, role, entryDate, exitDate]
+      properties:
+        projectCompanyId: { type: integer }
+        companyId: { type: integer }
+        name: { type: string }
+        role: { type: string }
+        entryDate: { type: string, format: date-time }
+        exitDate: { type: string, format: date-time }
+
+    ClientPortfolioProject:
+      type: object
+      required:
+        - id
+        - name
+        - code
+        - scheduleStatus
+        - milestoneCount
+        - companies
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        code: { type: string }
+        scheduleStatus: { $ref: "#/components/schemas/ProjectScheduleStatus" }
+        startDate: { type: ["string", "null"], format: date-time }
+        endDate: { type: ["string", "null"], format: date-time }
+        milestoneCount: { type: integer }
+        companies:
+          type: array
+          items: { $ref: "#/components/schemas/ClientPortfolioCompany" }
 
     ClientReviewItem:
       type: object
