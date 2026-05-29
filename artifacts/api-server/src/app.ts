@@ -1,6 +1,13 @@
-import express, { type Express } from "express";
+import express, {
+  type Express,
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 import cookieParser from "cookie-parser";
-import cors from "cors";
+import cors, { type CorsOptions } from "cors";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
@@ -10,6 +17,7 @@ import {
   getClerkProxyHost,
 } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
+import healthRouter from "./routes/health";
 import { logger } from "./lib/logger";
 import { refreshStageCache } from "./lib/stages";
 
@@ -19,7 +27,46 @@ refreshStageCache().catch((err) => {
   logger.error({ err }, "Failed to initialise stage cache");
 });
 
+const isProduction = process.env.NODE_ENV === "production";
+
+// Only the dev bypass and integration tests should escape rate limiting.
+const skipRateLimit =
+  process.env.NODE_ENV === "test" || process.env.API_TEST_AUTH === "1";
+
+// Comma-separated allowlist of browser origins permitted to send credentialed
+// (cookie-bearing) cross-origin requests, e.g.
+// "https://app.example.com,https://admin.example.com". In production an empty
+// list means only same-origin / non-browser requests are allowed.
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const corsOptions: CorsOptions = {
+  credentials: true,
+  origin(origin, callback) {
+    // Requests with no Origin header (same-origin, curl, server-to-server)
+    // are always allowed.
+    if (!origin) return callback(null, true);
+    // Outside production we stay permissive for local dev convenience.
+    if (!isProduction) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`Origin not allowed by CORS: ${origin}`));
+  },
+};
+
 const app: Express = express();
+
+// Behind Replit's reverse proxy: trust the first hop so client IPs (used by
+// the rate limiter) and secure-cookie handling resolve correctly.
+app.set("trust proxy", 1);
+
+if (isProduction && allowedOrigins.length === 0) {
+  logger.warn(
+    "CORS_ALLOWED_ORIGINS is empty in production; credentialed cross-origin " +
+      "requests will be rejected. Set it to your frontend origin(s).",
+  );
+}
 
 app.use(
   pinoHttp({
@@ -43,10 +90,36 @@ app.use(
 
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
-app.use(cors({ credentials: true, origin: true }));
+// Security response headers. The API serves JSON only (the SPA is deployed
+// separately), so the restrictive cross-origin resource policy is safe.
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: "same-site" },
+  }),
+);
+
+app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Health & readiness probes are mounted before auth and rate limiting so
+// platform health checks never depend on Clerk being reachable and are never
+// throttled.
+app.use("/api", healthRouter);
+
+// Coarse request rate limiting to blunt brute-force and abuse. Tune via
+// RATE_LIMIT_WINDOW_MS / RATE_LIMIT_MAX. Disabled under tests/dev bypass.
+app.use(
+  rateLimit({
+    windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS ?? 15 * 60_000),
+    limit: Number(process.env.RATE_LIMIT_MAX ?? 600),
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    skip: () => skipRateLimit,
+  }),
+);
 
 app.use(
   clerkMiddleware((req) => ({
@@ -58,5 +131,29 @@ app.use(
 );
 
 app.use("/api", router);
+
+// Final 404 for unmatched API routes.
+app.use("/api", (_req: Request, res: Response) => {
+  res.status(404).json({ error: "Not found" });
+});
+
+// Centralised error handler: log the full error server-side but never leak
+// internals (stack traces, messages) to clients in production.
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+  if (res.headersSent) return;
+  const isCorsRejection =
+    err instanceof Error &&
+    err.message.startsWith("Origin not allowed by CORS");
+  const status = isCorsRejection ? 403 : 500;
+  req.log?.error?.({ err }, "Unhandled request error");
+  const message = isCorsRejection
+    ? "Origin not allowed"
+    : isProduction
+      ? "Internal server error"
+      : err instanceof Error
+        ? err.message
+        : "Internal server error";
+  res.status(status).json({ error: message });
+});
 
 export default app;
