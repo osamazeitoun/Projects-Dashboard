@@ -8,6 +8,7 @@ import cookieParser from "cookie-parser";
 import cors, { type CorsOptions } from "cors";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
+import path from "node:path";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
@@ -109,6 +110,27 @@ app.use(express.urlencoded({ extended: true }));
 // throttled.
 app.use("/api", healthRouter);
 
+// Optionally serve the built SPA from the same origin as the API. Off by
+// default (Replit serves the client separately); enable with SERVE_CLIENT=1
+// for single-service hosts like a Render preview. CLIENT_DIST overrides the
+// path to the Vite build output. Mounted before auth/rate-limiting so static
+// assets and deep links load without depending on Clerk.
+if (process.env.SERVE_CLIENT === "1") {
+  const clientDist = path.resolve(
+    process.cwd(),
+    process.env.CLIENT_DIST ?? "artifacts/milestones/dist/public",
+  );
+  const indexHtml = path.join(clientDist, "index.html");
+  app.use(express.static(clientDist));
+  // SPA fallback: serve index.html for any non-API GET so client-side routing
+  // works on hard refresh / deep links. The regex excludes /api so those fall
+  // through to the API router below.
+  app.get(/^(?!\/api(?:\/|$)).*/, (_req: Request, res: Response) => {
+    res.sendFile(indexHtml);
+  });
+  logger.info({ clientDist }, "Serving SPA from API origin (SERVE_CLIENT=1)");
+}
+
 // Coarse request rate limiting to blunt brute-force and abuse. Tune via
 // RATE_LIMIT_WINDOW_MS / RATE_LIMIT_MAX. Disabled under tests/dev bypass.
 app.use(
@@ -121,14 +143,19 @@ app.use(
   }),
 );
 
-app.use(
-  clerkMiddleware((req) => ({
-    publishableKey: publishableKeyFromHost(
-      getClerkProxyHost(req) ?? "",
-      process.env.CLERK_PUBLISHABLE_KEY,
-    ),
-  })),
-);
+// Clerk auth middleware. Only mounted when a secret key is configured so the
+// app can also run in dev-auth mode (DEV_AUTH_ENABLED=1) with no Clerk account
+// at all — requireAuth tolerates the missing middleware in that case.
+if (process.env.CLERK_SECRET_KEY) {
+  app.use(
+    clerkMiddleware((req) => ({
+      publishableKey: publishableKeyFromHost(
+        getClerkProxyHost(req) ?? "",
+        process.env.CLERK_PUBLISHABLE_KEY,
+      ),
+    })),
+  );
+}
 
 app.use("/api", router);
 

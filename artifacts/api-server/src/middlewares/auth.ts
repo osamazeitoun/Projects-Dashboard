@@ -313,8 +313,13 @@ export async function requireAuth(
     clerkUserId = Array.isArray(header) ? header[0] : header;
   }
   if (!clerkUserId) {
-    const auth = getAuth(req);
-    clerkUserId = auth?.userId;
+    try {
+      const auth = getAuth(req);
+      clerkUserId = auth?.userId;
+    } catch {
+      // Clerk middleware isn't mounted (dev-auth mode with no Clerk keys).
+      // Fall through to the dev bypass below.
+    }
   }
   if (!clerkUserId && DEV_AUTH_ENABLED) {
     clerkUserId = DEV_AUTH_CLERK_ID;
