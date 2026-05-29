@@ -1,0 +1,1 @@
+- [Shared env vars are plaintext in committed .replit](replit-shared-env-plaintext.md) — secrets/keys must go to the Secrets store, never shared/dev/prod env; check `.replit` before any GitHub push.
