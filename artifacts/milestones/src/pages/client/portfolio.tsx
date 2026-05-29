@@ -17,16 +17,16 @@ import {
 } from "lucide-react";
 
 const COMPANY_PALETTE = [
-  "#3a5773",
-  "#a87937",
-  "#4a6b3f",
-  "#8a3a2c",
-  "#6b5d4f",
-  "#a06b8c",
-  "#5b7a8a",
-  "#7d6b3f",
-  "#3f6b6b",
-  "#7a4a6b",
+  "#2563eb",
+  "#7c3aed",
+  "#059669",
+  "#d97706",
+  "#e11d48",
+  "#0891b2",
+  "#4f46e5",
+  "#0d9488",
+  "#c026d3",
+  "#475569",
 ];
 
 function colorForCompany(companyId: number, registry: Map<number, string>): string {
@@ -100,7 +100,7 @@ function ProjectRow({
               <span>{project.code}</span>
               {statusBadge(project.scheduleStatus)}
             </div>
-            <div className="font-serif text-lg text-ink group-hover:underline truncate">
+            <div className="font-semibold text-lg text-ink group-hover:underline truncate">
               {project.name}
             </div>
             <div className="text-xs text-ink-3 mt-0.5">
@@ -389,7 +389,7 @@ export default function ClientPortfolio() {
     <div className={containerClass}>
       <header className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="font-serif text-4xl font-normal tracking-tight text-ink flex items-center gap-2">
+          <h1 className="text-3xl font-semibold tracking-tight text-ink flex items-center gap-2">
             <LayoutDashboard className="w-7 h-7 text-[color:var(--c-gold)]" />
             Portfolio
           </h1>

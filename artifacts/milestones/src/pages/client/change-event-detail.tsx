@@ -286,7 +286,7 @@ export default function ClientChangeEventDetail() {
             </span>
           )}
         </div>
-        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">{data.milestoneName}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-ink">{data.milestoneName}</h1>
         <p className="text-muted-foreground italic">"{data.changeReason}"</p>
       </header>
 

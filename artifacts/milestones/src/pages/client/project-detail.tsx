@@ -50,7 +50,7 @@ export default function ClientProjectDetail() {
           <span>{project.code}</span>
           <Badge variant="neutral">{project.scheduleStatus}</Badge>
         </div>
-        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">
+        <h1 className="text-3xl font-semibold tracking-tight text-ink">
           {project.name}
         </h1>
         <p className="text-muted-foreground">

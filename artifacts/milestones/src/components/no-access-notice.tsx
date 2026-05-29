@@ -38,7 +38,7 @@ export default function NoAccessGate({
         >
           <ShieldAlert className="h-6 w-6" />
         </div>
-        <h1 className="font-serif text-3xl font-normal tracking-tight text-ink">No projects assigned yet</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-ink">No projects assigned yet</h1>
         <p className="text-sm text-ink-3">
           Your account is set up, but you haven't been added to any projects.
           Please ask your company administrator to assign you to a project.

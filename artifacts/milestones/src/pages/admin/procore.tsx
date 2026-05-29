@@ -229,7 +229,7 @@ export default function AdminProcore() {
           <Link2 className="h-6 w-6" />
         </div>
         <div>
-          <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">
+          <h1 className="text-3xl font-semibold tracking-tight text-ink">
             Procore
           </h1>
           <p className="text-muted-foreground mt-1">

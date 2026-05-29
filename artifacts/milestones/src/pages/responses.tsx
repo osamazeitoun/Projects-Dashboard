@@ -116,7 +116,7 @@ export default function Responses() {
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <header className="flex justify-between items-end">
         <div>
-          <h1 className="font-serif text-4xl font-normal tracking-tight text-ink flex items-center gap-2">
+          <h1 className="text-3xl font-semibold tracking-tight text-ink flex items-center gap-2">
             Pending Responses
             {impacts.length > 0 && (
               <Badge className="bg-[color-mix(in_srgb,var(--c-warn)_18%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))] border-transparent">{impacts.length}</Badge>

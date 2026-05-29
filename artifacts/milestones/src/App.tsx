@@ -1,5 +1,15 @@
-import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import {
+  Switch,
+  Route,
+  Router as WouterRouter,
+  useLocation,
+  Redirect,
+} from "wouter";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
@@ -71,15 +81,17 @@ const clerkAppearance = {
     colorInput: famTokens.surface,
     colorInputForeground: famTokens.ink,
     colorNeutral: famTokens.ink,
-    fontFamily: "Manrope, DM Sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    borderRadius: "4px",
+    fontFamily:
+      "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    borderRadius: "6px",
   },
   elements: {
     rootBox: "w-full flex justify-center",
-    cardBox: "bg-surface rounded-md w-[440px] max-w-full overflow-hidden border border-line",
+    cardBox:
+      "bg-surface rounded-lg w-[440px] max-w-full overflow-hidden border border-line shadow-sm",
     card: "!shadow-none !border-0 !bg-transparent !rounded-none",
     footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
-    headerTitle: "text-ink text-2xl font-serif font-normal tracking-tight",
+    headerTitle: "text-ink text-2xl font-semibold tracking-tight",
     headerSubtitle: "text-ink-3",
     socialButtonsBlockButtonText: "text-ink font-medium",
     formFieldLabel: "text-ink-2 font-semibold text-xs",
@@ -92,7 +104,11 @@ const clerkAppearance = {
 function SignInPage() {
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
-      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+      <SignIn
+        routing="path"
+        path={`${basePath}/sign-in`}
+        signUpUrl={`${basePath}/sign-up`}
+      />
     </div>
   );
 }
@@ -100,7 +116,11 @@ function SignInPage() {
 function SignUpPage() {
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
-      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
+      <SignUp
+        routing="path"
+        path={`${basePath}/sign-up`}
+        signInUrl={`${basePath}/sign-in`}
+      />
     </div>
   );
 }
@@ -112,8 +132,13 @@ function SmartHomeRedirect() {
   if ((me.pmProjectIds?.length ?? 0) > 0) return <Redirect to="/pm" />;
   if ((me.contractorProjectIds?.length ?? 0) > 0)
     return <Redirect to="/dashboard" />;
-  if ((me.clientProjectIds?.length ?? 0) > 0) return <Redirect to="/client/portfolio" />;
-  return <NoAccessGate perspective="contractor"><div /></NoAccessGate>;
+  if ((me.clientProjectIds?.length ?? 0) > 0)
+    return <Redirect to="/client/portfolio" />;
+  return (
+    <NoAccessGate perspective="contractor">
+      <div />
+    </NoAccessGate>
+  );
 }
 
 const DEV_AUTH = import.meta.env.VITE_DEV_AUTH === "1";
@@ -123,9 +148,13 @@ function DevBanner() {
   return (
     <div
       className="text-xs font-medium text-center py-1 px-3 text-ink"
-      style={{ background: "color-mix(in oklab, var(--c-warn) 18%, var(--c-surface))" }}
+      style={{
+        background: "color-mix(in oklab, var(--c-warn) 18%, var(--c-surface))",
+      }}
     >
-      Developer view: sign-in is bypassed. Turn off <code className="font-mono">VITE_DEV_AUTH</code> &amp; <code className="font-mono">DEV_AUTH_ENABLED</code> before publishing.
+      Developer view: sign-in is bypassed. Turn off{" "}
+      <code className="font-mono">VITE_DEV_AUTH</code> &amp;{" "}
+      <code className="font-mono">DEV_AUTH_ENABLED</code> before publishing.
     </div>
   );
 }
@@ -239,7 +268,10 @@ function ClerkQueryClientCacheInvalidator() {
   useEffect(() => {
     const unsubscribe = addListener(({ user }) => {
       const userId = user?.id ?? null;
-      if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== userId) {
+      if (
+        prevUserIdRef.current !== undefined &&
+        prevUserIdRef.current !== userId
+      ) {
         qc.clear();
       }
       prevUserIdRef.current = userId;
@@ -272,58 +304,94 @@ function AppRoutes() {
             <Route path="/sign-in/*?" component={SignInPage} />
             <Route path="/sign-up/*?" component={SignUpPage} />
             <Route path="/dashboard">
-              <ProtectedContractorPage><Dashboard /></ProtectedContractorPage>
+              <ProtectedContractorPage>
+                <Dashboard />
+              </ProtectedContractorPage>
             </Route>
             <Route path="/milestones">
-              <ProtectedContractorPage><Milestones /></ProtectedContractorPage>
+              <ProtectedContractorPage>
+                <Milestones />
+              </ProtectedContractorPage>
             </Route>
             <Route path="/responses">
-              <ProtectedContractorPage><Responses /></ProtectedContractorPage>
+              <ProtectedContractorPage>
+                <Responses />
+              </ProtectedContractorPage>
             </Route>
             <Route path="/pm">
-              <ProtectedPmPage><PmDashboard /></ProtectedPmPage>
+              <ProtectedPmPage>
+                <PmDashboard />
+              </ProtectedPmPage>
             </Route>
             <Route path="/pm/schedule">
-              <ProtectedPmPage><PmSchedule /></ProtectedPmPage>
+              <ProtectedPmPage>
+                <PmSchedule />
+              </ProtectedPmPage>
             </Route>
             <Route path="/pm/milestone/:id">
-              <ProtectedPmPage><PmMilestoneDetail /></ProtectedPmPage>
+              <ProtectedPmPage>
+                <PmMilestoneDetail />
+              </ProtectedPmPage>
             </Route>
             <Route path="/pm/companies">
-              <ProtectedPmPage><PmCompanies /></ProtectedPmPage>
+              <ProtectedPmPage>
+                <PmCompanies />
+              </ProtectedPmPage>
             </Route>
             <Route path="/pm/change-events">
-              <ProtectedPmPage><PmChangeEvents /></ProtectedPmPage>
+              <ProtectedPmPage>
+                <PmChangeEvents />
+              </ProtectedPmPage>
             </Route>
             <Route path="/pm/change-event/:id">
-              <ProtectedPmPage><PmChangeEventDetail /></ProtectedPmPage>
+              <ProtectedPmPage>
+                <PmChangeEventDetail />
+              </ProtectedPmPage>
             </Route>
             <Route path="/client">
-              <ProtectedClientPage><ClientPortfolio /></ProtectedClientPage>
+              <ProtectedClientPage>
+                <ClientPortfolio />
+              </ProtectedClientPage>
             </Route>
             <Route path="/client/portfolio">
-              <ProtectedClientPage><ClientPortfolio /></ProtectedClientPage>
+              <ProtectedClientPage>
+                <ClientPortfolio />
+              </ProtectedClientPage>
             </Route>
             <Route path="/client/portfolio/:id">
-              <ProtectedClientPage><ClientProjectDetail /></ProtectedClientPage>
+              <ProtectedClientPage>
+                <ClientProjectDetail />
+              </ProtectedClientPage>
             </Route>
             <Route path="/client/inbox">
-              <ProtectedClientPage><ClientInbox /></ProtectedClientPage>
+              <ProtectedClientPage>
+                <ClientInbox />
+              </ProtectedClientPage>
             </Route>
             <Route path="/client/change-event/:id">
-              <ProtectedClientPage><ClientChangeEventDetail /></ProtectedClientPage>
+              <ProtectedClientPage>
+                <ClientChangeEventDetail />
+              </ProtectedClientPage>
             </Route>
             <Route path="/client/baseline-review/:id">
-              <ProtectedClientPage><ClientBaselineReview /></ProtectedClientPage>
+              <ProtectedClientPage>
+                <ClientBaselineReview />
+              </ProtectedClientPage>
             </Route>
             <Route path="/admin">
-              <ProtectedAdminPage><AdminProjects /></ProtectedAdminPage>
+              <ProtectedAdminPage>
+                <AdminProjects />
+              </ProtectedAdminPage>
             </Route>
             <Route path="/admin/projects/:id">
-              <ProtectedAdminPage><AdminProjectDetail /></ProtectedAdminPage>
+              <ProtectedAdminPage>
+                <AdminProjectDetail />
+              </ProtectedAdminPage>
             </Route>
             <Route path="/admin/procore">
-              <ProtectedAdminPage><AdminProcore /></ProtectedAdminPage>
+              <ProtectedAdminPage>
+                <AdminProcore />
+              </ProtectedAdminPage>
             </Route>
             <Route component={NotFound} />
           </Switch>

@@ -1,6 +1,9 @@
 import { Link, useLocation } from "wouter";
 import { ReactNode } from "react";
-import { useListClientReviews, useListBaselineReviews } from "@workspace/api-client-react";
+import {
+  useListClientReviews,
+  useListBaselineReviews,
+} from "@workspace/api-client-react";
 import { Inbox, UserCheck, LayoutDashboard } from "lucide-react";
 import PerspectiveSwitcher from "@/components/perspective-switcher";
 
@@ -38,28 +41,33 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       <aside className="w-full md:w-72 border-r bg-card flex flex-col">
         <div className="p-4 border-b space-y-3">
           <div className="flex items-center gap-2 text-ink">
-            <UserCheck className="h-5 w-5" />
-            <span className="font-bold tracking-tight">Client Review</span>
+            <span className="grid h-7 w-7 place-items-center rounded-md bg-ink text-[color:var(--c-accent-fg)]">
+              <UserCheck className="h-4 w-4" />
+            </span>
+            <span className="font-semibold tracking-tight">Client Review</span>
           </div>
           <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
             Approve or reject proposed date changes
           </div>
         </div>
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 p-3 space-y-0.5">
           {navItems.map((item) => {
             const active = item.match(location);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center justify-between px-3 py-2 rounded-sm transition-colors text-sm border-l-2 ${active ? "bg-surface-2 text-ink font-medium border-[color:var(--c-gold)]" : "text-ink-3 border-transparent hover:bg-surface-2 hover:text-ink"}`}
+                aria-current={active ? "page" : undefined}
+                className={`group flex items-center justify-between px-2.5 py-2 rounded-md transition-colors text-sm ${active ? "bg-surface-2 text-ink font-medium" : "text-ink-3 hover:bg-surface-2 hover:text-ink"}`}
               >
-                <div className="flex items-center gap-2">
-                  <item.icon className="h-4 w-4" />
+                <div className="flex items-center gap-2.5">
+                  <item.icon
+                    className={`h-4 w-4 transition-colors ${active ? "text-[color:var(--c-gold)]" : "text-ink-4 group-hover:text-ink-3"}`}
+                  />
                   {item.name}
                 </div>
                 {item.count !== undefined && item.count > 0 && (
-                  <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-[color-mix(in_srgb,var(--c-warn)_18%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))]">
+                  <span className="text-[11px] min-w-5 text-center px-1.5 py-0.5 rounded-full font-medium tabular-nums bg-[color-mix(in_srgb,var(--c-warn)_18%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))]">
                     {item.count}
                   </span>
                 )}

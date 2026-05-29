@@ -635,7 +635,7 @@ export default function PmSchedule() {
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">Master Schedule</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-ink">Master Schedule</h1>
           <p className="text-muted-foreground mt-1">
             Every milestone in the project, across every company.
           </p>
