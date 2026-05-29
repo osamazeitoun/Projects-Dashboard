@@ -47,3 +47,8 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Secrets / environment variables — never commit real credentials
+.env
+.env.*
+!.env.example
