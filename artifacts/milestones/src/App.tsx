@@ -45,10 +45,18 @@ import ClientBaselineReview from "@/pages/client/baseline-review";
 
 const queryClient = new QueryClient();
 
-const clerkPubKey = publishableKeyFromHost(
-  window.location.hostname,
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-);
+const DEV_AUTH = import.meta.env.VITE_DEV_AUTH === "1";
+
+// In dev-auth mode the app bypasses sign-in entirely, but ClerkProvider still
+// needs a syntactically valid key to mount. Fall back to a dummy dev key so
+// the app renders with no Clerk account at all.
+const DUMMY_DEV_CLERK_KEY = "pk_test_Y2xlcmsuZGV2LmxvY2FsJA";
+
+const clerkPubKey =
+  publishableKeyFromHost(
+    window.location.hostname,
+    import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+  ) || (DEV_AUTH ? DUMMY_DEV_CLERK_KEY : "");
 
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 
@@ -60,8 +68,22 @@ function stripBase(path: string): string {
     : path;
 }
 
-if (!clerkPubKey) {
-  throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY in environment");
+// Render a readable message instead of a blank page when auth isn't configured.
+function MissingClerkKeyNotice() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background px-6">
+      <div className="max-w-md rounded-lg border border-line bg-surface p-6 shadow-sm">
+        <h1 className="text-lg font-semibold text-ink">Auth not configured</h1>
+        <p className="mt-2 text-sm text-ink-3">
+          Set <code className="font-mono">VITE_CLERK_PUBLISHABLE_KEY</code> at
+          build time, or enable the no-account dev mode with{" "}
+          <code className="font-mono">VITE_DEV_AUTH=1</code>, then redeploy.
+          Vite inlines these at build time, so a redeploy is required after
+          changing them. See <code className="font-mono">PREVIEW.md</code>.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 const clerkAppearance = {
@@ -140,8 +162,6 @@ function SmartHomeRedirect() {
     </NoAccessGate>
   );
 }
-
-const DEV_AUTH = import.meta.env.VITE_DEV_AUTH === "1";
 
 function DevBanner() {
   if (!DEV_AUTH) return null;
@@ -403,6 +423,9 @@ function AppRoutes() {
 }
 
 function App() {
+  if (!clerkPubKey) {
+    return <MissingClerkKeyNotice />;
+  }
   return (
     <WouterRouter base={basePath}>
       <AppRoutes />
