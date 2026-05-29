@@ -49,7 +49,7 @@ export default function ClientInbox() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
       <header>
-        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink flex items-center gap-2">
+        <h1 className="text-3xl font-semibold tracking-tight text-ink flex items-center gap-2">
           <Inbox className="w-7 h-7 text-[color:var(--c-gold)]" />
           Awaiting your decision
         </h1>

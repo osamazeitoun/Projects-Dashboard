@@ -613,7 +613,7 @@ export default function PmMilestoneDetail() {
               Schedule: {data.scheduleStatus}
             </Badge>
           </div>
-          <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">{data.name}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-ink">{data.name}</h1>
           {data.description && (<p className="text-muted-foreground">{data.description}</p>)}
         </div>
         <div className="flex flex-col gap-2 flex-shrink-0">

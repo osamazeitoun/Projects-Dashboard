@@ -10,6 +10,7 @@ import {
   projectAssignments,
 } from "@workspace/db";
 import { and, asc, eq, inArray } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 export interface WorkspaceOption {
   companyId: number;
@@ -197,14 +198,21 @@ export async function listWorkspacesForUser(
       const key = `${pc.companyId}:${pc.projectId}`;
       if (pairs.has(key)) continue;
       pairs.add(key);
-      candidatePcFilter.push({ companyId: pc.companyId, projectId: pc.projectId });
+      candidatePcFilter.push({
+        companyId: pc.companyId,
+        projectId: pc.projectId,
+      });
     }
   }
 
   if (candidatePcFilter.length === 0) return [];
 
-  const allCompanyIds = Array.from(new Set(candidatePcFilter.map((p) => p.companyId)));
-  const allProjectIds = Array.from(new Set(candidatePcFilter.map((p) => p.projectId)));
+  const allCompanyIds = Array.from(
+    new Set(candidatePcFilter.map((p) => p.companyId)),
+  );
+  const allProjectIds = Array.from(
+    new Set(candidatePcFilter.map((p) => p.projectId)),
+  );
 
   const rows = await db
     .select({
@@ -240,7 +248,20 @@ function parseWorkspaceCookie(
   return { companyId, projectId };
 }
 
-const DEV_AUTH_ENABLED = process.env.DEV_AUTH_ENABLED === "1";
+// The dev auth bypass grants admin on every company without a real Clerk
+// session, so it must NEVER be active in production. Requiring a
+// non-production NODE_ENV makes the env flag fail-safe: leaving
+// DEV_AUTH_ENABLED=1 in a deployed environment has no effect.
+const DEV_AUTH_ENABLED =
+  process.env.DEV_AUTH_ENABLED === "1" && process.env.NODE_ENV !== "production";
+
+if (process.env.DEV_AUTH_ENABLED === "1" && !DEV_AUTH_ENABLED) {
+  logger.error(
+    "DEV_AUTH_ENABLED=1 was ignored because NODE_ENV=production. " +
+      "The dev auth bypass is disabled in production for security.",
+  );
+}
+
 const DEV_AUTH_CLERK_ID = "dev-bypass-user";
 const DEV_AUTH_EMAIL = "dev@local.test";
 
@@ -292,8 +313,13 @@ export async function requireAuth(
     clerkUserId = Array.isArray(header) ? header[0] : header;
   }
   if (!clerkUserId) {
-    const auth = getAuth(req);
-    clerkUserId = auth?.userId;
+    try {
+      const auth = getAuth(req);
+      clerkUserId = auth?.userId;
+    } catch {
+      // Clerk middleware isn't mounted (dev-auth mode with no Clerk keys).
+      // Fall through to the dev bypass below.
+    }
   }
   if (!clerkUserId && DEV_AUTH_ENABLED) {
     clerkUserId = DEV_AUTH_CLERK_ID;
@@ -304,8 +330,7 @@ export async function requireAuth(
   }
 
   try {
-    const isDevBypass =
-      DEV_AUTH_ENABLED && clerkUserId === DEV_AUTH_CLERK_ID;
+    const isDevBypass = DEV_AUTH_ENABLED && clerkUserId === DEV_AUTH_CLERK_ID;
     let userId: number;
     let email: string | null;
     if (isDevBypass) {

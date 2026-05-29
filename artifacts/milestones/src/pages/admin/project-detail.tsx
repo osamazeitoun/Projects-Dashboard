@@ -368,7 +368,7 @@ export default function AdminProjectDetail() {
           <div className="text-[11px] uppercase tracking-wide font-mono text-muted-foreground">
             {data.projectCode}
           </div>
-          <h1 className="font-serif text-4xl font-normal tracking-tight text-ink flex items-center gap-3 flex-wrap">
+          <h1 className="text-3xl font-semibold tracking-tight text-ink flex items-center gap-3 flex-wrap">
             {data.projectName}
             {data.procoreProjectId ? (
               <Badge variant="outline" className="gap-1 text-xs">

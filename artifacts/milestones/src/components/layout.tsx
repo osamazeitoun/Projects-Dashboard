@@ -77,7 +77,8 @@ export default function Layout({ children }: { children: ReactNode }) {
       href: "/responses",
       icon: AlertTriangle,
       count: projectSummary?.pendingImpactCount,
-      countColor: "bg-[color-mix(in_srgb,var(--c-warn)_18%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))]",
+      countColor:
+        "bg-[color-mix(in_srgb,var(--c-warn)_18%,var(--c-surface))] text-[color-mix(in_srgb,var(--c-warn)_70%,var(--c-ink))]",
     },
   ];
 
@@ -94,8 +95,12 @@ export default function Layout({ children }: { children: ReactNode }) {
       <aside className="w-full md:w-64 border-r bg-card flex flex-col">
         <div className="p-4 border-b">
           <div className="flex items-center gap-2 mb-3 text-ink">
-            <HardHat className="h-5 w-5" />
-            <span className="font-bold tracking-tight">MilestoneTracker</span>
+            <span className="grid h-7 w-7 place-items-center rounded-md bg-ink text-[color:var(--c-accent-fg)]">
+              <HardHat className="h-4 w-4" />
+            </span>
+            <span className="font-semibold tracking-tight">
+              MilestoneTracker
+            </span>
           </div>
           {showSwitcher ? (
             <Popover>
@@ -187,27 +192,34 @@ export default function Layout({ children }: { children: ReactNode }) {
             <div className="h-5 w-32 bg-muted rounded animate-pulse" />
           )}
         </div>
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 p-3 space-y-0.5">
           {navItems.map((item) => {
             const isActive = location === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center justify-between px-3 py-2 rounded-sm transition-colors text-sm border-l-2 ${
+                aria-current={isActive ? "page" : undefined}
+                className={`group flex items-center justify-between px-2.5 py-2 rounded-md transition-colors text-sm ${
                   isActive
-                    ? "bg-surface-2 text-ink font-medium border-[color:var(--c-gold)]"
-                    : "text-ink-3 border-transparent hover:bg-surface-2 hover:text-ink"
+                    ? "bg-surface-2 text-ink font-medium"
+                    : "text-ink-3 hover:bg-surface-2 hover:text-ink"
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <item.icon className="h-4 w-4" />
+                <div className="flex items-center gap-2.5">
+                  <item.icon
+                    className={`h-4 w-4 transition-colors ${
+                      isActive
+                        ? "text-[color:var(--c-gold)]"
+                        : "text-ink-4 group-hover:text-ink-3"
+                    }`}
+                  />
                   {item.name}
                 </div>
                 {item.count !== undefined && item.count > 0 && (
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-sm font-medium font-mono ${
-                      item.countColor || "bg-ink text-[color:var(--c-accent-fg)]"
+                    className={`text-[11px] min-w-5 text-center px-1.5 py-0.5 rounded-full font-medium tabular-nums ${
+                      item.countColor || "bg-surface-3 text-ink-2"
                     }`}
                   >
                     {item.count}
@@ -220,7 +232,9 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="p-3 border-t space-y-3">
           <PerspectiveSwitcher />
           <div className="px-2 text-xs text-muted-foreground truncate">
-            {user?.primaryEmailAddress?.emailAddress ?? me?.email ?? "Signed in"}
+            {user?.primaryEmailAddress?.emailAddress ??
+              me?.email ??
+              "Signed in"}
           </div>
           <Button
             variant="ghost"

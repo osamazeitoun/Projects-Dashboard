@@ -761,7 +761,7 @@ export default function PmChangeEventDetail() {
         </div>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="space-y-1">
-            <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">{data.milestoneName}</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-ink">{data.milestoneName}</h1>
             <p className="text-muted-foreground italic">"{data.changeReason}"</p>
           </div>
           <Button

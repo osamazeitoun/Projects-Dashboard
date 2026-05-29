@@ -41,7 +41,7 @@ export default function PmCompanies() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <header>
-        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">Companies on this Project</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-ink">Companies on this Project</h1>
         <p className="text-muted-foreground mt-1">{data.length} companies participating across the schedule.</p>
       </header>
 

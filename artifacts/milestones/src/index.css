@@ -109,31 +109,34 @@
    ============================================================ */
 :root {
   /* ---------- COLOR · LIGHT (default) ---------- */
-  --c-bg:        #fafaf7;
-  --c-surface:   #ffffff;
-  --c-surface-2: #f5f3ed;
-  --c-surface-3: #ecebe4;
+  --c-bg: #f7f8fa;
+  --c-surface: #ffffff;
+  --c-surface-2: #f1f3f5;
+  --c-surface-3: #e6e9ee;
 
-  --c-line:      #e5e2d8;
-  --c-line-2:    #d9d5c7;
+  --c-line: #e4e7eb;
+  --c-line-2: #d3d8df;
 
-  --c-ink:       #1a1a1a;
-  --c-ink-2:     #2d2926;
-  --c-ink-3:     #6b5d4f;
-  --c-ink-4:     #8a8073;
-  --c-ink-5:     #b8af9f;
+  --c-ink: #0f1419;
+  --c-ink-2: #232a33;
+  --c-ink-3: #5a6573;
+  --c-ink-4: #8a93a1;
+  --c-ink-5: #b4bcc7;
 
-  --c-accent:    #1a1a1a;
-  --c-accent-fg: #fafaf7;
+  --c-accent: #2563eb;
+  --c-accent-fg: #ffffff;
 
-  --c-gold:      #d4a574;
-  --c-gold-soft: #e8d4b3;
-  --c-cream:     #f5f0e8;
+  /* Brand/accent. The `gold` token name is kept so the many existing
+     `var(--c-gold)` references and `bg-gold`/`text-gold` utilities remap to
+     the new blue accent automatically. */
+  --c-gold: #2563eb;
+  --c-gold-soft: #dbe6fe;
+  --c-cream: #eef1f5;
 
-  --c-success:   #4a6b3f;
-  --c-warn:      #a87937;
-  --c-danger:    #8a3a2c;
-  --c-info:      #3a5773;
+  --c-success: #15803d;
+  --c-warn: #b45309;
+  --c-danger: #dc2626;
+  --c-info: #2563eb;
 
   /* ---------- RADIUS ---------- */
   --r-xs: 2px;
@@ -158,15 +161,18 @@
   --s-12: 96px;
 
   /* ---------- TYPE ---------- */
-  --font-display:    "Instrument Serif", "Fraunces", Georgia, serif;
-  --font-body:       "Manrope", "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+    sans-serif;
   --font-mono-token: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
 
-  /* ---------- ELEVATION ---------- */
-  --sh-1: 0 1px 2px rgba(20, 16, 10, 0.04), 0 1px 1px rgba(20, 16, 10, 0.03);
-  --sh-2: 0 2px 4px rgba(20, 16, 10, 0.05), 0 4px 12px rgba(20, 16, 10, 0.04);
-  --sh-3: 0 8px 24px rgba(20, 16, 10, 0.08), 0 2px 6px rgba(20, 16, 10, 0.04);
-  --sh-4: 0 24px 60px rgba(20, 16, 10, 0.12), 0 6px 12px rgba(20, 16, 10, 0.06);
+  /* ---------- ELEVATION (cool, subtle — slate-tinted) ---------- */
+  --sh-1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 1px rgba(15, 23, 42, 0.04);
+  --sh-2: 0 1px 3px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.05);
+  --sh-3: 0 8px 24px rgba(15, 23, 42, 0.1), 0 2px 6px rgba(15, 23, 42, 0.05);
+  --sh-4: 0 24px 60px rgba(15, 23, 42, 0.16), 0 6px 12px rgba(15, 23, 42, 0.08);
 
   /* ---------- MOTION ---------- */
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -175,53 +181,57 @@
   --t-slow: 280ms;
 
   /* ---------- BACKDROP ---------- */
-  --c-backdrop: rgba(20, 16, 10, 0.5);
+  --c-backdrop: rgba(15, 23, 42, 0.45);
 }
 
 /* ---------- COLOR · DARK ---------- */
 [data-theme="dark"] {
-  --c-bg:        #14130f;
-  --c-surface:   #1c1a15;
-  --c-surface-2: #232019;
-  --c-surface-3: #2b2820;
+  --c-bg: #0a0d12;
+  --c-surface: #11151c;
+  --c-surface-2: #161b23;
+  --c-surface-3: #1e2530;
 
-  --c-line:      #2f2c24;
-  --c-line-2:    #3d3930;
+  --c-line: #232a34;
+  --c-line-2: #313a47;
 
-  --c-ink:       #f5f0e8;
-  --c-ink-2:     #e8e2d4;
-  --c-ink-3:     #b8af9f;
-  --c-ink-4:     #8a8073;
-  --c-ink-5:     #5a5347;
+  --c-ink: #e6e9ee;
+  --c-ink-2: #cdd3dc;
+  --c-ink-3: #93a0b0;
+  --c-ink-4: #6b7787;
+  --c-ink-5: #454e5b;
 
-  --c-accent:    #f5f0e8;
-  --c-accent-fg: #14130f;
+  --c-accent: #3b82f6;
+  --c-accent-fg: #0a0d12;
 
-  --c-gold:      #d4a574;
-  --c-gold-soft: #6b5135;
-  --c-cream:     #2b2820;
+  --c-gold: #3b82f6;
+  --c-gold-soft: #1d3454;
+  --c-cream: #1e2530;
 
-  --c-success:   #7a9a6c;
-  --c-warn:      #c9a063;
-  --c-danger:    #c97a6b;
-  --c-info:      #6d92b8;
+  --c-success: #34d399;
+  --c-warn: #fbbf24;
+  --c-danger: #f87171;
+  --c-info: #60a5fa;
 
-  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.3);
-  --sh-2: 0 2px 4px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.35);
-  --sh-3: 0 8px 24px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.35);
-  --sh-4: 0 24px 60px rgba(0, 0, 0, 0.7), 0 6px 12px rgba(0, 0, 0, 0.4);
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 1px rgba(0, 0, 0, 0.4);
+  --sh-2: 0 1px 3px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+  --sh-3: 0 8px 24px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --sh-4: 0 24px 60px rgba(0, 0, 0, 0.75), 0 6px 12px rgba(0, 0, 0, 0.45);
 
-  --c-backdrop: rgba(0, 0, 0, 0.7);
+  --c-backdrop: rgba(0, 0, 0, 0.65);
 }
 
-::selection { background: var(--c-gold-soft); color: var(--c-ink); }
+::selection {
+  background: color-mix(in oklab, var(--c-gold) 28%, transparent);
+  color: var(--c-ink);
+}
 
 @layer base {
   * {
     @apply border-border;
   }
 
-  html, body {
+  html,
+  body {
     margin: 0;
     padding: 0;
   }
@@ -232,26 +242,108 @@
     color: var(--c-ink);
     font-size: 14px;
     line-height: 1.5;
-    letter-spacing: -0.005em;
+    letter-spacing: -0.006em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   /* Numeric / monospace cells in tables use tabular nums */
-  td.num, th.num, .tabular-nums {
+  td.num,
+  th.num,
+  .tabular-nums {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Consistent, accessible keyboard focus across interactive elements. */
+  :focus-visible {
+    outline: 2px solid var(--c-gold);
+    outline-offset: 2px;
+    border-radius: var(--r-sm);
+  }
+
+  /* Thin, neutral scrollbars (modern SaaS feel). */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--c-line-2) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--c-line-2);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--c-ink-5);
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
   }
 }
 
 /* ---------- TYPE SCALE (utility classes) ---------- */
-.t-display-1 { font-family: var(--font-display); font-weight: 400; font-size: 64px; line-height: 1; letter-spacing: -0.025em; }
-.t-display-2 { font-family: var(--font-display); font-weight: 400; font-size: 44px; line-height: 1.05; letter-spacing: -0.02em; }
-.t-h1        { font-family: var(--font-body); font-weight: 600; font-size: 22px; line-height: 1.27; letter-spacing: -0.012em; }
-.t-h2        { font-family: var(--font-body); font-weight: 600; font-size: 17px; line-height: 1.3; }
-.t-body      { font-family: var(--font-body); font-weight: 400; font-size: 14px; line-height: 1.55; color: var(--c-ink-2); }
-.t-body-sm   { font-family: var(--font-body); font-weight: 400; font-size: 12px; line-height: 1.5; color: var(--c-ink-3); }
-.t-label     { font-family: var(--font-body); font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--c-ink-4); }
-.t-mono      { font-family: var(--font-mono-token); font-size: 12px; line-height: 1.5; color: var(--c-ink-2); }
+/* Neutral SaaS: display headings use a tight, heavy Inter rather than a serif. */
+.t-display-1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 52px;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+}
+.t-display-2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 38px;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+}
+.t-h1 {
+  font-family: var(--font-body);
+  font-weight: 650;
+  font-size: 22px;
+  line-height: 1.27;
+  letter-spacing: -0.018em;
+}
+.t-h2 {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 17px;
+  line-height: 1.35;
+  letter-spacing: -0.012em;
+}
+.t-body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--c-ink-2);
+}
+.t-body-sm {
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--c-ink-3);
+}
+.t-label {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-ink-4);
+}
+.t-mono {
+  font-family: var(--font-mono-token);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--c-ink-2);
+}
 
 /* Status dot used inside badges */
 .status-dot {

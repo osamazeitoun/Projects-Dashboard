@@ -36,7 +36,7 @@ export default function Dashboard() {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
       <header>
-        <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">Company Dashboard</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-ink">Company Dashboard</h1>
         <p className="text-muted-foreground mt-1">Overview of your milestones and required actions.</p>
       </header>
 

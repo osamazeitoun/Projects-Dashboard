@@ -79,7 +79,7 @@ export default function PmDashboard() {
           <div className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">
             {data.projectCode}
           </div>
-          <h1 className="font-serif text-4xl font-normal tracking-tight text-ink">{data.projectName}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-ink">{data.projectName}</h1>
           <p className="text-muted-foreground mt-1">
             Command center for {data.gcCompanyName}
           </p>
