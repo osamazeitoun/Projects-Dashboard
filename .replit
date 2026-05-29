@@ -41,7 +41,6 @@ externalPort = 3000
 DEV_AUTH_ENABLED = "1"
 VITE_DEV_AUTH = "1"
 PROCORE_OAUTH_REDIRECT_URI = "https://b424b494-2dfd-48b4-bbde-cd7fcf66f6d0-00-2sq5hysjpxn8x.pike.replit.dev/api/admin/procore/oauth/callback"
-PROCORE_TOKEN_ENCRYPTION_KEY = "449a1141a69f1fcd10ab0213c30c5278d5475d4b863cc0e6ec273d7f7168ad9d"
 PROCORE_BASE_URL = "https://sandbox.procore.com"
 
 [nix]
