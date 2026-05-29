@@ -5,13 +5,14 @@
 # the configured branch auto-deploys, giving you a shareable URL to review the
 # running app *before* you pull it into Replit.
 #
-# Setup (one time):
-#   1. Push this branch to GitHub.
-#   2. In Render: New > Blueprint, point it at this repo, pick the branch.
-#   3. Fill the secret env vars marked `sync: false` (see PREVIEW.md).
-#   4. Deploy. Subsequent pushes redeploy automatically.
+# This Blueprint is preconfigured for ZERO-SETUP dev-auth mode: no Clerk
+# account, no keys, no manual env vars. The preview drops you straight into the
+# app as a dev admin. To use real Clerk auth instead, see PREVIEW.md.
 #
-# See PREVIEW.md for the Clerk-key vs dev-auth (no-account) options.
+# Setup:
+#   1. In Render: New > Blueprint, point it at this repo, pick the branch.
+#   2. Apply. No env vars to fill in.
+#   3. Subsequent pushes redeploy automatically.
 
 databases:
   - name: milestones-preview-db
@@ -29,18 +30,27 @@ services:
     branch: claude/modest-einstein-mkLA3
     autoDeploy: true
     healthCheckPath: /api/healthz
+    # `push-force` and a non-fatal seed keep the deploy from failing on a fresh
+    # DB; the app still comes up even if the demo seed has a hiccup.
     buildCommand: |
       corepack enable
       corepack prepare pnpm@10.33.0 --activate
       pnpm install --frozen-lockfile
       pnpm --filter @workspace/milestones run build
       pnpm --filter @workspace/api-server run build
-      pnpm --filter @workspace/db run push
-      pnpm --filter @workspace/scripts run seed
+      pnpm --filter @workspace/db run push-force
+      pnpm --filter @workspace/scripts run seed || echo "seed skipped (continuing)"
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
     envVars:
+      # Dev-auth preview: NODE_ENV=development is REQUIRED for the dev bypass
+      # (it is force-disabled under production, by design).
       - key: NODE_ENV
-        value: production
+        value: development
+      - key: DEV_AUTH_ENABLED
+        value: "1"
+      # Inlined into the SPA build by Vite — bypasses Clerk sign-in entirely.
+      - key: VITE_DEV_AUTH
+        value: "1"
       # Serve the built SPA from the API origin (single-service preview).
       - key: SERVE_CLIENT
         value: "1"
@@ -50,23 +60,10 @@ services:
         fromDatabase:
           name: milestones-preview-db
           property: connectionString
-      # --- Auth: real Clerk (a free dev instance is fine). Set in dashboard. ---
-      # Both the server (CLERK_SECRET_KEY/CLERK_PUBLISHABLE_KEY) and the build
-      # (VITE_CLERK_PUBLISHABLE_KEY, inlined by Vite) need the keys.
-      - key: CLERK_SECRET_KEY
-        sync: false
-      - key: CLERK_PUBLISHABLE_KEY
-        sync: false
-      - key: VITE_CLERK_PUBLISHABLE_KEY
-        sync: false
-      # The first user to sign in with this email becomes a company admin.
-      - key: INITIAL_ADMIN_EMAIL
-        sync: false
       # Procore stays in demo mode for the preview (no real OAuth needed).
       - key: PROCORE_DEMO_MODE
         value: "1"
-      # --- Alternative: skip Clerk entirely (no account). See PREVIEW.md. ---
-      # To use the dev-auth bypass instead of Clerk, in the dashboard set:
-      #   NODE_ENV=development, DEV_AUTH_ENABLED=1, VITE_DEV_AUTH=1
-      # and leave the Clerk keys blank. (The bypass is disabled when
-      # NODE_ENV=production, by design.)
+      # --- To switch to real Clerk auth instead (see PREVIEW.md): set
+      #     NODE_ENV=production and remove DEV_AUTH_ENABLED / VITE_DEV_AUTH,
+      #     then add CLERK_SECRET_KEY, CLERK_PUBLISHABLE_KEY,
+      #     VITE_CLERK_PUBLISHABLE_KEY, and INITIAL_ADMIN_EMAIL.
