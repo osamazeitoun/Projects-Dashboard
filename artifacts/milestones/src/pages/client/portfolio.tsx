@@ -1,10 +1,17 @@
 import { useMemo, useState } from "react";
-import { useGetClientPortfolio, type ClientPortfolioProject } from "@workspace/api-client-react";
+import {
+  useGetClientPortfolio,
+  type ClientPortfolioProject,
+} from "@workspace/api-client-react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Link } from "wouter";
 import { format, differenceInDays } from "date-fns";
 import {
@@ -29,7 +36,10 @@ const COMPANY_PALETTE = [
   "#475569",
 ];
 
-function colorForCompany(companyId: number, registry: Map<number, string>): string {
+function colorForCompany(
+  companyId: number,
+  registry: Map<number, string>,
+): string {
   const existing = registry.get(companyId);
   if (existing) return existing;
   const next = COMPANY_PALETTE[registry.size % COMPANY_PALETTE.length];
@@ -48,10 +58,74 @@ function statusBadge(status: string) {
   }
 }
 
+// Shared month/quarter tick computation so the axis labels and the row
+// gridlines line up exactly.
+function computeTicks(start: Date, end: Date): Date[] {
+  const result: Date[] = [];
+  const totalMs = end.getTime() - start.getTime();
+  if (totalMs <= 0) return result;
+  const months = Math.max(
+    1,
+    (end.getFullYear() - start.getFullYear()) * 12 +
+      (end.getMonth() - start.getMonth()),
+  );
+  const step = months <= 12 ? 1 : months <= 36 ? 3 : 6;
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (cursor <= end) {
+    if (cursor >= start) result.push(new Date(cursor));
+    cursor.setMonth(cursor.getMonth() + step);
+  }
+  return result;
+}
+
+function pct(date: Date, axisStart: Date, span: number): number {
+  return ((date.getTime() - axisStart.getTime()) / span) * 100;
+}
+
+// Faint vertical gridlines (aligned to the axis ticks) plus a "Today" marker,
+// drawn behind the bars so the eye can map any bar back to a date.
+function TimelineGrid({
+  ticks,
+  axisStart,
+  span,
+}: {
+  ticks: Date[];
+  axisStart: Date;
+  span: number;
+}) {
+  const todayLeft = pct(new Date(), axisStart, span);
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {ticks.map((t, i) => {
+        const left = pct(t, axisStart, span);
+        if (left < 0 || left > 100) return null;
+        return (
+          <div
+            key={i}
+            className="absolute top-0 bottom-0 w-px bg-line"
+            style={{ left: `${left}%` }}
+          />
+        );
+      })}
+      {todayLeft >= 0 && todayLeft <= 100 && (
+        <div
+          className="absolute top-0 bottom-0 w-px"
+          style={{
+            left: `${todayLeft}%`,
+            background: "var(--c-gold)",
+            opacity: 0.7,
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 function ProjectRow({
   project,
   axisStart,
   axisEnd,
+  ticks,
   colorRegistry,
   expanded,
   onToggle,
@@ -60,6 +134,7 @@ function ProjectRow({
   project: ClientPortfolioProject;
   axisStart: Date;
   axisEnd: Date;
+  ticks: Date[];
   colorRegistry: Map<number, string>;
   expanded: boolean;
   onToggle: () => void;
@@ -69,78 +144,81 @@ function ProjectRow({
   const span = totalMs > 0 ? totalMs : 1;
   const start = project.startDate ? new Date(project.startDate) : null;
   const end = project.endDate ? new Date(project.endDate) : null;
+  const hasTimeline = !!(start && end && end > start);
 
-  const projectLeft = start
-    ? ((start.getTime() - axisStart.getTime()) / span) * 100
-    : 0;
-  const projectWidth = start && end
-    ? Math.max(((end.getTime() - start.getTime()) / span) * 100, 1)
-    : 0;
+  const projectLeft = start ? pct(start, axisStart, span) : 0;
+  const projectWidth =
+    start && end ? Math.max(pct(end, axisStart, span) - projectLeft, 0.5) : 0;
 
-  const rowHeight = density === "spacious" ? "h-16" : "h-12";
-  const segHeight = density === "spacious" ? "h-8" : "h-6";
+  // One lane per company so bars never overlap or occlude each other.
+  const laneH = density === "spacious" ? 26 : 20;
+  const laneGap = 6;
+  const companies = project.companies;
+  const trackHeight = Math.max(
+    companies.length * (laneH + laneGap),
+    laneH + laneGap,
+  );
 
   return (
     <div className="border-t border-line">
-      <div className="grid grid-cols-[280px_1fr] gap-4 items-center py-3">
-        <div className="flex items-start gap-1">
+      <div className="grid grid-cols-[260px_1fr] gap-4 py-3">
+        <div className="flex items-start gap-1.5">
           <button
             type="button"
             onClick={onToggle}
-            className="mt-1 text-ink-3 hover:text-ink rounded p-0.5"
+            className="mt-0.5 text-ink-3 hover:text-ink rounded p-0.5"
             aria-label={expanded ? "Collapse project" : "Expand project"}
           >
-            {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            {expanded ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ChevronRight className="w-4 h-4" />
+            )}
           </button>
           <Link
             href={`/client/portfolio/${project.id}`}
             className="block group flex-1 min-w-0"
           >
-            <div className="flex items-center gap-2 text-xs text-ink-3 uppercase tracking-wider font-semibold">
+            <div className="flex items-center gap-2 text-[11px] text-ink-3 uppercase tracking-wide font-semibold">
               <span>{project.code}</span>
               {statusBadge(project.scheduleStatus)}
             </div>
-            <div className="font-semibold text-lg text-ink group-hover:underline truncate">
+            <div className="font-semibold text-[15px] text-ink group-hover:underline truncate">
               {project.name}
             </div>
             <div className="text-xs text-ink-3 mt-0.5">
-              {start && end
-                ? `${format(start, "MMM yyyy")} – ${format(end, "MMM yyyy")} · ${differenceInDays(end, start)} days · ${project.companies.length} companies`
+              {hasTimeline
+                ? `${format(start!, "MMM yyyy")} – ${format(end!, "MMM yyyy")} · ${project.companies.length} ${project.companies.length === 1 ? "company" : "companies"}`
                 : `${project.milestoneCount} milestone${project.milestoneCount === 1 ? "" : "s"}`}
             </div>
           </Link>
         </div>
 
-        <div className={`relative ${rowHeight}`}>
-          {start && end && projectWidth > 0 ? (
-            <>
-              <div
-                className="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full"
-                style={{
-                  left: `${projectLeft}%`,
-                  width: `${projectWidth}%`,
-                  background: "var(--c-line-2, #d9d5c7)",
-                }}
-              />
-              {project.companies.map((c) => {
+        <div
+          className="relative"
+          style={{ height: hasTimeline ? trackHeight : laneH + laneGap }}
+        >
+          <TimelineGrid ticks={ticks} axisStart={axisStart} span={span} />
+          {hasTimeline ? (
+            companies.length > 0 ? (
+              companies.map((c, idx) => {
                 const entry = new Date(c.entryDate);
                 const exit = new Date(c.exitDate);
-                const left = ((entry.getTime() - axisStart.getTime()) / span) * 100;
-                const width = Math.max(
-                  ((exit.getTime() - entry.getTime()) / span) * 100,
-                  0.6,
-                );
+                const left = pct(entry, axisStart, span);
+                const width = Math.max(pct(exit, axisStart, span) - left, 0.6);
                 const color = colorForCompany(c.companyId, colorRegistry);
                 return (
                   <Tooltip key={c.projectCompanyId}>
                     <TooltipTrigger asChild>
                       <div
-                        className={`absolute top-1/2 -translate-y-1/2 ${segHeight} rounded-sm flex items-center px-1.5 text-[10px] font-semibold text-white truncate cursor-default shadow-sm`}
+                        className="absolute rounded-md flex items-center px-2 text-[11px] font-medium text-white truncate cursor-default"
                         style={{
+                          top: idx * (laneH + laneGap) + laneGap / 2,
+                          height: laneH,
                           left: `${left}%`,
                           width: `${width}%`,
                           background: color,
-                          minWidth: "8px",
+                          minWidth: "10px",
                         }}
                       >
                         <span className="truncate">{c.name}</span>
@@ -148,9 +226,12 @@ function ProjectRow({
                     </TooltipTrigger>
                     <TooltipContent>
                       <div className="font-semibold">{c.name}</div>
-                      <div className="text-xs text-muted-foreground">{c.role}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {c.role}
+                      </div>
                       <div className="text-xs mt-1">
-                        {format(entry, "MMM d, yyyy")} → {format(exit, "MMM d, yyyy")}
+                        {format(entry, "MMM d, yyyy")} →{" "}
+                        {format(exit, "MMM d, yyyy")}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {differenceInDays(exit, entry)} days on project
@@ -158,96 +239,59 @@ function ProjectRow({
                     </TooltipContent>
                   </Tooltip>
                 );
-              })}
-            </>
+              })
+            ) : (
+              <div
+                className="absolute rounded-md bg-surface-3"
+                style={{
+                  top: laneGap / 2,
+                  height: laneH,
+                  left: `${projectLeft}%`,
+                  width: `${projectWidth}%`,
+                  minWidth: "10px",
+                }}
+              />
+            )
           ) : (
             <div className="absolute inset-0 flex items-center text-xs text-ink-4 italic">
-              No milestones scheduled yet
+              No timeline scheduled yet
             </div>
           )}
         </div>
       </div>
 
-      {expanded && start && end && projectWidth > 0 && project.companies.length > 0 && (
-        <div className="pb-4 pl-7 pr-0">
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-ink-3 mb-2 pl-1">
-            Per-company involvement
+      {expanded && hasTimeline && companies.length > 0 && (
+        <div className="pb-4 pl-7">
+          <div className="text-[10px] uppercase tracking-wide font-semibold text-ink-3 mb-2">
+            Contractor involvement
           </div>
-          <div className="space-y-1.5">
-            {project.companies.map((c) => {
+          <div className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
+            {companies.map((c) => {
               const entry = new Date(c.entryDate);
               const exit = new Date(c.exitDate);
-              const left = ((entry.getTime() - axisStart.getTime()) / span) * 100;
-              const width = Math.max(
-                ((exit.getTime() - entry.getTime()) / span) * 100,
-                0.6,
-              );
               const color = colorForCompany(c.companyId, colorRegistry);
               const days = differenceInDays(exit, entry);
               return (
                 <div
                   key={c.projectCompanyId}
-                  className="grid grid-cols-[280px_1fr] gap-4 items-center"
+                  className="flex items-center gap-2.5 min-w-0 rounded-md px-2 py-1.5 hover:bg-surface-2"
                 >
-                  <div className="flex items-center gap-2 min-w-0 pl-1">
-                    <span
-                      className="h-3 w-3 rounded-sm shrink-0"
-                      style={{ background: color }}
-                    />
-                    <div className="min-w-0">
-                      <div className="text-sm text-ink truncate">{c.name}</div>
-                      <div className="text-[11px] text-ink-3 truncate">
-                        {c.role} · {days} days
-                      </div>
+                  <span
+                    className="h-2.5 w-2.5 rounded-sm shrink-0"
+                    style={{ background: color }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] text-ink truncate">
+                      {c.name}
                     </div>
+                    <div className="text-[11px] text-ink-3">{c.role}</div>
                   </div>
-                  <div className="relative h-12">
-                    <div
-                      className="absolute top-1/2 -translate-y-1/2 h-0.5"
-                      style={{
-                        left: `${projectLeft}%`,
-                        width: `${projectWidth}%`,
-                        background: "var(--c-line-2, #d9d5c7)",
-                      }}
-                    />
-                    <div
-                      className="absolute top-1/2 -translate-y-1/2 h-5 rounded-sm shadow-sm"
-                      style={{
-                        left: `${left}%`,
-                        width: `${width}%`,
-                        background: color,
-                        minWidth: "6px",
-                      }}
-                    />
-                    <div
-                      className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white shadow"
-                      style={{
-                        left: `calc(${left}% - 6px)`,
-                        background: color,
-                      }}
-                      title={`Entry: ${format(entry, "MMM d, yyyy")}`}
-                    />
-                    <div
-                      className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white shadow"
-                      style={{
-                        left: `calc(${left + width}% - 6px)`,
-                        background: color,
-                      }}
-                      title={`Exit: ${format(exit, "MMM d, yyyy")}`}
-                    />
-                    <div
-                      className="absolute top-0 text-[11px] font-semibold text-ink whitespace-nowrap px-1.5 py-0.5 rounded bg-background/95 border border-line shadow-sm"
-                      style={{ left: `calc(${left}% - 4px)`, transform: "translateX(-100%)" }}
-                    >
-                      <span className="text-ink-3 mr-1">In</span>
-                      {format(entry, "MMM d, yyyy")}
+                  <div className="text-right shrink-0">
+                    <div className="text-[12px] text-ink-2 tabular-nums">
+                      {format(entry, "MMM d")} – {format(exit, "MMM d, yyyy")}
                     </div>
-                    <div
-                      className="absolute bottom-0 text-[11px] font-semibold text-ink whitespace-nowrap px-1.5 py-0.5 rounded bg-background/95 border border-line shadow-sm"
-                      style={{ left: `calc(${left + width}% + 4px)` }}
-                    >
-                      <span className="text-ink-3 mr-1">Out</span>
-                      {format(exit, "MMM d, yyyy")}
+                    <div className="text-[11px] text-ink-4 tabular-nums">
+                      {days} days
                     </div>
                   </div>
                 </div>
@@ -260,45 +304,44 @@ function ProjectRow({
   );
 }
 
-function TimeAxis({ start, end }: { start: Date; end: Date }) {
-  const ticks = useMemo(() => {
-    const result: Date[] = [];
-    const totalMs = end.getTime() - start.getTime();
-    if (totalMs <= 0) return result;
-    const months = Math.max(
-      1,
-      (end.getFullYear() - start.getFullYear()) * 12 +
-        (end.getMonth() - start.getMonth()),
-    );
-    const step = months <= 12 ? 1 : months <= 36 ? 3 : 6;
-    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-    while (cursor <= end) {
-      result.push(new Date(cursor));
-      cursor.setMonth(cursor.getMonth() + step);
-    }
-    return result;
-  }, [start, end]);
-
+function TimeAxis({
+  start,
+  end,
+  ticks,
+}: {
+  start: Date;
+  end: Date;
+  ticks: Date[];
+}) {
   const span = end.getTime() - start.getTime() || 1;
+  const todayLeft = pct(new Date(), start, span);
 
   return (
-    <div className="grid grid-cols-[280px_1fr] gap-4 sticky top-0 bg-background z-10 pt-2 pb-2 border-b border-line">
-      <div className="text-[10px] uppercase tracking-wider font-semibold text-ink-3">
+    <div className="grid grid-cols-[260px_1fr] gap-4 sticky top-0 bg-surface z-10 pt-1 pb-2 border-b border-line">
+      <div className="text-[10px] uppercase tracking-wide font-semibold text-ink-3 self-end">
         Project
       </div>
       <div className="relative h-5">
         {ticks.map((t, i) => {
-          const left = ((t.getTime() - start.getTime()) / span) * 100;
+          const left = pct(t, start, span);
           return (
             <div
               key={i}
-              className="absolute top-0 -translate-x-1/2 text-[10px] uppercase tracking-wider text-ink-3 font-semibold"
+              className="absolute bottom-0 -translate-x-1/2 text-[10px] uppercase tracking-wide text-ink-4 font-semibold tabular-nums"
               style={{ left: `${Math.max(0, Math.min(left, 100))}%` }}
             >
               {format(t, "MMM ''yy")}
             </div>
           );
         })}
+        {todayLeft >= 0 && todayLeft <= 100 && (
+          <div
+            className="absolute -top-1 -translate-x-1/2 text-[9px] font-semibold uppercase tracking-wide"
+            style={{ left: `${todayLeft}%`, color: "var(--c-gold)" }}
+          >
+            Today
+          </div>
+        )}
       </div>
     </div>
   );
@@ -354,7 +397,10 @@ export default function ClientPortfolio() {
     const now = Date.now();
     const start = new Date(min ?? now);
     const end = new Date(max ?? now);
-    const pad = Math.max((end.getTime() - start.getTime()) * 0.03, 1000 * 60 * 60 * 24 * 7);
+    const pad = Math.max(
+      (end.getTime() - start.getTime()) * 0.03,
+      1000 * 60 * 60 * 24 * 7,
+    );
     const legendList = Array.from(companies.entries()).map(([id, name]) => ({
       id,
       name,
@@ -367,7 +413,14 @@ export default function ClientPortfolio() {
     };
   }, [data, colorRegistry]);
 
-  const containerClass = wide ? "p-6 w-full space-y-6" : "p-6 max-w-7xl mx-auto space-y-6";
+  const ticks = useMemo(
+    () => computeTicks(axisStart, axisEnd),
+    [axisStart, axisEnd],
+  );
+
+  const containerClass = wide
+    ? "p-6 w-full space-y-6"
+    : "p-6 max-w-7xl mx-auto space-y-6";
   const density: "comfortable" | "spacious" = wide ? "spacious" : "comfortable";
 
   if (isLoading) {
@@ -379,7 +432,9 @@ export default function ClientPortfolio() {
     );
   }
   if (isError || !data) {
-    return <div className="p-6 text-destructive">Failed to load portfolio.</div>;
+    return (
+      <div className="p-6 text-destructive">Failed to load portfolio.</div>
+    );
   }
 
   const anyExpanded = expandedIds.size > 0;
@@ -394,7 +449,8 @@ export default function ClientPortfolio() {
             Portfolio
           </h1>
           <p className="text-muted-foreground mt-1">
-            Every project across your portfolio on one timeline — who's on each project, when they came in, and when they wrap.
+            Every project across your portfolio on one timeline — who's on each
+            project, when they came in, and when they wrap.
           </p>
         </div>
         {data.length > 0 && (
@@ -441,7 +497,7 @@ export default function ClientPortfolio() {
         </Card>
       ) : (
         <Card className="p-4 shadow-sm overflow-x-auto">
-          <TimeAxis start={axisStart} end={axisEnd} />
+          <TimeAxis start={axisStart} end={axisEnd} ticks={ticks} />
           <div>
             {data.map((p) => (
               <ProjectRow
@@ -449,6 +505,7 @@ export default function ClientPortfolio() {
                 project={p}
                 axisStart={axisStart}
                 axisEnd={axisEnd}
+                ticks={ticks}
                 colorRegistry={colorRegistry}
                 expanded={expandedIds.has(p.id)}
                 onToggle={() => toggleRow(p.id)}
